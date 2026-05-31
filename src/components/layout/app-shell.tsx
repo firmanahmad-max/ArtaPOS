@@ -10,6 +10,7 @@ import { can } from "@/lib/rbac";
 import { ROLE_LABELS } from "@/lib/rbac";
 import { cn } from "@/lib/utils";
 import { useOnlineStatus } from "@/hooks/use-online-status";
+import { APP_NAME } from "@/lib/brand";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { logoutAction } from "@/server/auth/actions";
@@ -44,7 +45,7 @@ export function AppShell({
         </div>
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold">{user.storeName}</p>
-          <p className="text-xs text-muted-foreground">Toko Komputer</p>
+          <p className="text-xs text-muted-foreground">{APP_NAME}</p>
         </div>
       </div>
 

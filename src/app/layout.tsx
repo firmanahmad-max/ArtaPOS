@@ -3,16 +3,16 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ServiceWorkerRegistrar } from "@/components/pwa/sw-registrar";
+import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: { default: "Toko Komputer", template: "%s · Toko Komputer" },
-  description:
-    "Aplikasi manajemen toko komputer: penjualan, inventory, servis, rakit PC, keuangan.",
+  title: { default: `${APP_NAME} — ${APP_TAGLINE}`, template: `%s · ${APP_NAME}` },
+  description: `${APP_NAME}: aplikasi manajemen toko komputer — penjualan, inventory, servis, rakit PC, keuangan. ${APP_TAGLINE}.`,
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "Toko Komputer", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: APP_NAME, statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {

@@ -23,8 +23,8 @@ export function LoginForm() {
         <div className="mb-2 flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
           <Store className="size-6" />
         </div>
-        <CardTitle className="text-xl">Masuk ke Toko Komputer</CardTitle>
-        <CardDescription>Gunakan akun yang terdaftar</CardDescription>
+        <CardTitle className="text-xl">Masuk ke Arta</CardTitle>
+        <CardDescription>Dibangun untuk Toko Komputer Indonesia</CardDescription>
       </CardHeader>
       <CardContent>
         <form action={action} className="flex flex-col gap-4">

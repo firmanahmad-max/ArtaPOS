@@ -1,6 +1,9 @@
 @AGENTS.md
 
-# Aplikasi Manajemen Toko Komputer
+# Arta — Dibangun untuk Toko Komputer Indonesia
+
+Nama produk/brand aplikasi = **Arta** (konstanta di `src/lib/brand.ts`: `APP_NAME`, `APP_TAGLINE`).
+Brand ini BERBEDA dari nama toko (tenant) milik pengguna yang dinamis.
 
 Aplikasi manajemen toko komputer: POS/penjualan, pembelian, inventory, utang/piutang,
 jasa servis, rakit PC, laporan keuangan. **Multi-tenant** (siap jadi SaaS), **offline-first**,

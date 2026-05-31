@@ -1,7 +1,7 @@
 {
-  "name": "Toko Komputer",
-  "short_name": "TokoKomputer",
-  "description": "Aplikasi manajemen toko komputer: penjualan, inventory, servis, rakit PC, keuangan.",
+  "name": "Arta — Dibangun untuk Toko Komputer Indonesia",
+  "short_name": "Arta",
+  "description": "Arta: aplikasi manajemen toko komputer — penjualan, inventory, servis, rakit PC, keuangan.",
   "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
