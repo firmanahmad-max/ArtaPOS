@@ -106,6 +106,13 @@ export function AppShell({
             Keluar
           </Button>
         </form>
+        <Link
+          href="/about"
+          onClick={() => setMobileOpen(false)}
+          className="mt-2 block text-center text-xs text-muted-foreground hover:text-foreground hover:underline"
+        >
+          Tentang {APP_NAME}
+        </Link>
       </div>
     </div>
   );

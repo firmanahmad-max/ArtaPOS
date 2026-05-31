@@ -92,6 +92,7 @@ kirim laporan ke WhatsApp, lisensi/demo.
 - ✅ **Retur Penjualan Sebagian** — `SaleItem.returnedQty` + model `SaleReturn`/`SaleReturnItem`; `createReturn` di pos service (validasi sisa, restock + movement RETURN_IN, nomor `RTN-xxxxx`, refundAmount); UI ReturnForm + riwayat retur di detail penjualan (izin inventory.manage).
 - ✅ **Diskon per item** (POS) — `SaleItem.discount`; createSale hitung net per baris; input diskon tiap baris keranjang. ✅ **Tahan/Park Transaksi** — client-side localStorage (`pos_held_v1`) di PosTerminal (park/restore/hapus), tanpa skema.
 - ✅ **Foto Kondisi Servis** — model `ServicePhoto` (dataUrl JPEG terkompres di DB); upload di-resize+kompres di browser (canvas, maks 1000px, JPEG 0.7) di `src/app/(dashboard)/service/photos.tsx`; `addServicePhoto`/`removeServicePhoto` + actions (service.manage, validasi `data:image/`, cap ~900KB); galeri di detail tiket. Terverifikasi (foto tersimpan utk SV-00001).
+- ✅ **Halaman Tentang** — `/about` (rute publik via proxy OPEN_ROUTES) konten brand Arta + fitur + kredit (Max Computer maxcomputer.id, dev Firman Ahmad @boysnocry, firmanahmad.id); konstanta di `src/lib/brand.ts` (APP_PUBLISHER/DEVELOPER...). Tautan "Tentang Arta" di footer sidebar & layout auth.
 - 🔜 Belum dikerjakan (opsional, lebih besar): multi-gudang (invasif—sentuh semua logika stok); laporan WhatsApp terjadwal (butuh cron/scheduler); kas/bank detail; gateway WA berbayar; engine offline RxDB penuh.
 
 ## Catatan lingkungan (dev lokal)
