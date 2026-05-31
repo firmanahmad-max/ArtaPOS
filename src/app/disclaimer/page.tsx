@@ -193,8 +193,10 @@ export default function DisclaimerPage() {
           bertanggung jawab atas penggunaan aplikasi dan pengelolaan data bisnisnya masing-masing.
         </blockquote>
 
-        <div className="flex justify-center gap-4 border-t pt-6 text-sm">
+        <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 border-t pt-6 text-sm">
           <Link href="/about" className="text-primary hover:underline">Tentang {APP_NAME}</Link>
+          <Link href="/privacy" className="text-primary hover:underline">Kebijakan Privasi</Link>
+          <Link href="/terms" className="text-primary hover:underline">Syarat & Ketentuan</Link>
         </div>
       </main>
     </div>

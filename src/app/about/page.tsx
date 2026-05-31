@@ -135,8 +135,10 @@ export default function AboutPage() {
               {APP_DEVELOPER_PORTFOLIO.replace(/^https?:\/\//, "")}
             </a>
           </p>
-          <p className="pt-2">
-            <Link href="/disclaimer" className="text-primary hover:underline">Disclaimer & Ketentuan Penggunaan</Link>
+          <p className="flex flex-wrap justify-center gap-x-4 gap-y-1 pt-2">
+            <Link href="/disclaimer" className="text-primary hover:underline">Disclaimer</Link>
+            <Link href="/privacy" className="text-primary hover:underline">Kebijakan Privasi</Link>
+            <Link href="/terms" className="text-primary hover:underline">Syarat & Ketentuan</Link>
           </p>
         </section>
       </main>
