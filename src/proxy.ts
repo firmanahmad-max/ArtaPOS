@@ -10,7 +10,7 @@ import { decryptSession, SESSION_COOKIE } from "@/lib/auth/session";
 // Rute publik (auth) — boleh tanpa login; user yg sudah login dialihkan ke dashboard.
 const PUBLIC_ROUTES = ["/login", "/setup"];
 // Rute terbuka — selalu bisa diakses siapa pun (lacak servis, halaman Tentang).
-const OPEN_ROUTES = ["/lacak", "/about"];
+const OPEN_ROUTES = ["/lacak", "/about", "/disclaimer"];
 
 export default async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;

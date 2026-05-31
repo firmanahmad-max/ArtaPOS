@@ -11,12 +11,11 @@ export default function AuthLayout({
         <ThemeToggle />
       </div>
       <div className="w-full max-w-md">{children}</div>
-      <Link
-        href="/about"
-        className="mt-6 text-center text-xs text-muted-foreground hover:text-foreground hover:underline"
-      >
-        Tentang {APP_NAME}
-      </Link>
+      <div className="mt-6 flex items-center gap-3 text-xs text-muted-foreground">
+        <Link href="/about" className="hover:text-foreground hover:underline">Tentang {APP_NAME}</Link>
+        <span>·</span>
+        <Link href="/disclaimer" className="hover:text-foreground hover:underline">Disclaimer</Link>
+      </div>
     </div>
   );
 }

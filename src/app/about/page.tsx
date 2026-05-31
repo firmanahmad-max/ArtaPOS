@@ -135,6 +135,9 @@ export default function AboutPage() {
               {APP_DEVELOPER_PORTFOLIO.replace(/^https?:\/\//, "")}
             </a>
           </p>
+          <p className="pt-2">
+            <Link href="/disclaimer" className="text-primary hover:underline">Disclaimer & Ketentuan Penggunaan</Link>
+          </p>
         </section>
       </main>
     </div>
