@@ -1,0 +1,742 @@
+// Prisma schema — Aplikasi Manajemen Toko Komputer
+// Arsitektur: multi-tenant (shared DB, tenantId di setiap tabel bisnis).
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  // Prisma 7: connection string TIDAK lagi di schema.
+  // - Migrate (CLI) membaca URL dari prisma.config.ts (pakai DIRECT_URL).
+  // - Runtime PrismaClient pakai driver adapter @prisma/adapter-pg (pakai DATABASE_URL/pooled).
+  // Pindah ke Supabase cukup ganti DATABASE_URL & DIRECT_URL di .env — nol refactor kode.
+  provider = "postgresql"
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Enums
+// ──────────────────────────────────────────────────────────────────────────
+
+/// Peran pengguna dalam satu toko (tenant).
+enum UserRole {
+  OWNER // pemilik — akses penuh termasuk pengaturan & lisensi
+  ADMIN // admin/manajer — operasional penuh kecuali hal sensitif
+  KASIR // kasir — penjualan/POS
+  TEKNISI // teknisi — jasa servis & rakit PC
+}
+
+/// Jenis paket lisensi/demo per tenant.
+enum LicensePlan {
+  DEMO_DAILY // demo dibatasi per hari (mis. reset / kedaluwarsa harian)
+  DEMO_MONTHLY // demo dibatasi per bulan
+  DEMO_TRANSACTIONS // demo dibatasi jumlah transaksi total
+  UNLIMITED // pemakaian penuh tanpa batas
+}
+
+/// Status lisensi.
+enum LicenseStatus {
+  ACTIVE
+  EXPIRED
+  SUSPENDED
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Core multi-tenant + lisensi (Fase 0/1)
+// ──────────────────────────────────────────────────────────────────────────
+
+/// Tenant = satu toko. Semua data bisnis akan terhubung ke sini via tenantId.
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique // dipakai untuk subdomain/path saat mode SaaS
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users   User[]
+  license License?
+
+  // Data bisnis (Fase 2+)
+  categories     Category[]
+  units          Unit[]
+  suppliers      Supplier[]
+  customers      Customer[]
+  products       Product[]
+  stockMovements StockMovement[]
+  stockOpnames   StockOpname[]
+  sales          Sale[]
+  shifts         CashierShift[]
+  purchases      Purchase[]
+  serviceTickets ServiceTicket[]
+  pcBuilds       PcBuild[]
+  expenses       Expense[]
+  warrantyUnits  WarrantyUnit[]
+
+  @@map("tenants")
+}
+
+/// Pengguna aplikasi. Email unik per tenant (bukan global) agar siap multi-tenant.
+model User {
+  id           String   @id @default(cuid())
+  tenantId     String
+  email        String
+  name         String
+  passwordHash String
+  role         UserRole @default(KASIR)
+  isActive     Boolean  @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@map("users")
+}
+
+/// Lisensi/demo per tenant (relasi 1-1).
+model License {
+  id              String        @id @default(cuid())
+  tenantId        String        @unique
+  plan            LicensePlan   @default(DEMO_MONTHLY)
+  status          LicenseStatus @default(ACTIVE)
+  /// Batas jumlah transaksi (untuk plan DEMO_TRANSACTIONS). null = tidak dibatasi jumlah.
+  maxTransactions Int?
+  /// Pemakaian transaksi terhitung (untuk enforcement).
+  transactionsUsed Int          @default(0)
+  /// Kedaluwarsa (untuk plan harian/bulanan). null = tidak kedaluwarsa.
+  validUntil      DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("licenses")
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Master data & Inventory (Fase 2)
+// Catatan harga: semua harga disimpan sebagai Int dalam RUPIAH penuh
+// (tanpa desimal) — eksak, sesuai praktik POS Indonesia.
+// ──────────────────────────────────────────────────────────────────────────
+
+/// Kategori produk (mis. Laptop, Komponen, Aksesoris).
+model Category {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  products Product[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("categories")
+}
+
+/// Satuan barang (mis. Pcs, Unit, Set, Meter).
+model Unit {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  symbol    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  products Product[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("units")
+}
+
+/// Pemasok / supplier.
+model Supplier {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("suppliers")
+}
+
+/// Pelanggan.
+model Customer {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  points    Int      @default(0) // saldo poin loyalitas
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pointEntries PointEntry[]
+
+  @@index([tenantId])
+  @@map("customers")
+}
+
+enum PointEntryType {
+  EARN // poin dari belanja
+  REDEEM // poin ditukar
+  ADJUST // penyesuaian manual
+}
+
+/// Riwayat mutasi poin pelanggan. `points` bertanda (+/-).
+model PointEntry {
+  id         String         @id @default(cuid())
+  tenantId   String
+  customerId String
+  points     Int
+  type       PointEntryType
+  note       String?
+  saleId     String?
+  createdAt  DateTime       @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([customerId])
+  @@map("point_entries")
+}
+
+/// Produk / barang. `stock` adalah cache stok terkini (sumber kebenaran =
+/// akumulasi StockMovement). Diupdate transaksional bersama tiap mutasi.
+model Product {
+  id         String   @id @default(cuid())
+  tenantId   String
+  sku        String // kode internal, unik per tenant
+  barcode    String? // EAN/UPC/QR — unik per tenant bila diisi
+  name       String
+  categoryId String?
+  unitId     String?
+  costPrice  Int      @default(0) // harga modal (rupiah)
+  sellPrice  Int      @default(0) // harga jual (rupiah)
+  stock      Int      @default(0) // stok terkini (cache)
+  minStock   Int      @default(0) // ambang stok minimum (alert)
+  warrantyMonths Int  @default(0) // garansi default produk (bulan)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant    Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category  Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  unit      Unit?           @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  movements StockMovement[]
+
+  @@unique([tenantId, sku])
+  @@unique([tenantId, barcode])
+  @@index([tenantId])
+  @@index([tenantId, name])
+  @@map("products")
+}
+
+/// Jenis mutasi stok.
+enum StockMovementType {
+  INITIAL // stok awal saat produk dibuat
+  PURCHASE // pembelian masuk
+  SALE // penjualan keluar
+  ADJUSTMENT // penyesuaian manual
+  OPNAME // hasil stok opname
+  RETURN_IN // retur dari pelanggan (masuk)
+  RETURN_OUT // retur ke supplier (keluar)
+  SERVICE_OUT // sparepart terpakai di servis (keluar)
+  BUILD_OUT // komponen terpakai di rakit PC (keluar)
+}
+
+/// Riwayat mutasi stok. `qty` bertanda: positif = masuk, negatif = keluar.
+model StockMovement {
+  id          String            @id @default(cuid())
+  tenantId    String
+  productId   String
+  type        StockMovementType
+  qty         Int // signed
+  stockAfter  Int // snapshot stok setelah mutasi (audit)
+  note        String?
+  createdById String? // id user pelaku (audit)
+  createdAt   DateTime          @default(now())
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, productId])
+  @@index([productId, createdAt])
+  @@map("stock_movements")
+}
+
+/// Status sesi stok opname.
+enum OpnameStatus {
+  DRAFT // sedang dihitung
+  COMPLETED // sudah diterapkan ke stok
+  CANCELLED
+}
+
+/// Sesi stok opname (penghitungan fisik).
+model StockOpname {
+  id          String       @id @default(cuid())
+  tenantId    String
+  status      OpnameStatus @default(DRAFT)
+  note        String?
+  createdById String?
+  createdAt   DateTime     @default(now())
+  completedAt DateTime?
+
+  tenant Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items  StockOpnameItem[]
+
+  @@index([tenantId])
+  @@map("stock_opnames")
+}
+
+/// Baris item pada sesi opname. productName = snapshot nama saat opname dibuat.
+model StockOpnameItem {
+  id          String @id @default(cuid())
+  opnameId    String
+  productId   String
+  productName String
+  systemQty   Int // stok sistem saat opname dibuat (snapshot)
+  countedQty  Int // hasil hitung fisik
+
+  opname StockOpname @relation(fields: [opnameId], references: [id], onDelete: Cascade)
+
+  @@index([opnameId])
+  @@map("stock_opname_items")
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Penjualan / POS (Fase 3)
+// ──────────────────────────────────────────────────────────────────────────
+
+enum SaleStatus {
+  COMPLETED
+  VOID // dibatalkan (stok dikembalikan)
+}
+
+enum PaymentMethod {
+  CASH // tunai
+  TRANSFER // transfer bank
+  QRIS
+  CREDIT // kredit / tempo (menimbulkan piutang)
+}
+
+/// Transaksi penjualan (1 struk). Nomor invoice unik per tenant.
+model Sale {
+  id            String        @id @default(cuid())
+  tenantId      String
+  number        String // nomor invoice (mis. INV-20260530-00001)
+  status        SaleStatus    @default(COMPLETED)
+  customerId    String? // opsional (null = walk-in)
+  customerName  String? // snapshot nama pelanggan
+  subtotal      Int // jumlah seluruh item sebelum diskon
+  discount      Int           @default(0) // diskon tingkat transaksi (rupiah)
+  total         Int // subtotal - discount
+  paymentMethod PaymentMethod @default(CASH)
+  paymentStatus PaymentStatus @default(PAID) // PAID utk tunai/transfer; kredit → UNPAID/PARTIAL
+  paid          Int           @default(0) // jumlah dibayar/diterima (DP utk kredit)
+  change        Int           @default(0) // kembalian (tunai)
+  dueDate       DateTime? // jatuh tempo piutang (penjualan kredit)
+  cashierId     String?
+  cashierName   String?
+  shiftId       String?
+  note          String?
+  createdAt     DateTime      @default(now())
+
+  tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items    SaleItem[]
+  payments SalePayment[]
+  returns  SaleReturn[]
+  shift    CashierShift? @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, number])
+  @@index([tenantId])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, paymentStatus])
+  @@index([shiftId])
+  @@map("sales")
+}
+
+/// Pembayaran piutang penjualan kredit (DP & cicilan).
+model SalePayment {
+  id          String   @id @default(cuid())
+  tenantId    String
+  saleId      String
+  amount      Int
+  note        String?
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([saleId])
+  @@map("sale_payments")
+}
+
+/// Baris item pada struk. Nama/harga di-snapshot saat transaksi.
+model SaleItem {
+  id          String @id @default(cuid())
+  saleId      String
+  productId   String
+  productName String // snapshot
+  sku         String?
+  qty         Int
+  price       Int // harga jual satuan saat transaksi
+  costPrice   Int    @default(0) // snapshot modal (untuk laba)
+  discount    Int    @default(0) // diskon baris (rupiah)
+  subtotal    Int // qty * price - discount
+  returnedQty Int    @default(0) // akumulasi qty yang sudah diretur
+
+  sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@index([saleId])
+  @@index([productId])
+  @@map("sale_items")
+}
+
+/// Retur penjualan (sebagian/seluruh item). Mengembalikan stok + catat refund.
+model SaleReturn {
+  id           String           @id @default(cuid())
+  tenantId     String
+  saleId       String
+  number       String // RTN-00001
+  refundAmount Int
+  note         String?
+  createdById  String?
+  createdAt    DateTime         @default(now())
+
+  sale  Sale             @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  items SaleReturnItem[]
+
+  @@unique([tenantId, number])
+  @@index([tenantId])
+  @@index([saleId])
+  @@map("sale_returns")
+}
+
+model SaleReturnItem {
+  id          String @id @default(cuid())
+  returnId    String
+  productId   String
+  productName String
+  qty         Int
+  price       Int
+  subtotal    Int
+
+  saleReturn SaleReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+
+  @@index([returnId])
+  @@map("sale_return_items")
+}
+
+enum ShiftStatus {
+  OPEN
+  CLOSED
+}
+
+/// Shift kasir: buka kas → transaksi → tutup kas (rekonsiliasi tunai).
+model CashierShift {
+  id           String      @id @default(cuid())
+  tenantId     String
+  userId       String
+  userName     String
+  status       ShiftStatus @default(OPEN)
+  openingCash  Int         @default(0) // modal kas awal di laci
+  closingCash  Int? // kas tunai dihitung saat tutup
+  expectedCash Int? // openingCash + penjualan tunai
+  difference   Int? // closingCash - expectedCash (selisih)
+  note         String?
+  openedAt     DateTime    @default(now())
+  closedAt     DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sales  Sale[]
+
+  @@index([tenantId])
+  @@index([tenantId, userId, status])
+  @@map("cashier_shifts")
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Pembelian & Utang (Fase 4)
+// ──────────────────────────────────────────────────────────────────────────
+
+enum PaymentStatus {
+  UNPAID // belum dibayar
+  PARTIAL // sebagian
+  PAID // lunas
+}
+
+/// Pembelian (barang masuk dari supplier). Outstanding = total - paidAmount = utang.
+model Purchase {
+  id            String        @id @default(cuid())
+  tenantId      String
+  number        String // mis. PB-00001
+  supplierId    String?
+  supplierName  String? // snapshot
+  subtotal      Int
+  total         Int
+  paidAmount    Int           @default(0)
+  paymentStatus PaymentStatus @default(UNPAID)
+  dueDate       DateTime? // jatuh tempo utang
+  note          String?
+  createdById   String?
+  createdByName String?
+  createdAt     DateTime      @default(now())
+
+  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items    PurchaseItem[]
+  payments PurchasePayment[]
+
+  @@unique([tenantId, number])
+  @@index([tenantId])
+  @@index([tenantId, paymentStatus])
+  @@map("purchases")
+}
+
+model PurchaseItem {
+  id          String @id @default(cuid())
+  purchaseId  String
+  productId   String
+  productName String // snapshot
+  qty         Int
+  costPrice   Int // harga beli satuan
+  subtotal    Int // qty * costPrice
+
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseId])
+  @@map("purchase_items")
+}
+
+/// Pembayaran utang ke supplier (cicilan/pelunasan).
+model PurchasePayment {
+  id          String   @id @default(cuid())
+  tenantId    String
+  purchaseId  String
+  amount      Int
+  note        String?
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([purchaseId])
+  @@map("purchase_payments")
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Jasa Servis (Fase 5)
+// ──────────────────────────────────────────────────────────────────────────
+
+enum ServiceStatus {
+  RECEIVED // diterima
+  IN_PROGRESS // dikerjakan
+  WAITING_PARTS // tunggu sparepart
+  DONE // selesai (siap diambil)
+  DELIVERED // diserahkan ke pelanggan
+  CANCELLED // batal
+}
+
+/// Tiket servis. total = laborCost + partsCost. Outstanding = total - paid.
+model ServiceTicket {
+  id             String        @id @default(cuid())
+  tenantId       String
+  number         String // SV-00001
+  customerId     String?
+  customerName   String?
+  customerPhone  String?
+  deviceType     String // mis. Laptop, PC, Printer
+  deviceBrand    String?
+  deviceInfo     String? // model / no seri
+  complaint      String // keluhan
+  diagnosis      String?
+  status         ServiceStatus @default(RECEIVED)
+  technicianId   String?
+  technicianName String?
+  laborCost      Int           @default(0) // biaya jasa
+  partsCost      Int           @default(0) // akumulasi sparepart
+  total          Int           @default(0) // laborCost + partsCost
+  paid           Int           @default(0)
+  paymentStatus  PaymentStatus @default(UNPAID)
+  note           String?
+  createdById    String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  completedAt    DateTime?
+
+  tenant Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items  ServiceItem[]
+  photos ServicePhoto[]
+
+  @@unique([tenantId, number])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@map("service_tickets")
+}
+
+/// Foto kondisi perangkat servis (disimpan sebagai data URL terkompres).
+model ServicePhoto {
+  id          String   @id @default(cuid())
+  ticketId    String
+  dataUrl     String // data:image/jpeg;base64,… (sudah di-resize di browser)
+  caption     String?
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  ticket ServiceTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@map("service_photos")
+}
+
+/// Baris pada tiket servis: sparepart (productId terisi) atau jasa/lainnya.
+model ServiceItem {
+  id          String  @id @default(cuid())
+  ticketId    String
+  productId   String? // null = baris jasa/non-stok
+  name        String // snapshot nama
+  qty         Int     @default(1)
+  price       Int // harga satuan
+  subtotal    Int // qty * price
+  isPart      Boolean @default(false) // true = sparepart (mengurangi stok)
+
+  ticket ServiceTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@map("service_items")
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Rakit PC (Fase 5)
+// ──────────────────────────────────────────────────────────────────────────
+
+enum BuildStatus {
+  DRAFT // perencanaan
+  ASSEMBLING // sedang dirakit
+  DONE // selesai dirakit
+  DELIVERED // diserahkan
+  CANCELLED
+}
+
+/// Rakitan PC. total = componentsCost + buildFee. Komponen memotong stok.
+model PcBuild {
+  id             String        @id @default(cuid())
+  tenantId       String
+  number         String // RKT-00001
+  name           String // nama rakitan, mis. "PC Gaming Budi"
+  customerId     String?
+  customerName   String?
+  status         BuildStatus   @default(DRAFT)
+  buildFee       Int           @default(0) // jasa rakit
+  componentsCost Int           @default(0)
+  total          Int           @default(0)
+  paid           Int           @default(0)
+  paymentStatus  PaymentStatus @default(UNPAID)
+  note           String?
+  createdById    String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  completedAt    DateTime?
+
+  tenant Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items  PcBuildItem[]
+
+  @@unique([tenantId, number])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@map("pc_builds")
+}
+
+model PcBuildItem {
+  id          String @id @default(cuid())
+  buildId     String
+  productId   String
+  productName String
+  qty         Int    @default(1)
+  price       Int
+  subtotal    Int
+
+  build PcBuild @relation(fields: [buildId], references: [id], onDelete: Cascade)
+
+  @@index([buildId])
+  @@map("pc_build_items")
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Keuangan (Fase 6)
+// ──────────────────────────────────────────────────────────────────────────
+
+/// Pengeluaran/biaya operasional toko (sewa, listrik, gaji, dll).
+model Expense {
+  id          String   @id @default(cuid())
+  tenantId    String
+  category    String // mis. Sewa, Listrik, Gaji, Operasional, Lainnya
+  description String?
+  amount      Int
+  date        DateTime @default(now())
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, date])
+  @@map("expenses")
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Garansi & Nomor Seri (fitur tambahan)
+// ──────────────────────────────────────────────────────────────────────────
+
+enum WarrantyStatus {
+  ACTIVE // garansi tercatat (kedaluwarsa dihitung dari warrantyUntil)
+  CLAIMED // pernah diklaim
+  VOID // dibatalkan
+}
+
+/// Satu unit barang ber-nomor seri yang dijual + masa garansinya.
+model WarrantyUnit {
+  id             String         @id @default(cuid())
+  tenantId       String
+  productId      String?
+  productName    String // snapshot
+  serialNumber   String
+  saleId         String?
+  saleNumber     String?
+  customerId     String?
+  customerName   String?
+  soldAt         DateTime       @default(now())
+  warrantyMonths Int            @default(0)
+  warrantyUntil  DateTime? // null = tanpa garansi
+  status         WarrantyStatus @default(ACTIVE)
+  note           String?
+  createdById    String?
+  createdAt      DateTime       @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, serialNumber])
+  @@index([tenantId])
+  @@index([tenantId, customerName])
+  @@map("warranty_units")
+}

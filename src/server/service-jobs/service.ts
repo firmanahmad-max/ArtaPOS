@@ -1,0 +1,257 @@
+import "server-only";
+import { db } from "@/lib/db";
+import type { Prisma } from "@/generated/prisma/client";
+import type { ServiceStatus } from "@/generated/prisma/enums";
+import type { ServiceTicketInput } from "@/lib/validations/service";
+
+/** Service Jasa Servis — ter-scope tenantId, mutasi stok transaksional. */
+
+export function listProductsForService(tenantId: string) {
+  return db.product.findMany({
+    where: { tenantId, isActive: true },
+    select: { id: true, name: true, sku: true, sellPrice: true, stock: true },
+    orderBy: { name: "asc" },
+    take: 500,
+  });
+}
+
+export function listTickets(tenantId: string) {
+  return db.serviceTicket.findMany({
+    where: { tenantId },
+    orderBy: { createdAt: "desc" },
+    take: 200,
+  });
+}
+
+export function getTicket(tenantId: string, id: string) {
+  return db.serviceTicket.findFirst({
+    where: { id, tenantId },
+    include: {
+      items: { orderBy: { id: "asc" } },
+      photos: { orderBy: { createdAt: "asc" }, select: { id: true, dataUrl: true, caption: true, createdAt: true } },
+    },
+  });
+}
+
+const MAX_PHOTO_CHARS = 1_200_000; // ~900 KB
+
+export async function addServicePhoto(
+  tenantId: string,
+  userId: string,
+  ticketId: string,
+  dataUrl: string,
+  caption?: string,
+) {
+  await ensureTicket(tenantId, ticketId);
+  if (!dataUrl.startsWith("data:image/")) throw new Error("File bukan gambar.");
+  if (dataUrl.length > MAX_PHOTO_CHARS) throw new Error("Foto terlalu besar. Coba foto lebih kecil.");
+  return db.servicePhoto.create({
+    data: { ticketId, dataUrl, caption: caption || null, createdById: userId },
+  });
+}
+
+export async function removeServicePhoto(tenantId: string, ticketId: string, photoId: string) {
+  await ensureTicket(tenantId, ticketId);
+  return db.servicePhoto.deleteMany({ where: { id: photoId, ticketId } });
+}
+
+export async function createTicket(
+  tenantId: string,
+  user: { id: string; name: string },
+  input: ServiceTicketInput,
+) {
+  let customerName = input.customerName;
+  if (input.customerId) {
+    const c = await db.customer.findFirst({
+      where: { id: input.customerId, tenantId },
+      select: { name: true },
+    });
+    if (c) customerName = c.name;
+  }
+  let technicianName: string | null = null;
+  if (input.technicianId) {
+    const t = await db.user.findFirst({
+      where: { id: input.technicianId, tenantId },
+      select: { name: true },
+    });
+    technicianName = t?.name ?? null;
+  }
+
+  const seq = (await db.serviceTicket.count({ where: { tenantId } })) + 1;
+  const number = `SV-${String(seq).padStart(5, "0")}`;
+
+  return db.serviceTicket.create({
+    data: {
+      tenantId,
+      number,
+      customerId: input.customerId ?? null,
+      customerName,
+      customerPhone: input.customerPhone || null,
+      deviceType: input.deviceType,
+      deviceBrand: input.deviceBrand || null,
+      deviceInfo: input.deviceInfo || null,
+      complaint: input.complaint,
+      technicianId: input.technicianId ?? null,
+      technicianName,
+      laborCost: input.laborCost,
+      total: input.laborCost,
+      note: input.note || null,
+      createdById: user.id,
+    },
+  });
+}
+
+/** Hitung ulang partsCost/total/paymentStatus dari item & laborCost. */
+async function recompute(tx: Prisma.TransactionClient, ticketId: string) {
+  const t = await tx.serviceTicket.findUnique({
+    where: { id: ticketId },
+    include: { items: true },
+  });
+  if (!t) return;
+  const partsCost = t.items.reduce((s, i) => s + i.subtotal, 0);
+  const total = t.laborCost + partsCost;
+  const paymentStatus = t.paid >= total && total > 0 ? "PAID" : t.paid > 0 ? "PARTIAL" : "UNPAID";
+  await tx.serviceTicket.update({
+    where: { id: ticketId },
+    data: { partsCost, total, paymentStatus },
+  });
+}
+
+async function ensureTicket(tenantId: string, ticketId: string) {
+  const t = await db.serviceTicket.findFirst({ where: { id: ticketId, tenantId }, select: { id: true } });
+  if (!t) throw new Error("Tiket tidak ditemukan.");
+}
+
+/** Tambah sparepart dari inventory (kurangi stok + movement). */
+export async function addPart(
+  tenantId: string,
+  userId: string,
+  ticketId: string,
+  productId: string,
+  qty: number,
+) {
+  await ensureTicket(tenantId, ticketId);
+  return db.$transaction(async (tx) => {
+    const product = await tx.product.findFirst({
+      where: { id: productId, tenantId },
+      select: { id: true, name: true, sellPrice: true, stock: true },
+    });
+    if (!product) throw new Error("Produk tidak ditemukan.");
+    if (product.stock < qty) throw new Error(`Stok "${product.name}" tidak cukup (sisa ${product.stock}).`);
+
+    const stockAfter = product.stock - qty;
+    await tx.product.update({ where: { id: product.id }, data: { stock: stockAfter } });
+    await tx.stockMovement.create({
+      data: {
+        tenantId,
+        productId: product.id,
+        type: "SERVICE_OUT",
+        qty: -qty,
+        stockAfter,
+        note: `Servis (tiket)`,
+        createdById: userId,
+      },
+    });
+    await tx.serviceItem.create({
+      data: {
+        ticketId,
+        productId: product.id,
+        name: product.name,
+        qty,
+        price: product.sellPrice,
+        subtotal: product.sellPrice * qty,
+        isPart: true,
+      },
+    });
+    await recompute(tx, ticketId);
+  });
+}
+
+/** Tambah baris jasa/non-stok. */
+export async function addLine(
+  tenantId: string,
+  ticketId: string,
+  name: string,
+  price: number,
+  qty: number,
+) {
+  await ensureTicket(tenantId, ticketId);
+  return db.$transaction(async (tx) => {
+    await tx.serviceItem.create({
+      data: { ticketId, name, qty, price, subtotal: price * qty, isPart: false },
+    });
+    await recompute(tx, ticketId);
+  });
+}
+
+/** Hapus item; bila sparepart, kembalikan stok. */
+export async function removeItem(tenantId: string, userId: string, ticketId: string, itemId: string) {
+  await ensureTicket(tenantId, ticketId);
+  return db.$transaction(async (tx) => {
+    const item = await tx.serviceItem.findFirst({ where: { id: itemId, ticketId } });
+    if (!item) throw new Error("Item tidak ditemukan.");
+    if (item.isPart && item.productId) {
+      const product = await tx.product.findFirst({
+        where: { id: item.productId, tenantId },
+        select: { id: true, stock: true },
+      });
+      if (product) {
+        const stockAfter = product.stock + item.qty;
+        await tx.product.update({ where: { id: product.id }, data: { stock: stockAfter } });
+        await tx.stockMovement.create({
+          data: {
+            tenantId,
+            productId: product.id,
+            type: "RETURN_IN",
+            qty: item.qty,
+            stockAfter,
+            note: `Batal sparepart servis`,
+            createdById: userId,
+          },
+        });
+      }
+    }
+    await tx.serviceItem.delete({ where: { id: item.id } });
+    await recompute(tx, ticketId);
+  });
+}
+
+export async function updateLabor(tenantId: string, ticketId: string, laborCost: number) {
+  await ensureTicket(tenantId, ticketId);
+  return db.$transaction(async (tx) => {
+    await tx.serviceTicket.update({ where: { id: ticketId }, data: { laborCost: Math.max(0, laborCost) } });
+    await recompute(tx, ticketId);
+  });
+}
+
+export async function updateStatus(tenantId: string, ticketId: string, status: ServiceStatus, diagnosis?: string) {
+  await ensureTicket(tenantId, ticketId);
+  const done = status === "DONE" || status === "DELIVERED";
+  return db.serviceTicket.update({
+    where: { id: ticketId },
+    data: {
+      status,
+      ...(diagnosis !== undefined ? { diagnosis: diagnosis || null } : {}),
+      ...(done ? { completedAt: new Date() } : {}),
+    },
+  });
+}
+
+export async function recordPayment(tenantId: string, ticketId: string, amount: number) {
+  return db.$transaction(async (tx) => {
+    const t = await tx.serviceTicket.findFirst({
+      where: { id: ticketId, tenantId },
+      select: { id: true, total: true, paid: true },
+    });
+    if (!t) throw new Error("Tiket tidak ditemukan.");
+    const outstanding = t.total - t.paid;
+    if (outstanding <= 0) throw new Error("Sudah lunas.");
+    if (amount > outstanding) throw new Error(`Maksimal ${outstanding}.`);
+    const newPaid = t.paid + amount;
+    await tx.serviceTicket.update({
+      where: { id: t.id },
+      data: { paid: newPaid, paymentStatus: newPaid >= t.total ? "PAID" : "PARTIAL" },
+    });
+    return { paid: newPaid, outstanding: t.total - newPaid };
+  });
+}
