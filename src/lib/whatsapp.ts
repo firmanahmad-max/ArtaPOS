@@ -28,7 +28,7 @@ export function buildReportText(storeName: string, r: FinanceReport): string {
     line,
     `*Estimasi Laba Bersih: ${formatRupiah(r.estimatedNet)}*`,
     "",
-    `_Dibuat otomatis oleh Arta_`,
+    `_Dibuat otomatis oleh ArtaPOS_`,
   ].join("\n");
 }
 

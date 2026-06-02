@@ -23,7 +23,7 @@ export function LoginForm() {
         <div className="mb-2 flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
           <Store className="size-6" />
         </div>
-        <CardTitle className="text-xl">Masuk ke Arta</CardTitle>
+        <CardTitle className="text-xl">Masuk ke ArtaPOS</CardTitle>
         <CardDescription>Dibangun untuk Toko Komputer Indonesia</CardDescription>
       </CardHeader>
       <CardContent>

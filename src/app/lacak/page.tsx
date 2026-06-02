@@ -31,7 +31,7 @@ export default function LacakPage() {
             <TrackForm />
           </CardContent>
         </Card>
-        <p className="mt-4 text-center text-xs text-muted-foreground">Dilayani oleh Arta</p>
+        <p className="mt-4 text-center text-xs text-muted-foreground">Dilayani oleh ArtaPOS</p>
       </div>
     </div>
   );

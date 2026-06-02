@@ -1,4 +1,4 @@
-# Arta
+# ArtaPOS
 
 **Dibangun untuk Toko Komputer Indonesia.**
 
@@ -59,4 +59,4 @@ Portabel: cukup ganti `DATABASE_URL` + `DIRECT_URL` ke Postgres cloud (mis. Supa
 jalankan `npm run db:deploy`, lalu deploy (Vercel/VPS). Nol refactor.
 
 ---
-© Arta — Dibangun untuk Toko Komputer Indonesia.
+© ArtaPOS — Dibangun untuk Toko Komputer Indonesia.

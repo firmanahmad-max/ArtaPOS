@@ -1,8 +1,8 @@
 @AGENTS.md
 
-# Arta — Dibangun untuk Toko Komputer Indonesia
+# ArtaPOS — Dibangun untuk Toko Komputer Indonesia
 
-Nama produk/brand aplikasi = **Arta** (konstanta di `src/lib/brand.ts`: `APP_NAME`, `APP_TAGLINE`).
+Nama produk/brand aplikasi = **ArtaPOS** (konstanta di `src/lib/brand.ts`: `APP_NAME`, `APP_TAGLINE`).
 Brand ini BERBEDA dari nama toko (tenant) milik pengguna yang dinamis.
 
 Aplikasi manajemen toko komputer: POS/penjualan, pembelian, inventory, utang/piutang,

@@ -1,6 +1,6 @@
-# Panduan Deploy Arta (Supabase + Vercel)
+# Panduan Deploy ArtaPOS (Supabase + Vercel)
 
-Arta = Next.js 16 + PostgreSQL (Prisma 7). Rekomendasi hosting termurah & termudah:
+ArtaPOS = Next.js 16 + PostgreSQL (Prisma 7). Rekomendasi hosting termurah & termudah:
 **Database → Supabase**, **Aplikasi → Vercel** (HTTPS otomatis; penting untuk kamera & Bluetooth).
 
 Repo sudah disiapkan: `postinstall: prisma generate` (Vercel akan generate Prisma Client saat
