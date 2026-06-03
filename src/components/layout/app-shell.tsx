@@ -3,9 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, Store, LogOut, WifiOff } from "lucide-react";
+import { Menu, X, LogOut, WifiOff } from "lucide-react";
+import { Logo } from "@/components/brand/logo";
 import type { UserRole } from "@/generated/prisma/enums";
-import { NAV_ITEMS } from "@/components/layout/nav-config";
+import { NAV_GROUPS } from "@/components/layout/nav-config";
 import { can } from "@/lib/rbac";
 import { ROLE_LABELS } from "@/lib/rbac";
 import { cn } from "@/lib/utils";
@@ -33,59 +34,52 @@ export function AppShell({
   const [mobileOpen, setMobileOpen] = useState(false);
   const online = useOnlineStatus();
 
-  const items = NAV_ITEMS.filter(
-    (item) => !item.permission || can(user.role, item.permission),
-  );
+  const groups = NAV_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter(
+      (item) => !item.permission || can(user.role, item.permission),
+    ),
+  })).filter((group) => group.items.length > 0);
 
   const SidebarContent = (
     <div className="flex h-full flex-col">
-      <div className="flex h-16 items-center gap-2 border-b px-4">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <Store className="size-5" />
-        </div>
+      <div className="flex h-16 items-center gap-2.5 border-b px-4">
+        <Logo size={34} />
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">{user.storeName}</p>
-          <p className="text-xs text-muted-foreground">{APP_NAME}</p>
+          <p className="truncate text-sm font-semibold leading-tight">{user.storeName}</p>
+          <p className="text-xs font-medium text-gradient-brand">{APP_NAME}</p>
         </div>
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-        {items.map((item) => {
-          const active =
-            pathname === item.href || pathname.startsWith(`${item.href}/`);
-          const Icon = item.icon;
-          if (!item.enabled) {
-            return (
-              <div
-                key={item.href}
-                className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground/60"
-                title="Segera tersedia"
-              >
-                <Icon className="size-4 shrink-0" />
-                <span className="flex-1">{item.label}</span>
-                <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium">
-                  Segera
-                </span>
-              </div>
-            );
-          }
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setMobileOpen(false)}
-              className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                active
-                  ? "bg-primary text-primary-foreground"
-                  : "text-foreground hover:bg-accent hover:text-accent-foreground",
-              )}
-            >
-              <Icon className="size-4 shrink-0" />
-              {item.label}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 space-y-4 overflow-y-auto p-3">
+        {groups.map((group) => (
+          <div key={group.label} className="space-y-1">
+            <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+              {group.label}
+            </p>
+            {group.items.map((item) => {
+              const active =
+                pathname === item.href || pathname.startsWith(`${item.href}/`);
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMobileOpen(false)}
+                  className={cn(
+                    "group/nav relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all",
+                    active
+                      ? "gradient-brand text-primary-foreground shadow-sm"
+                      : "text-foreground hover:bg-accent hover:text-accent-foreground",
+                  )}
+                >
+                  <Icon className="size-4 shrink-0" />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
       <div className="border-t p-3">

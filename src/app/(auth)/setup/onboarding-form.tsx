@@ -1,8 +1,9 @@
 "use client";
 
 import { useActionState } from "react";
-import { Loader2, Store } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { onboardingAction } from "@/server/onboarding/actions";
+import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,9 +26,7 @@ export function OnboardingForm() {
   return (
     <Card>
       <CardHeader className="items-center text-center">
-        <div className="mb-2 flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-          <Store className="size-6" />
-        </div>
+        <Logo size={52} className="mb-2" />
         <CardTitle className="text-xl">Selamat datang! 👋</CardTitle>
         <CardDescription>
           Setup awal toko Anda. Cukup sekali, lalu langsung bisa dipakai.

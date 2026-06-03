@@ -13,9 +13,9 @@ import {
   MessageCircle,
   Building2,
   MonitorSmartphone,
-  Store,
   ArrowRight,
 } from "lucide-react";
+import { Logo } from "@/components/brand/logo";
 import {
   APP_NAME,
   APP_TAGLINE,
@@ -54,9 +54,7 @@ export default function AboutPage() {
       {/* Top bar */}
       <header className="flex items-center justify-between border-b bg-card px-4 py-3 sm:px-6">
         <div className="flex items-center gap-2">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Store className="size-5" />
-          </div>
+          <Logo size={36} />
           <div className="leading-tight">
             <p className="font-semibold">{APP_NAME}</p>
             <p className="text-xs text-muted-foreground">{APP_TAGLINE}</p>
