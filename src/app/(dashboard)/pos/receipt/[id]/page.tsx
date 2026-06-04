@@ -25,6 +25,7 @@ export default async function ReceiptPage({
       <ReceiptView
         data={{
           storeName: user.tenant.name,
+          storeLogo: store.logo,
           storeAddress: store.address,
           storePhone: store.phone,
           receiptFooter: store.receiptFooter,

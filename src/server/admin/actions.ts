@@ -6,7 +6,7 @@ import { can } from "@/lib/rbac";
 import { toFieldErrors, type FormState } from "@/lib/form";
 import { userCreateSchema, licenseUpdateSchema, settingsSchema } from "@/lib/validations/admin";
 import type { UserRole } from "@/generated/prisma/enums";
-import { createUser, updateUserRole, setUserActive, updateTenantSettings } from "@/server/users/service";
+import { createUser, updateUserRole, setUserActive, updateTenantSettings, updateTenantLogo } from "@/server/users/service";
 import { updateLicense } from "@/server/license/service";
 
 type Result = { ok: boolean; message?: string };
@@ -113,4 +113,32 @@ export async function updateSettingsAction(_prev: FormState, formData: FormData)
   revalidatePath("/settings");
   revalidatePath("/dashboard");
   return { ok: true, message: "Pengaturan disimpan." };
+}
+
+/** Set/hapus logo toko. `logo` = data URL gambar, atau null untuk menghapus. */
+export async function updateStoreLogoAction(logo: string | null): Promise<Result> {
+  const user = await getCurrentUser();
+  if (!can(user.role, "settings.manage")) return { ok: false, message: "Tidak punya izin." };
+
+  if (logo !== null) {
+    if (!/^data:image\/(png|jpeg|jpg|webp);base64,/.test(logo)) {
+      return { ok: false, message: "Format logo tidak valid." };
+    }
+    // Batasi ukuran (~500KB data URL) agar DB & struk tetap ringan.
+    if (logo.length > 500_000) {
+      return { ok: false, message: "Ukuran logo terlalu besar (maks ~350KB). Coba gambar lebih kecil." };
+    }
+  }
+
+  try {
+    await updateTenantLogo(user.tenantId, logo);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/column|does not exist|P2022/i.test(msg)) {
+      return { ok: false, message: "Database produksi belum dimigrasi (kolom logo belum ada)." };
+    }
+    return { ok: false, message: friendly(e) };
+  }
+  revalidatePath("/settings");
+  return { ok: true };
 }

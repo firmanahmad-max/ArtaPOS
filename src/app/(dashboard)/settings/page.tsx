@@ -9,7 +9,7 @@ import { formatRupiah } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { StoreSettingsForm, LicenseForm } from "./settings-client";
+import { StoreSettingsForm, StoreLogoForm, LicenseForm } from "./settings-client";
 
 export const metadata: Metadata = { title: "Pengaturan" };
 
@@ -45,7 +45,8 @@ export default async function SettingsPage() {
           <CardTitle>Profil Toko</CardTitle>
           <CardDescription>Nama & identitas yang tampil pada struk penjualan.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
+          <StoreLogoForm logo={storeInfo.logo} />
           <StoreSettingsForm
             name={user.tenant.name}
             address={storeInfo.address}

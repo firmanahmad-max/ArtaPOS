@@ -8,8 +8,16 @@ const ESC = 0x1b;
 const GS = 0x1d;
 const LF = 0x0a;
 
+export interface EscposLogo {
+  width: number;
+  height: number;
+  widthBytes: number;
+  data: Uint8Array;
+}
+
 export interface EscposReceipt {
   storeName: string;
+  logo?: EscposLogo;
   addressLines?: string[];
   phone?: string;
   number: string;
@@ -78,6 +86,21 @@ class Builder {
     const space = Math.max(1, this.width - l.length - r.length);
     return this.text(l + " ".repeat(space) + r).newline();
   }
+  /** Cetak raster bitmap (GS v 0). */
+  image(logo: { width: number; height: number; widthBytes: number; data: Uint8Array }) {
+    this.raw(
+      GS,
+      0x76,
+      0x30,
+      0,
+      logo.widthBytes & 0xff,
+      (logo.widthBytes >> 8) & 0xff,
+      logo.height & 0xff,
+      (logo.height >> 8) & 0xff,
+    );
+    this.buf.push(...logo.data);
+    return this;
+  }
   feedCut() {
     this.newline(3);
     // GS V 66 0 — potong (diabaikan printer tanpa cutter)
@@ -92,7 +115,9 @@ export function buildReceiptEscpos(r: EscposReceipt, width = 32): Uint8Array {
   const b = new Builder(width);
   b.init();
 
-  b.align("center").bold(true).text(r.storeName).newline().bold(false);
+  b.align("center");
+  if (r.logo) b.image(r.logo).newline();
+  b.bold(true).text(r.storeName).newline().bold(false);
   if (r.addressLines) for (const ln of r.addressLines) if (ln.trim()) b.text(ln).newline();
   if (r.phone) b.text("Telp: " + r.phone).newline();
   b.text("Struk Penjualan").newline();

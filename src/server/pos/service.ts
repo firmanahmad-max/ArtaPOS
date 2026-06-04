@@ -141,6 +141,21 @@ export function listSales(tenantId: string, limit = 50) {
   });
 }
 
+/** Daftar penjualan dengan paginasi. */
+export async function listSalesPaged(tenantId: string, page = 1, perPage = 25) {
+  const safePage = Math.max(1, page);
+  const [items, total] = await Promise.all([
+    db.sale.findMany({
+      where: { tenantId },
+      orderBy: { createdAt: "desc" },
+      skip: (safePage - 1) * perPage,
+      take: perPage,
+    }),
+    db.sale.count({ where: { tenantId } }),
+  ]);
+  return { items, total, page: safePage, perPage, totalPages: Math.max(1, Math.ceil(total / perPage)) };
+}
+
 /** Batalkan transaksi (VOID): kembalikan stok + catat movement RETURN_IN. */
 export async function voidSale(tenantId: string, userId: string, saleId: string) {
   return db.$transaction(async (tx) => {

@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Plus, Pencil, QrCode, Boxes, Tags, ClipboardCheck, Upload, Download } from "lucide-react";
 import { getAuthContext } from "@/lib/auth/guard";
-import { listProducts, ensureDefaultUnits } from "@/server/inventory/service";
+import { listProductsPaged, ensureDefaultUnits } from "@/server/inventory/service";
 import { formatRupiah } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Pagination } from "@/components/ui/pagination";
 import { SearchBox, DeleteProductButton } from "./inventory-client";
 
 export const metadata: Metadata = { title: "Inventory" };
@@ -15,12 +16,17 @@ export const metadata: Metadata = { title: "Inventory" };
 export default async function InventoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; page?: string }>;
 }) {
   const { tenantId } = await getAuthContext();
   await ensureDefaultUnits(tenantId);
-  const { q } = await searchParams;
-  const products = await listProducts(tenantId, { search: q });
+  const { q, page: pageParam } = await searchParams;
+  const page = Math.max(1, Number(pageParam) || 1);
+  const { items: products, total, totalPages } = await listProductsPaged(tenantId, {
+    search: q,
+    page,
+    perPage: 25,
+  });
 
   return (
     <div className="space-y-6">
@@ -50,7 +56,7 @@ export default async function InventoryPage({
 
       <div className="flex flex-wrap items-center gap-3">
         <SearchBox initial={q ?? ""} />
-        <span className="text-sm text-muted-foreground">{products.length} produk</span>
+        <span className="text-sm text-muted-foreground">{total} produk</span>
       </div>
 
       {products.length === 0 ? (
@@ -131,6 +137,10 @@ export default async function InventoryPage({
             </tbody>
           </table>
         </Card>
+      )}
+
+      {total > 0 && (
+        <Pagination page={page} totalPages={totalPages} basePath="/inventory" params={{ q }} />
       )}
     </div>
   );

@@ -85,6 +85,47 @@ export function listProducts(
   });
 }
 
+function productWhere(tenantId: string, search?: string) {
+  const q = search?.trim();
+  return {
+    tenantId,
+    isActive: true,
+    ...(q
+      ? {
+          OR: [
+            { name: { contains: q, mode: "insensitive" as const } },
+            { sku: { contains: q, mode: "insensitive" as const } },
+            { barcode: { contains: q, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
+  };
+}
+
+/** Daftar produk dengan paginasi + pencarian. */
+export async function listProductsPaged(
+  tenantId: string,
+  opts: { search?: string; page?: number; perPage?: number } = {},
+) {
+  const perPage = opts.perPage ?? 25;
+  const page = Math.max(1, opts.page ?? 1);
+  const where = productWhere(tenantId, opts.search);
+  const [items, total] = await Promise.all([
+    db.product.findMany({
+      where,
+      include: {
+        category: { select: { name: true } },
+        unit: { select: { name: true, symbol: true } },
+      },
+      orderBy: { name: "asc" },
+      skip: (page - 1) * perPage,
+      take: perPage,
+    }),
+    db.product.count({ where }),
+  ]);
+  return { items, total, page, perPage, totalPages: Math.max(1, Math.ceil(total / perPage)) };
+}
+
 export function getProduct(tenantId: string, id: string) {
   return db.product.findFirst({ where: { id, tenantId } });
 }

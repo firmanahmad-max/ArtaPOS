@@ -3,16 +3,21 @@ import Link from "next/link";
 import { Receipt, Download } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
-import { listSales } from "@/server/pos/service";
+import { listSalesPaged } from "@/server/pos/service";
 import { formatRupiah } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Pagination } from "@/components/ui/pagination";
 
 export const metadata: Metadata = { title: "Riwayat Penjualan" };
 
-export default async function SalesPage() {
+export default async function SalesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const user = await getCurrentUser();
   if (!can(user.role, "reports.view")) {
     return (
@@ -21,16 +26,18 @@ export default async function SalesPage() {
       </Card>
     );
   }
-  const sales = await listSales(user.tenantId, 100);
+  const { page: pageParam } = await searchParams;
+  const page = Math.max(1, Number(pageParam) || 1);
+  const { items: sales, total, totalPages } = await listSalesPaged(user.tenantId, page, 25);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Riwayat Penjualan</h1>
-          <p className="text-muted-foreground">Daftar transaksi penjualan toko.</p>
+          <p className="text-muted-foreground">{total} transaksi penjualan toko.</p>
         </div>
-        {sales.length > 0 && (
+        {total > 0 && (
           <a href="/api/export/sales" className={buttonVariants({ variant: "outline" })}>
             <Download /> Export CSV
           </a>
@@ -94,6 +101,8 @@ export default async function SalesPage() {
           </table>
         </Card>
       )}
+
+      {total > 0 && <Pagination page={page} totalPages={totalPages} basePath="/sales" />}
     </div>
   );
 }

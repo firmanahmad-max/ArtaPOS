@@ -6,6 +6,7 @@ import { Printer, Plus, Bluetooth, Loader2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { formatRupiah } from "@/lib/utils";
 import { buildReceiptEscpos } from "@/lib/escpos";
+import { imageToEscposRaster } from "@/lib/escpos-image";
 import { printViaBluetooth } from "@/lib/bluetooth-printer";
 
 export interface ReceiptItem {
@@ -16,6 +17,7 @@ export interface ReceiptItem {
 }
 export interface ReceiptData {
   storeName: string;
+  storeLogo?: string | null;
   storeAddress?: string | null;
   storePhone?: string | null;
   receiptFooter?: string | null;
@@ -42,8 +44,12 @@ export function ReceiptView({ data }: { data: ReceiptData }) {
     setBtStatus(null);
     setPrinting(true);
     try {
+      const logo = data.storeLogo
+        ? await imageToEscposRaster(data.storeLogo).catch(() => undefined)
+        : undefined;
       const buffer = buildReceiptEscpos({
         storeName: data.storeName,
+        logo,
         number: data.number,
         dateText: new Date(data.createdAt).toLocaleString("id-ID", {
           dateStyle: "short",
@@ -94,6 +100,10 @@ export function ReceiptView({ data }: { data: ReceiptData }) {
         className="mx-auto w-[300px] rounded-lg border bg-white p-4 font-mono text-xs text-black"
       >
         <div className="text-center">
+          {data.storeLogo && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={data.storeLogo} alt="Logo toko" className="mx-auto mb-1 max-h-16 w-auto object-contain" />
+          )}
           <p className="text-sm font-bold">{data.storeName}</p>
           {data.storeAddress && (
             <p className="whitespace-pre-line text-[10px] leading-tight">{data.storeAddress}</p>
