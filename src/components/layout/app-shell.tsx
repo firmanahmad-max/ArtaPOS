@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, LogOut, WifiOff } from "lucide-react";
+import { Menu, X, LogOut, WifiOff, Search } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
+import { CommandPalette } from "@/components/layout/command-palette";
 import type { UserRole } from "@/generated/prisma/enums";
 import { NAV_GROUPS } from "@/components/layout/nav-config";
 import { can } from "@/lib/rbac";
@@ -42,6 +43,10 @@ export function AppShell({
       (item) => !item.permission || can(user.role, item.permission),
     ),
   })).filter((group) => group.items.length > 0);
+
+  const navTargets = groups.flatMap((g) =>
+    g.items.map((i) => ({ href: i.href, label: i.label })),
+  );
 
   const SidebarContent = (
     <div className="flex h-full flex-col">
@@ -131,6 +136,7 @@ export function AppShell({
 
   return (
     <div className="flex min-h-screen">
+      <CommandPalette navItems={navTargets} />
       {/* Sidebar desktop */}
       <aside className="hidden w-64 shrink-0 border-r bg-card md:block">
         {SidebarContent}
@@ -168,6 +174,17 @@ export function AppShell({
           >
             <Menu className="size-5" />
           </Button>
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
+            className="flex h-9 max-w-xs flex-1 items-center gap-2 rounded-lg border bg-background px-3 text-sm text-muted-foreground transition-colors hover:bg-accent"
+          >
+            <Search className="size-4" />
+            <span className="flex-1 text-left">Cari…</span>
+            <kbd className="hidden rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium sm:inline">
+              Ctrl K
+            </kbd>
+          </button>
           <div className="flex-1" />
           <ThemeToggle />
         </header>

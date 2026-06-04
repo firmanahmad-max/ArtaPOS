@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Plus, Minus, Trash2, ShoppingCart, Loader2, X, Pause, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
@@ -72,6 +72,8 @@ export function PosTerminal({
   const [error, setError] = useState<string | null>(null);
   const [pending, startCheckout] = useTransition();
   const [held, setHeld] = useState<HeldSale[]>(() => loadHeld());
+  const searchRef = useRef<HTMLInputElement>(null);
+  const checkoutRef = useRef<() => void>(() => {});
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -215,6 +217,25 @@ export function PosTerminal({
     });
   }
 
+  // Pintasan keyboard: F2 = bayar, F4 = fokus pencarian.
+  useEffect(() => {
+    checkoutRef.current = checkout;
+  });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "F2") {
+        e.preventDefault();
+        checkoutRef.current();
+      } else if (e.key === "F4") {
+        e.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   const quickCash = [total, Math.ceil(total / 50000) * 50000, Math.ceil(total / 100000) * 100000].filter(
     (v, i, a) => v > 0 && a.indexOf(v) === i,
   );
@@ -244,9 +265,10 @@ export function PosTerminal({
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
+              ref={searchRef}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari / scan produk (nama, SKU, barcode)…"
+              placeholder="Cari / scan produk (nama, SKU, barcode)…  (F4)"
               className="pl-9"
               autoFocus
             />
@@ -427,6 +449,10 @@ export function PosTerminal({
               Bayar {formatRupiah(total)}
             </Button>
           </div>
+          <p className="text-center text-[11px] text-muted-foreground">
+            Pintasan: <kbd className="rounded border bg-muted px-1">F2</kbd> bayar ·{" "}
+            <kbd className="rounded border bg-muted px-1">F4</kbd> cari
+          </p>
         </div>
       </Card>
     </div>
