@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Plus, Pencil, QrCode, Boxes, Tags, ClipboardCheck, Upload } from "lucide-react";
+import { Plus, Pencil, QrCode, Boxes, Tags, ClipboardCheck, Upload, Download } from "lucide-react";
 import { getAuthContext } from "@/lib/auth/guard";
 import { listProducts, ensureDefaultUnits } from "@/server/inventory/service";
 import { formatRupiah } from "@/lib/utils";
@@ -30,6 +30,9 @@ export default async function InventoryPage({
           <p className="text-muted-foreground">Kelola produk & stok toko Anda.</p>
         </div>
         <div className="flex gap-2">
+          <a href="/api/export/products" className={buttonVariants({ variant: "outline" })}>
+            <Download /> Export CSV
+          </a>
           <Link href="/inventory/import" className={buttonVariants({ variant: "outline" })}>
             <Upload /> Import
           </Link>

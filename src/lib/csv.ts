@@ -1,3 +1,13 @@
+/** Susun teks CSV dari baris-baris nilai (auto quote bila perlu). Diawali BOM agar Excel benar. */
+export function toCsv(rows: (string | number | null | undefined)[][]): string {
+  const escape = (v: string | number | null | undefined) => {
+    const s = v == null ? "" : String(v);
+    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const body = rows.map((r) => r.map(escape).join(",")).join("\r\n");
+  return `﻿${body}`;
+}
+
 /** Parser CSV sederhana yang menangani field ber-tanda kutip & koma di dalam kutip. */
 export function parseCsv(text: string): string[][] {
   const rows: string[][] = [];

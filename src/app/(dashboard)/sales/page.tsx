@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Receipt } from "lucide-react";
+import { Receipt, Download } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { listSales } from "@/server/pos/service";
@@ -25,9 +25,16 @@ export default async function SalesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Riwayat Penjualan</h1>
-        <p className="text-muted-foreground">Daftar transaksi penjualan toko.</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Riwayat Penjualan</h1>
+          <p className="text-muted-foreground">Daftar transaksi penjualan toko.</p>
+        </div>
+        {sales.length > 0 && (
+          <a href="/api/export/sales" className={buttonVariants({ variant: "outline" })}>
+            <Download /> Export CSV
+          </a>
+        )}
       </div>
 
       {sales.length === 0 ? (
