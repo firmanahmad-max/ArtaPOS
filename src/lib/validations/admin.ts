@@ -20,7 +20,18 @@ export const licenseUpdateSchema = z.object({
 });
 export type LicenseUpdateInput = z.infer<typeof licenseUpdateSchema>;
 
+const optionalText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : null));
+
 export const settingsSchema = z.object({
   name: z.string().min(2, "Nama toko minimal 2 karakter").max(100).trim(),
+  address: optionalText(200),
+  phone: optionalText(30),
+  receiptFooter: optionalText(150),
 });
 export type SettingsInput = z.infer<typeof settingsSchema>;

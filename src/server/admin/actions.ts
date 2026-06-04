@@ -6,7 +6,7 @@ import { can } from "@/lib/rbac";
 import { toFieldErrors, type FormState } from "@/lib/form";
 import { userCreateSchema, licenseUpdateSchema, settingsSchema } from "@/lib/validations/admin";
 import type { UserRole } from "@/generated/prisma/enums";
-import { createUser, updateUserRole, setUserActive, updateTenantName } from "@/server/users/service";
+import { createUser, updateUserRole, setUserActive, updateTenantSettings } from "@/server/users/service";
 import { updateLicense } from "@/server/license/service";
 
 type Result = { ok: boolean; message?: string };
@@ -93,12 +93,21 @@ export async function updateSettingsAction(_prev: FormState, formData: FormData)
   const user = await getCurrentUser();
   if (!can(user.role, "settings.manage")) return { message: "Tidak punya izin." };
 
-  const parsed = settingsSchema.safeParse({ name: formData.get("name") });
+  const parsed = settingsSchema.safeParse({
+    name: formData.get("name"),
+    address: formData.get("address") ?? undefined,
+    phone: formData.get("phone") ?? undefined,
+    receiptFooter: formData.get("receiptFooter") ?? undefined,
+  });
   if (!parsed.success) return { errors: toFieldErrors(parsed.error) };
 
   try {
-    await updateTenantName(user.tenantId, parsed.data.name);
+    await updateTenantSettings(user.tenantId, parsed.data);
   } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/column|does not exist|P2022/i.test(msg)) {
+      return { message: "Database produksi belum dimigrasi (kolom struk belum ada). Jalankan migrasi lalu coba lagi." };
+    }
     return { message: friendly(e) };
   }
   revalidatePath("/settings");

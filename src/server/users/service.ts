@@ -60,3 +60,49 @@ export async function setUserActive(tenantId: string, userId: string, isActive: 
 export async function updateTenantName(tenantId: string, name: string) {
   return db.tenant.update({ where: { id: tenantId }, data: { name } });
 }
+
+export interface TenantSettingsInput {
+  name: string;
+  address?: string | null;
+  phone?: string | null;
+  receiptFooter?: string | null;
+}
+
+/** Perbarui profil toko (nama + identitas struk). */
+export async function updateTenantSettings(tenantId: string, data: TenantSettingsInput) {
+  return db.tenant.update({
+    where: { id: tenantId },
+    data: {
+      name: data.name,
+      address: data.address ?? null,
+      phone: data.phone ?? null,
+      receiptFooter: data.receiptFooter ?? null,
+    },
+  });
+}
+
+export interface ReceiptStoreInfo {
+  address: string | null;
+  phone: string | null;
+  receiptFooter: string | null;
+}
+
+/**
+ * Identitas toko untuk struk. Defensif: bila kolom belum ada di DB
+ * (migrasi produksi belum dijalankan), kembalikan nilai kosong agar tak error.
+ */
+export async function getReceiptStoreInfo(tenantId: string): Promise<ReceiptStoreInfo> {
+  try {
+    const t = await db.tenant.findUnique({
+      where: { id: tenantId },
+      select: { address: true, phone: true, receiptFooter: true },
+    });
+    return {
+      address: t?.address ?? null,
+      phone: t?.phone ?? null,
+      receiptFooter: t?.receiptFooter ?? null,
+    };
+  } catch {
+    return { address: null, phone: null, receiptFooter: null };
+  }
+}

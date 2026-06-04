@@ -10,6 +10,8 @@ const LF = 0x0a;
 
 export interface EscposReceipt {
   storeName: string;
+  addressLines?: string[];
+  phone?: string;
   number: string;
   dateText: string;
   cashierName?: string | null;
@@ -91,6 +93,8 @@ export function buildReceiptEscpos(r: EscposReceipt, width = 32): Uint8Array {
   b.init();
 
   b.align("center").bold(true).text(r.storeName).newline().bold(false);
+  if (r.addressLines) for (const ln of r.addressLines) if (ln.trim()) b.text(ln).newline();
+  if (r.phone) b.text("Telp: " + r.phone).newline();
   b.text("Struk Penjualan").newline();
   b.line();
 

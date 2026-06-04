@@ -16,6 +16,9 @@ export interface ReceiptItem {
 }
 export interface ReceiptData {
   storeName: string;
+  storeAddress?: string | null;
+  storePhone?: string | null;
+  receiptFooter?: string | null;
   number: string;
   createdAt: string;
   customerName: string | null;
@@ -48,6 +51,8 @@ export function ReceiptView({ data }: { data: ReceiptData }) {
         }),
         cashierName: data.cashierName,
         customerName: data.customerName,
+        addressLines: data.storeAddress ? data.storeAddress.split("\n") : undefined,
+        phone: data.storePhone ?? undefined,
         items: data.items.map((i) => ({
           name: i.productName,
           qty: i.qty,
@@ -60,7 +65,7 @@ export function ReceiptView({ data }: { data: ReceiptData }) {
         methodLabel: METHOD[data.paymentMethod] ?? data.paymentMethod,
         paid: data.paid,
         change: data.change,
-        footer: "Terima kasih telah berbelanja",
+        footer: data.receiptFooter || "Terima kasih telah berbelanja",
       });
       await printViaBluetooth(buffer);
       setBtStatus({ ok: true, text: "Struk terkirim ke printer." });
@@ -90,7 +95,11 @@ export function ReceiptView({ data }: { data: ReceiptData }) {
       >
         <div className="text-center">
           <p className="text-sm font-bold">{data.storeName}</p>
-          <p className="text-[10px]">Struk Penjualan</p>
+          {data.storeAddress && (
+            <p className="whitespace-pre-line text-[10px] leading-tight">{data.storeAddress}</p>
+          )}
+          {data.storePhone && <p className="text-[10px] leading-tight">Telp: {data.storePhone}</p>}
+          <p className="mt-0.5 text-[10px]">Struk Penjualan</p>
         </div>
         <div className="my-2 border-t border-dashed" />
         <div className="space-y-0.5 text-[11px]">
@@ -125,7 +134,9 @@ export function ReceiptView({ data }: { data: ReceiptData }) {
           <div className="flex justify-between"><span>Kembali</span><span>{formatRupiah(data.change)}</span></div>
         </div>
         <div className="my-2 border-t border-dashed" />
-        <p className="text-center text-[10px]">Terima kasih telah berbelanja 🙏</p>
+        <p className="whitespace-pre-line text-center text-[10px]">
+          {data.receiptFooter || "Terima kasih telah berbelanja 🙏"}
+        </p>
       </div>
 
       <div className="no-print mx-auto w-[300px] space-y-2">

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { getSale } from "@/server/pos/service";
+import { getReceiptStoreInfo } from "@/server/users/service";
 import { ReceiptView } from "./receipt-view";
 
 export const metadata: Metadata = { title: "Struk" };
@@ -13,7 +14,10 @@ export default async function ReceiptPage({
 }) {
   const { id } = await params;
   const user = await getCurrentUser();
-  const sale = await getSale(user.tenantId, id);
+  const [sale, store] = await Promise.all([
+    getSale(user.tenantId, id),
+    getReceiptStoreInfo(user.tenantId),
+  ]);
   if (!sale) notFound();
 
   return (
@@ -21,6 +25,9 @@ export default async function ReceiptPage({
       <ReceiptView
         data={{
           storeName: user.tenant.name,
+          storeAddress: store.address,
+          storePhone: store.phone,
+          receiptFooter: store.receiptFooter,
           number: sale.number,
           createdAt: sale.createdAt.toISOString(),
           customerName: sale.customerName,

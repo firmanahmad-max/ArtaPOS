@@ -52,6 +52,10 @@ model Tenant {
   name      String
   slug      String   @unique // dipakai untuk subdomain/path saat mode SaaS
   isActive  Boolean  @default(true)
+  // Identitas toko untuk struk (opsional).
+  address       String? // alamat toko (boleh multi-baris)
+  phone         String? // no. telepon/HP toko
+  receiptFooter String? // catatan kaki struk, mis. "Barang tidak bisa ditukar"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

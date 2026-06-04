@@ -16,22 +16,56 @@ function useRefreshOnOk(ok?: boolean) {
   }, [ok, router]);
 }
 
-export function StoreSettingsForm({ name }: { name: string }) {
+export function StoreSettingsForm({
+  name,
+  address,
+  phone,
+  receiptFooter,
+}: {
+  name: string;
+  address: string | null;
+  phone: string | null;
+  receiptFooter: string | null;
+}) {
   const [state, action, pending] = useActionState(updateSettingsAction, undefined);
   useRefreshOnOk(state?.ok);
   return (
-    <form action={action} className="flex flex-col gap-3 sm:flex-row sm:items-end">
-      <div className="flex flex-1 flex-col gap-2">
-        <Label htmlFor="name">Nama Toko</Label>
-        <Input id="name" name="name" defaultValue={name} required />
-        {state?.errors?.name && <p className="text-sm text-destructive">{state.errors.name[0]}</p>}
+    <form action={action} className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="name">Nama Toko</Label>
+          <Input id="name" name="name" defaultValue={name} required />
+          {state?.errors?.name && <p className="text-sm text-destructive">{state.errors.name[0]}</p>}
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="phone">No. Telepon/HP (struk)</Label>
+          <Input id="phone" name="phone" defaultValue={phone ?? ""} placeholder="mis. 0812-3456-7890" />
+        </div>
       </div>
-      <Button type="submit" disabled={pending}>
-        {pending ? <Loader2 className="animate-spin" /> : <Save />} Simpan
-      </Button>
-      {state?.message && (
-        <span className={state.ok ? "text-sm text-success sm:self-center" : "text-sm text-destructive sm:self-center"}>{state.message}</span>
-      )}
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="address">Alamat Toko (struk)</Label>
+        <Input id="address" name="address" defaultValue={address ?? ""} placeholder="mis. Jl. Merdeka No. 10, Bandung" />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="receiptFooter">Catatan Kaki Struk</Label>
+        <Input
+          id="receiptFooter"
+          name="receiptFooter"
+          defaultValue={receiptFooter ?? ""}
+          placeholder="mis. Terima kasih · Barang tidak bisa ditukar"
+        />
+        <p className="text-xs text-muted-foreground">
+          Tampil di bagian bawah struk. Kosongkan untuk pakai teks bawaan.
+        </p>
+      </div>
+      <div className="flex items-center gap-3">
+        <Button type="submit" disabled={pending}>
+          {pending ? <Loader2 className="animate-spin" /> : <Save />} Simpan
+        </Button>
+        {state?.message && (
+          <span className={state.ok ? "text-sm text-success" : "text-sm text-destructive"}>{state.message}</span>
+        )}
+      </div>
     </form>
   );
 }

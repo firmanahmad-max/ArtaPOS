@@ -4,6 +4,7 @@ import { Users } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { getLicense } from "@/server/license/service";
+import { getReceiptStoreInfo } from "@/server/users/service";
 import { formatRupiah } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +26,7 @@ export default async function SettingsPage() {
     return <Card className="p-8 text-center text-sm text-muted-foreground">Tidak punya izin.</Card>;
   }
   const license = await getLicense(user.tenantId);
+  const storeInfo = await getReceiptStoreInfo(user.tenantId);
   const canLicense = can(user.role, "license.manage");
 
   return (
@@ -39,8 +41,18 @@ export default async function SettingsPage() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle>Profil Toko</CardTitle></CardHeader>
-        <CardContent><StoreSettingsForm name={user.tenant.name} /></CardContent>
+        <CardHeader>
+          <CardTitle>Profil Toko</CardTitle>
+          <CardDescription>Nama & identitas yang tampil pada struk penjualan.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <StoreSettingsForm
+            name={user.tenant.name}
+            address={storeInfo.address}
+            phone={storeInfo.phone}
+            receiptFooter={storeInfo.receiptFooter}
+          />
+        </CardContent>
       </Card>
 
       {license && (
