@@ -3,10 +3,12 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Plus, Minus, Trash2, ShoppingCart, Loader2, X, Pause, RotateCcw } from "lucide-react";
+import { toast } from "sonner";
 import { createSaleAction } from "@/server/pos/actions";
 import { formatRupiah } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Select } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { BarcodeScanner } from "@/components/barcode/barcode-scanner";
@@ -156,6 +158,7 @@ export function PosTerminal({
     setHeld(next);
     saveHeld(next);
     resetCart();
+    toast.success("Transaksi ditahan", { description: sale.label });
   }
 
   function restoreSale(h: HeldSale) {
@@ -202,9 +205,12 @@ export function PosTerminal({
         dueDate: isCredit && dueDate ? dueDate : undefined,
       });
       if (res.ok && res.saleId) {
+        toast.success("Penjualan berhasil disimpan");
         router.push(`/pos/receipt/${res.saleId}`);
       } else {
-        setError(res.message ?? "Checkout gagal.");
+        const msg = res.message ?? "Checkout gagal.";
+        setError(msg);
+        toast.error("Checkout gagal", { description: msg });
       }
     });
   }
@@ -328,12 +334,10 @@ export function PosTerminal({
           </div>
           <div className="flex items-center justify-between gap-2">
             <span className="text-muted-foreground">Diskon</span>
-            <Input
-              type="number"
-              min="0"
+            <CurrencyInput
               value={discount}
-              onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))}
-              className="h-8 w-28 text-right"
+              onValueChange={(v) => setDiscount(v)}
+              className="h-8 w-36"
             />
           </div>
           <div className="flex justify-between text-base font-bold">
@@ -361,13 +365,11 @@ export function PosTerminal({
 
           {isCredit && (
             <>
-              <Input
-                type="number"
-                min="0"
+              <CurrencyInput
                 value={paid}
-                onChange={(e) => setPaid(Math.max(0, Number(e.target.value)))}
+                onValueChange={(v) => setPaid(v)}
                 placeholder="Uang muka / DP (boleh 0)"
-                className="h-9 text-right"
+                className="h-9"
               />
               <Input
                 type="date"
@@ -390,13 +392,11 @@ export function PosTerminal({
 
           {paymentMethod === "CASH" && (
             <>
-              <Input
-                type="number"
-                min="0"
+              <CurrencyInput
                 value={paid}
-                onChange={(e) => setPaid(Math.max(0, Number(e.target.value)))}
+                onValueChange={(v) => setPaid(v)}
                 placeholder="Jumlah bayar"
-                className="h-9 text-right"
+                className="h-9"
               />
               <div className="flex flex-wrap gap-1">
                 {quickCash.map((v) => (

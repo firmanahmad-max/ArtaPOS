@@ -8,6 +8,7 @@ import { formatRupiah } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export const metadata: Metadata = { title: "Riwayat Penjualan" };
 
@@ -30,10 +31,16 @@ export default async function SalesPage() {
       </div>
 
       {sales.length === 0 ? (
-        <Card className="flex flex-col items-center gap-3 p-12 text-center">
-          <Receipt className="size-10 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Belum ada transaksi.</p>
-        </Card>
+        <EmptyState
+          icon={Receipt}
+          title="Belum ada transaksi"
+          description="Transaksi penjualan akan muncul di sini setelah Anda menggunakan kasir."
+          action={
+            <Link href="/pos" className={buttonVariants({})}>
+              Buka Kasir
+            </Link>
+          }
+        />
       ) : (
         <Card className="overflow-x-auto">
           <table className="w-full text-sm">

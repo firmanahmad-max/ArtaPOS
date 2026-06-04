@@ -3,9 +3,11 @@
 import { useActionState, useEffect, useRef, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Loader2, Plus, Pencil, Trash2 } from "lucide-react";
 import type { FormState } from "@/lib/form";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { ConfirmButton } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -43,9 +45,9 @@ export function ContactManager({
   }, [state?.ok, router]);
 
   const onDelete = (id: string, name: string) => {
-    if (!confirm(`Hapus ${noun.toLowerCase()} "${name}"? Akan dinonaktifkan.`)) return;
     startDelete(async () => {
       await deleteAction(id);
+      toast.success(`${noun} "${name}" dihapus`);
     });
   };
 
@@ -111,15 +113,18 @@ export function ContactManager({
                       >
                         <Pencil />
                       </Link>
-                      <Button
+                      <ConfirmButton
                         variant="ghost"
                         size="icon"
                         disabled={deleting}
-                        onClick={() => onDelete(c.id, c.name)}
-                        title="Hapus"
+                        destructive
+                        onConfirm={() => onDelete(c.id, c.name)}
+                        title={`Hapus ${noun.toLowerCase()} "${c.name}"?`}
+                        description="Data akan dinonaktifkan."
+                        confirmText="Ya, hapus"
                       >
                         {deleting ? <Loader2 className="animate-spin" /> : <Trash2 className="text-destructive" />}
-                      </Button>
+                      </ConfirmButton>
                     </div>
                   </td>
                 </tr>

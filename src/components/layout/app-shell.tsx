@@ -26,9 +26,11 @@ export interface ShellUser {
 export function AppShell({
   user,
   children,
+  badges = {},
 }: {
   user: ShellUser;
   children: React.ReactNode;
+  badges?: Record<string, number>;
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -61,6 +63,7 @@ export function AppShell({
               const active =
                 pathname === item.href || pathname.startsWith(`${item.href}/`);
               const Icon = item.icon;
+              const badge = badges[item.href] ?? 0;
               return (
                 <Link
                   key={item.href}
@@ -74,7 +77,20 @@ export function AppShell({
                   )}
                 >
                   <Icon className="size-4 shrink-0" />
-                  {item.label}
+                  <span className="flex-1">{item.label}</span>
+                  {badge > 0 && (
+                    <span
+                      className={cn(
+                        "min-w-5 rounded-full px-1.5 py-0.5 text-center text-[10px] font-semibold tabular-nums",
+                        active
+                          ? "bg-white/25 text-white"
+                          : "bg-destructive text-destructive-foreground",
+                      )}
+                      title="Produk perlu restock"
+                    >
+                      {badge}
+                    </span>
+                  )}
                 </Link>
               );
             })}

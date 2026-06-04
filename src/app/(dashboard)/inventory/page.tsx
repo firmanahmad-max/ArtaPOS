@@ -7,6 +7,7 @@ import { formatRupiah } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { SearchBox, DeleteProductButton } from "./inventory-client";
 
 export const metadata: Metadata = { title: "Inventory" };
@@ -50,20 +51,22 @@ export default async function InventoryPage({
       </div>
 
       {products.length === 0 ? (
-        <Card className="flex flex-col items-center justify-center gap-3 p-12 text-center">
-          <Boxes className="size-10 text-muted-foreground" />
-          <div>
-            <p className="font-medium">{q ? "Produk tidak ditemukan" : "Belum ada produk"}</p>
-            <p className="text-sm text-muted-foreground">
-              {q ? "Coba kata kunci lain." : "Tambahkan produk pertama Anda untuk mulai mengelola stok."}
-            </p>
-          </div>
-          {!q && (
-            <Link href="/inventory/new" className={buttonVariants({})}>
-              <Plus /> Tambah Produk
-            </Link>
-          )}
-        </Card>
+        <EmptyState
+          icon={Boxes}
+          title={q ? "Produk tidak ditemukan" : "Belum ada produk"}
+          description={
+            q
+              ? "Coba kata kunci lain."
+              : "Tambahkan produk pertama Anda untuk mulai mengelola stok."
+          }
+          action={
+            !q && (
+              <Link href="/inventory/new" className={buttonVariants({})}>
+                <Plus /> Tambah Produk
+              </Link>
+            )
+          }
+        />
       ) : (
         <Card className="overflow-x-auto">
           <table className="w-full text-sm">

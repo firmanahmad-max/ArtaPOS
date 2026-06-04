@@ -2,9 +2,10 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition, useState } from "react";
+import { toast } from "sonner";
 import { Search, Trash2, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { ConfirmButton } from "@/components/ui/confirm-dialog";
 import { deactivateProductAction } from "@/server/inventory/actions";
 
 /** Kotak pencarian produk — memperbarui query param ?q= */
@@ -42,16 +43,25 @@ export function SearchBox({ initial }: { initial: string }) {
 export function DeleteProductButton({ id, name }: { id: string; name: string }) {
   const [pending, startTransition] = useTransition();
 
-  const onClick = () => {
-    if (!confirm(`Hapus produk "${name}"? Produk akan dinonaktifkan (riwayat stok tetap tersimpan).`)) return;
+  const onConfirm = () => {
     startTransition(async () => {
       await deactivateProductAction(id);
+      toast.success(`Produk "${name}" dinonaktifkan`);
     });
   };
 
   return (
-    <Button variant="ghost" size="icon" onClick={onClick} disabled={pending} title="Hapus produk">
+    <ConfirmButton
+      variant="ghost"
+      size="icon"
+      disabled={pending}
+      destructive
+      onConfirm={onConfirm}
+      title={`Hapus produk "${name}"?`}
+      confirmText="Ya, nonaktifkan"
+      description="Produk akan dinonaktifkan. Riwayat stok tetap tersimpan."
+    >
       {pending ? <Loader2 className="animate-spin" /> : <Trash2 className="text-destructive" />}
-    </Button>
+    </ConfirmButton>
   );
 }

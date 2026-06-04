@@ -1,31 +1,39 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Ban, Loader2 } from "lucide-react";
 import { voidSaleAction } from "@/server/pos/actions";
-import { Button } from "@/components/ui/button";
+import { ConfirmButton } from "@/components/ui/confirm-dialog";
 
 export function VoidSaleButton({ saleId, number }: { saleId: string; number: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [err, setErr] = useState<string | null>(null);
 
-  const onClick = () => {
-    if (!confirm(`Batalkan transaksi ${number}? Stok akan dikembalikan. Tindakan ini tidak bisa diurungkan.`)) return;
+  const onConfirm = () => {
     start(async () => {
       const r = await voidSaleAction(saleId);
-      if (r.ok) router.refresh();
-      else setErr(r.message ?? "Gagal membatalkan.");
+      if (r.ok) {
+        toast.success(`Transaksi ${number} dibatalkan`, { description: "Stok telah dikembalikan." });
+        router.refresh();
+      } else {
+        toast.error("Gagal membatalkan", { description: r.message ?? undefined });
+      }
     });
   };
 
   return (
-    <div className="space-y-2">
-      <Button variant="destructive" onClick={onClick} disabled={pending}>
-        {pending ? <Loader2 className="animate-spin" /> : <Ban />} Batalkan Transaksi
-      </Button>
-      {err && <p className="text-sm text-destructive">{err}</p>}
-    </div>
+    <ConfirmButton
+      variant="destructive"
+      disabled={pending}
+      onConfirm={onConfirm}
+      destructive
+      title={`Batalkan transaksi ${number}?`}
+      description="Stok akan dikembalikan. Tindakan ini tidak bisa diurungkan."
+      confirmText="Ya, batalkan"
+    >
+      {pending ? <Loader2 className="animate-spin" /> : <Ban />} Batalkan Transaksi
+    </ConfirmButton>
   );
 }

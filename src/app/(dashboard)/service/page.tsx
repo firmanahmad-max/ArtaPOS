@@ -8,6 +8,7 @@ import { formatRupiah } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { SERVICE_STATUS_META } from "./status-config";
 
 export const metadata: Metadata = { title: "Jasa Servis" };
@@ -37,10 +38,16 @@ export default async function ServicePage() {
       </div>
 
       {tickets.length === 0 ? (
-        <Card className="flex flex-col items-center gap-3 p-12 text-center">
-          <Wrench className="size-10 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Belum ada tiket servis.</p>
-        </Card>
+        <EmptyState
+          icon={Wrench}
+          title="Belum ada tiket servis"
+          description="Buat tiket pertama untuk mencatat servis perangkat pelanggan."
+          action={
+            <Link href="/service/new" className={buttonVariants({})}>
+              <Plus /> Tiket Baru
+            </Link>
+          }
+        />
       ) : (
         <Card className="overflow-x-auto">
           <table className="w-full text-sm">
