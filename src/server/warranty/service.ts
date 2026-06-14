@@ -112,8 +112,17 @@ export async function listWarranties(tenantId: string, search?: string): Promise
 }
 
 export async function claimWarranty(tenantId: string, id: string, note?: string) {
-  const w = await db.warrantyUnit.findFirst({ where: { id, tenantId }, select: { id: true, note: true } });
+  const w = await db.warrantyUnit.findFirst({
+    where: { id, tenantId },
+    select: { id: true, status: true, warrantyUntil: true, note: true },
+  });
   if (!w) throw new Error("Data garansi tidak ditemukan.");
+  // Hanya garansi ACTIVE & belum kedaluwarsa yang boleh diklaim.
+  if (w.status === "CLAIMED") throw new Error("Garansi ini sudah pernah diklaim.");
+  if (w.status === "VOID") throw new Error("Garansi ini sudah dibatalkan (void).");
+  if (w.warrantyUntil && w.warrantyUntil.getTime() < Date.now()) {
+    throw new Error("Masa garansi sudah berakhir.");
+  }
   const stamp = new Date().toLocaleDateString("id-ID");
   const merged = [w.note, note ? `[Klaim ${stamp}] ${note}` : `[Klaim ${stamp}]`].filter(Boolean).join(" • ");
   return db.warrantyUnit.update({ where: { id }, data: { status: "CLAIMED", note: merged } });

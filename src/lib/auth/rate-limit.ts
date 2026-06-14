@@ -13,6 +13,12 @@ const WINDOW_MS = 5 * 60 * 1000; // jendela hitung percobaan
 const MAX_ATTEMPTS = 8; // ambang sebelum dikunci
 const LOCK_MS = 15 * 60 * 1000; // durasi kunci setelah melewati ambang
 
+export interface LimitOptions {
+  windowMs?: number;
+  maxAttempts?: number;
+  lockMs?: number;
+}
+
 /** True bila key sedang terkunci (terlalu banyak percobaan gagal). */
 export async function isLoginLocked(key: string): Promise<boolean> {
   try {
@@ -24,11 +30,14 @@ export async function isLoginLocked(key: string): Promise<boolean> {
 }
 
 /** Catat satu percobaan gagal; kunci bila melewati ambang dalam jendela waktu. */
-export async function recordLoginFailure(key: string): Promise<void> {
+export async function recordLoginFailure(key: string, opts: LimitOptions = {}): Promise<void> {
+  const windowMs = opts.windowMs ?? WINDOW_MS;
+  const maxAttempts = opts.maxAttempts ?? MAX_ATTEMPTS;
+  const lockMs = opts.lockMs ?? LOCK_MS;
   const now = Date.now();
   try {
     const rec = await db.loginAttempt.findUnique({ where: { key } });
-    if (!rec || now - rec.firstAt.getTime() > WINDOW_MS) {
+    if (!rec || now - rec.firstAt.getTime() > windowMs) {
       await db.loginAttempt.upsert({
         where: { key },
         create: { key, count: 1, firstAt: new Date(now), lockUntil: null },
@@ -37,7 +46,7 @@ export async function recordLoginFailure(key: string): Promise<void> {
       return;
     }
     const count = rec.count + 1;
-    const lockUntil = count >= MAX_ATTEMPTS ? new Date(now + LOCK_MS) : rec.lockUntil;
+    const lockUntil = count >= maxAttempts ? new Date(now + lockMs) : rec.lockUntil;
     await db.loginAttempt.update({ where: { key }, data: { count, lockUntil } });
   } catch {
     /* fail-open */
