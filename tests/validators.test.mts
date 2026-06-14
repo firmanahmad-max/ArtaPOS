@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { assertPositiveInt, assertNonNegativeInt } from "../src/lib/utils.ts";
+import { assertPositiveInt, assertNonNegativeInt, slugify, formatRupiah } from "../src/lib/utils.ts";
 
 test("assertPositiveInt menerima bilangan bulat > 0", () => {
   assert.equal(assertPositiveInt(5), 5);
@@ -23,4 +23,19 @@ test("assertNonNegativeInt menerima 0 dan positif, menolak negatif/desimal", () 
 
 test("label kustom muncul di pesan error", () => {
   assert.throws(() => assertPositiveInt(-1, "Jumlah pembayaran"), /Jumlah pembayaran/);
+});
+
+test("slugify membentuk slug URL-friendly", () => {
+  assert.equal(slugify("Toko Maju Jaya"), "toko-maju-jaya");
+  assert.equal(slugify("  Toko   Saya  "), "toko-saya"); // spasi ganda + trim
+  assert.equal(slugify("Hello__World!!"), "helloworld"); // underscore & '!' dibuang
+  assert.equal(slugify("Ärt@POS"), "rtpos"); // karakter non-ASCII dibuang
+  assert.equal(slugify("---"), ""); // hanya pemisah → kosong (onboarding pakai fallback)
+});
+
+test("formatRupiah: Rp, pemisah ribuan, tanpa desimal", () => {
+  assert.match(formatRupiah(1000), /Rp/);
+  assert.match(formatRupiah(1000000), /1\.000\.000/);
+  assert.doesNotMatch(formatRupiah(1500), /,/); // tak ada bagian desimal
+  assert.match(formatRupiah(0), /0/);
 });

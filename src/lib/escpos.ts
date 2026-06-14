@@ -48,7 +48,12 @@ function ascii(s: string): string {
 
 class Builder {
   private buf: number[] = [];
-  constructor(public width: number) {}
+  readonly width: number;
+  // Field eksplisit (bukan parameter-property) agar sintaks tetap "erasable"
+  // — kompatibel dengan eksekusi TS native Node (mis. `node --test`).
+  constructor(width: number) {
+    this.width = width;
+  }
 
   raw(...b: number[]) {
     this.buf.push(...b);
