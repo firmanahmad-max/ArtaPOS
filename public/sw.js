@@ -4,7 +4,7 @@
  * - Navigasi halaman: network-first → fallback cache → fallback /offline.html.
  * - Hanya menangani GET same-origin. POST & /api/sync TIDAK di-cache (ditangani sync engine).
  */
-const VERSION = "v1";
+const VERSION = "v2";
 const CACHE = `toko-${VERSION}`;
 const PRECACHE = ["/offline.html", "/icon.svg", "/manifest.webmanifest"];
 
@@ -39,15 +39,17 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return; // lewati lintas-origin
   if (url.pathname.startsWith("/api/")) return; // API ditangani jaringan/sync
 
-  // Aset statis: cache-first.
+  // Aset statis: cache-first (hanya cache respons sukses & tak ter-redirect).
   if (isStaticAsset(url)) {
     event.respondWith(
       caches.match(request).then(
         (hit) =>
           hit ||
           fetch(request).then((res) => {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(request, copy));
+            if (res.ok && !res.redirected) {
+              const copy = res.clone();
+              caches.open(CACHE).then((c) => c.put(request, copy));
+            }
             return res;
           }),
       ),
@@ -55,19 +57,10 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Navigasi halaman: network-first dengan fallback offline.
+  // Navigasi halaman: network-first, fallback /offline.html saat offline.
+  // Sengaja TIDAK men-cache HTML halaman: berisi data ter-autentikasi (privasi)
+  // & respons redirect tak boleh disajikan ulang untuk navigasi.
   if (request.mode === "navigate") {
-    event.respondWith(
-      fetch(request)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(request, copy));
-          return res;
-        })
-        .catch(async () => {
-          const cached = await caches.match(request);
-          return cached || caches.match("/offline.html");
-        }),
-    );
+    event.respondWith(fetch(request).catch(() => caches.match("/offline.html")));
   }
 });
