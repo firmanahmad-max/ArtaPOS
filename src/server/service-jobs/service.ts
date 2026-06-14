@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { assertPositiveInt, assertNonNegativeInt } from "@/lib/utils";
 import type { Prisma } from "@/generated/prisma/client";
 import type { ServiceStatus } from "@/generated/prisma/enums";
 import type { ServiceTicketInput } from "@/lib/validations/service";
@@ -130,6 +131,7 @@ export async function addPart(
   productId: string,
   qty: number,
 ) {
+  assertPositiveInt(qty, "Jumlah");
   await ensureTicket(tenantId, ticketId);
   return db.$transaction(async (tx) => {
     const product = await tx.product.findFirst({
@@ -175,10 +177,13 @@ export async function addLine(
   price: number,
   qty: number,
 ) {
+  if (!name?.trim()) throw new Error("Nama item wajib diisi.");
+  assertPositiveInt(qty, "Jumlah");
+  assertNonNegativeInt(price, "Harga");
   await ensureTicket(tenantId, ticketId);
   return db.$transaction(async (tx) => {
     await tx.serviceItem.create({
-      data: { ticketId, name, qty, price, subtotal: price * qty, isPart: false },
+      data: { ticketId, name: name.trim(), qty, price, subtotal: price * qty, isPart: false },
     });
     await recompute(tx, ticketId);
   });
@@ -217,9 +222,10 @@ export async function removeItem(tenantId: string, userId: string, ticketId: str
 }
 
 export async function updateLabor(tenantId: string, ticketId: string, laborCost: number) {
+  assertNonNegativeInt(laborCost, "Biaya jasa");
   await ensureTicket(tenantId, ticketId);
   return db.$transaction(async (tx) => {
-    await tx.serviceTicket.update({ where: { id: ticketId }, data: { laborCost: Math.max(0, laborCost) } });
+    await tx.serviceTicket.update({ where: { id: ticketId }, data: { laborCost } });
     await recompute(tx, ticketId);
   });
 }
@@ -238,6 +244,7 @@ export async function updateStatus(tenantId: string, ticketId: string, status: S
 }
 
 export async function recordPayment(tenantId: string, ticketId: string, amount: number) {
+  assertPositiveInt(amount, "Jumlah pembayaran");
   return db.$transaction(async (tx) => {
     const t = await tx.serviceTicket.findFirst({
       where: { id: ticketId, tenantId },

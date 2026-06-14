@@ -24,3 +24,15 @@ export function formatRupiah(value: number): string {
     maximumFractionDigits: 0,
   }).format(value);
 }
+
+/** Pastikan bilangan bulat > 0 (mis. qty/jumlah bayar); lempar error ramah bila tidak. */
+export function assertPositiveInt(n: number, label = "Jumlah"): number {
+  if (!Number.isInteger(n) || n <= 0) throw new Error(`${label} harus bilangan bulat lebih dari 0.`);
+  return n;
+}
+
+/** Pastikan bilangan bulat >= 0 (mis. harga/biaya); lempar error ramah bila tidak. */
+export function assertNonNegativeInt(n: number, label = "Nilai"): number {
+  if (!Number.isInteger(n) || n < 0) throw new Error(`${label} harus bilangan bulat tidak negatif.`);
+  return n;
+}

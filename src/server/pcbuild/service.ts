@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { assertPositiveInt, assertNonNegativeInt } from "@/lib/utils";
 import type { Prisma } from "@/generated/prisma/client";
 import type { BuildStatus } from "@/generated/prisma/enums";
 import type { PcBuildInput } from "@/lib/validations/pcbuild";
@@ -74,6 +75,7 @@ export async function addComponent(
   productId: string,
   qty: number,
 ) {
+  assertPositiveInt(qty, "Jumlah");
   await ensureBuild(tenantId, buildId);
   return db.$transaction(async (tx) => {
     const product = await tx.product.findFirst({
@@ -121,9 +123,10 @@ export async function removeComponent(tenantId: string, userId: string, buildId:
 }
 
 export async function updateBuildFee(tenantId: string, buildId: string, buildFee: number) {
+  assertNonNegativeInt(buildFee, "Biaya rakit");
   await ensureBuild(tenantId, buildId);
   return db.$transaction(async (tx) => {
-    await tx.pcBuild.update({ where: { id: buildId }, data: { buildFee: Math.max(0, buildFee) } });
+    await tx.pcBuild.update({ where: { id: buildId }, data: { buildFee } });
     await recompute(tx, buildId);
   });
 }
@@ -138,6 +141,7 @@ export async function updateStatus(tenantId: string, buildId: string, status: Bu
 }
 
 export async function recordPayment(tenantId: string, buildId: string, amount: number) {
+  assertPositiveInt(amount, "Jumlah pembayaran");
   return db.$transaction(async (tx) => {
     const b = await tx.pcBuild.findFirst({ where: { id: buildId, tenantId }, select: { id: true, total: true, paid: true } });
     if (!b) throw new Error("Rakitan tidak ditemukan.");
