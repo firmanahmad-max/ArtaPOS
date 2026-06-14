@@ -1,16 +1,14 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { localParts, startOfDay, dayKey } from "@/lib/timezone";
 
 /** Service Analitik — agregasi untuk dashboard laporan. Ter-scope tenantId. */
 
-function dayKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
 /** Tren penjualan harian (omzet) `days` hari terakhir, termasuk hari nol. */
 export async function salesTrend(tenantId: string, days = 14) {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (days - 1));
+  // Bucket harian pada zona laporan (WIB), bukan zona server (UTC di Vercel).
+  const { y, m, d } = localParts();
+  const start = startOfDay(y, m, d - (days - 1));
   const sales = await db.sale.findMany({
     where: { tenantId, status: "COMPLETED", createdAt: { gte: start } },
     select: { total: true, createdAt: true },
@@ -18,8 +16,7 @@ export async function salesTrend(tenantId: string, days = 14) {
 
   const buckets = new Map<string, number>();
   for (let i = 0; i < days; i++) {
-    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
-    buckets.set(dayKey(d), 0);
+    buckets.set(dayKey(startOfDay(y, m, d - (days - 1) + i)), 0);
   }
   for (const s of sales) {
     const k = dayKey(s.createdAt);

@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { localParts, startOfDay, formatLocalDate } from "@/lib/timezone";
 import type { ExpenseInput, ReportPeriod } from "@/lib/validations/finance";
 
 /** Service Keuangan — biaya + agregasi laporan. Ter-scope tenantId. */
@@ -30,21 +31,20 @@ export async function deleteExpense(tenantId: string, id: string) {
 
 // ── Rentang periode ──────────────────────────────────────────────────────—
 export function periodRange(period: ReportPeriod): { from: Date; to: Date; label: string } {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth();
-  const d = now.getDate();
+  // Batas hari dihitung pada zona laporan (WIB), bukan zona server (UTC di Vercel).
+  const { y, m, d } = localParts();
   if (period === "today") {
-    const from = new Date(y, m, d);
-    const to = new Date(y, m, d + 1);
-    return { from, to, label: from.toLocaleDateString("id-ID", { dateStyle: "full" }) };
+    const from = startOfDay(y, m, d);
+    const to = startOfDay(y, m, d + 1);
+    return { from, to, label: formatLocalDate(from, { dateStyle: "full" }) };
   }
   if (period === "year") {
-    return { from: new Date(y, 0, 1), to: new Date(y + 1, 0, 1), label: `Tahun ${y}` };
+    return { from: startOfDay(y, 0, 1), to: startOfDay(y + 1, 0, 1), label: `Tahun ${y}` };
   }
   // month
-  const from = new Date(y, m, 1);
-  return { from, to: new Date(y, m + 1, 1), label: from.toLocaleDateString("id-ID", { month: "long", year: "numeric" }) };
+  const from = startOfDay(y, m, 1);
+  const to = startOfDay(y, m + 1, 1);
+  return { from, to, label: formatLocalDate(from, { month: "long", year: "numeric" }) };
 }
 
 export interface FinanceReport {

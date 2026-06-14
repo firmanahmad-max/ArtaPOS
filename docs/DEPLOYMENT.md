@@ -49,7 +49,15 @@ Simpan hasilnya untuk dipakai di Vercel.
    | `DATABASE_URL` | URL pooler Supabase (port 6543, `?pgbouncer=true`) |
    | `DIRECT_URL` | URL direct Supabase (port 5432) |
    | `AUTH_SECRET` | hasil generate di Langkah 3 |
+   | `TZ` | `Asia/Jakarta` (penting — lihat catatan Zona Waktu) |
 5. Klik **Deploy**. Tunggu build selesai.
+
+> **Zona waktu (TZ):** server Vercel berjalan di UTC. Tanpa `TZ=Asia/Jakarta`,
+> tanggal/jam yang dirender di sisi-server (mis. riwayat penjualan, shift) tampil
+> 7 jam lebih awal. Batas hari pada *laporan keuangan & tren* sudah dihitung
+> eksplisit di WIB (benar tanpa env ini), tetapi set `TZ` tetap disarankan agar
+> SEMUA tampilan tanggal konsisten. Untuk WITA/WIT ganti nilainya
+> (`Asia/Makassar` / `Asia/Jayapura`).
 
 ## Langkah 5 — Pakai aplikasinya
 1. Buka URL Vercel (mis. `https://arta-pos.vercel.app`).
@@ -63,8 +71,8 @@ Simpan hasilnya untuk dipakai di Vercel.
 - **Migration berikutnya**: setiap kali skema berubah, jalankan `npm run db:deploy` terhadap
   Supabase (atau jadikan langkah CI), lalu Vercel redeploy otomatis saat `git push`.
 - **Custom domain**: bisa ditambahkan di Vercel → Settings → Domains.
-- **Keamanan**: rate-limit login bawaan bersifat per-instance (in-memory). Untuk skala besar
-  multi-instance, pertimbangkan store bersama (mis. Upstash Redis).
+- **Keamanan**: rate-limit login bawaan tahan-lama (tabel `LoginAttempt` di Postgres),
+  konsisten lintas instance serverless. 8 percobaan gagal / 5 menit → kunci 15 menit.
 - **Jika ada error koneksi DB di serverless**: pastikan DATABASE_URL memakai pooler (6543).
   Bila perlu, coba mode **Session** pooler dari Supabase.
 - **Alternatif DB**: Neon (https://neon.tech) juga kompatibel — pola `DATABASE_URL` (pooled) +
