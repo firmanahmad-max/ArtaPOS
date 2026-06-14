@@ -45,8 +45,27 @@ export async function createCategoryAction(
   } catch (e) {
     return { message: friendlyError(e) };
   }
-  revalidatePath("/inventory/categories");
+  revalidatePath("/inventory/master");
   return { ok: true, message: "Kategori ditambahkan." };
+}
+
+/** Buat kategori cepat (dari form produk) → kembalikan id+nama untuk dipilih. */
+export async function quickCreateCategoryAction(
+  name: string,
+): Promise<{ ok: boolean; id?: string; name?: string; message?: string }> {
+  const ctx = await getAuthContext();
+  if (!can(ctx.role, "inventory.manage")) return { ok: false, message: NO_PERMISSION };
+
+  const parsed = categorySchema.safeParse({ name, description: undefined });
+  if (!parsed.success) return { ok: false, message: "Nama kategori tidak valid." };
+
+  try {
+    const cat = await svc.createCategory(ctx.tenantId, parsed.data);
+    revalidatePath("/inventory/master");
+    return { ok: true, id: cat.id, name: cat.name };
+  } catch (e) {
+    return { ok: false, message: friendlyError(e) };
+  }
 }
 
 // ── Satuan ───────────────────────────────────────────────────────────────—
@@ -68,8 +87,27 @@ export async function createUnitAction(
   } catch (e) {
     return { message: friendlyError(e) };
   }
-  revalidatePath("/inventory/units");
+  revalidatePath("/inventory/master");
   return { ok: true, message: "Satuan ditambahkan." };
+}
+
+/** Buat satuan cepat (dari form produk) → kembalikan id+nama untuk dipilih. */
+export async function quickCreateUnitAction(
+  name: string,
+): Promise<{ ok: boolean; id?: string; name?: string; message?: string }> {
+  const ctx = await getAuthContext();
+  if (!can(ctx.role, "inventory.manage")) return { ok: false, message: NO_PERMISSION };
+
+  const parsed = unitSchema.safeParse({ name, symbol: undefined });
+  if (!parsed.success) return { ok: false, message: "Nama satuan tidak valid." };
+
+  try {
+    const unit = await svc.createUnit(ctx.tenantId, parsed.data);
+    revalidatePath("/inventory/master");
+    return { ok: true, id: unit.id, name: unit.name };
+  } catch (e) {
+    return { ok: false, message: friendlyError(e) };
+  }
 }
 
 // ── Produk ───────────────────────────────────────────────────────────────—

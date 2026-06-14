@@ -12,12 +12,14 @@ export function AddCategoryForm() {
   const router = useRouter();
   const ref = useRef<HTMLFormElement>(null);
 
+  // Depend pada objek `state` (bukan `state?.ok`) agar refresh juga jalan
+  // saat membuat berturut-turut — `ok` tetap true tiap sukses, objeknya baru.
   useEffect(() => {
     if (state?.ok) {
       ref.current?.reset();
       router.refresh();
     }
-  }, [state?.ok, router]);
+  }, [state, router]);
 
   return (
     <form ref={ref} action={action} className="flex flex-col gap-2 sm:flex-row">
@@ -43,7 +45,7 @@ export function AddUnitForm() {
       ref.current?.reset();
       router.refresh();
     }
-  }, [state?.ok, router]);
+  }, [state, router]);
 
   return (
     <form ref={ref} action={action} className="flex flex-col gap-2 sm:flex-row">

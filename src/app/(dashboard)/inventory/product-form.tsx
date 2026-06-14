@@ -1,15 +1,122 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useTransition } from "react";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus, Check, X } from "lucide-react";
 import type { FormState } from "@/lib/form";
+import { quickCreateCategoryAction, quickCreateUnitAction } from "@/server/inventory/actions";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarcodeScanner } from "@/components/barcode/barcode-scanner";
+
+type QuickCreate = (name: string) => Promise<{ ok: boolean; id?: string; name?: string; message?: string }>;
+
+/** Select dengan opsi membuat entri baru inline (mis. kategori/satuan). */
+function SelectWithCreate({
+  name,
+  label,
+  options,
+  defaultValue,
+  emptyLabel,
+  placeholder,
+  create,
+}: {
+  name: string;
+  label: string;
+  options: Option[];
+  defaultValue: string;
+  emptyLabel: string;
+  placeholder: string;
+  create: QuickCreate;
+}) {
+  const [opts, setOpts] = useState(options);
+  const [value, setValue] = useState(defaultValue);
+  const [adding, setAdding] = useState(false);
+  const [text, setText] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+
+  const submit = () => {
+    const nm = text.trim();
+    if (!nm) return;
+    setErr(null);
+    start(async () => {
+      const r = await create(nm);
+      if (r.ok && r.id) {
+        const added = { id: r.id, name: r.name ?? nm };
+        setOpts((o) => [...o, added].sort((a, b) => a.name.localeCompare(b.name)));
+        setValue(r.id);
+        setText("");
+        setAdding(false);
+      } else {
+        setErr(r.message ?? "Gagal membuat.");
+      }
+    });
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Label htmlFor={name}>{label}</Label>
+      {/* Nilai selalu ikut terkirim, baik saat memilih maupun saat menambah. */}
+      <input type="hidden" name={name} value={value} />
+      {adding ? (
+        <div className="flex gap-2">
+          <Input
+            autoFocus
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={placeholder}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                submit();
+              } else if (e.key === "Escape") {
+                setAdding(false);
+                setErr(null);
+              }
+            }}
+          />
+          <Button type="button" size="icon" onClick={submit} disabled={pending} title="Simpan">
+            {pending ? <Loader2 className="animate-spin" /> : <Check />}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              setAdding(false);
+              setErr(null);
+            }}
+            title="Batal"
+          >
+            <X />
+          </Button>
+        </div>
+      ) : (
+        <div className="flex gap-2">
+          <Select
+            id={name}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            className="flex-1"
+          >
+            <option value="">{emptyLabel}</option>
+            {opts.map((o) => (
+              <option key={o.id} value={o.id}>{o.name}</option>
+            ))}
+          </Select>
+          <Button type="button" variant="outline" size="sm" onClick={() => setAdding(true)}>
+            <Plus /> Baru
+          </Button>
+        </div>
+      )}
+      {err && <p className="text-sm text-destructive">{err}</p>}
+    </div>
+  );
+}
 
 export interface Option {
   id: string;
@@ -84,25 +191,25 @@ export function ProductForm({
             <FieldError msg={state?.errors?.barcode} />
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="categoryId">Kategori</Label>
-            <Select id="categoryId" name="categoryId" defaultValue={initial?.categoryId ?? ""}>
-              <option value="">— Tanpa kategori —</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </Select>
-          </div>
+          <SelectWithCreate
+            name="categoryId"
+            label="Kategori"
+            options={categories}
+            defaultValue={initial?.categoryId ?? ""}
+            emptyLabel="— Tanpa kategori —"
+            placeholder="Nama kategori baru (mis. Laptop)"
+            create={quickCreateCategoryAction}
+          />
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="unitId">Satuan</Label>
-            <Select id="unitId" name="unitId" defaultValue={initial?.unitId ?? ""}>
-              <option value="">— Tanpa satuan —</option>
-              {units.map((u) => (
-                <option key={u.id} value={u.id}>{u.name}</option>
-              ))}
-            </Select>
-          </div>
+          <SelectWithCreate
+            name="unitId"
+            label="Satuan"
+            options={units}
+            defaultValue={initial?.unitId ?? ""}
+            emptyLabel="— Tanpa satuan —"
+            placeholder="Nama satuan baru (mis. Pcs)"
+            create={quickCreateUnitAction}
+          />
         </CardContent>
       </Card>
 
