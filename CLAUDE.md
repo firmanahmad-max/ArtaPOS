@@ -23,6 +23,7 @@ kirim laporan ke WhatsApp, lisensi/demo.
 - `npm run build` / `npm run start` — produksi
 - `npm run typecheck` — `tsc --noEmit`
 - `npm run lint` — ESLint (flat config; `next lint` sudah dihapus di Next 16)
+- `npm test` — unit test helper murni via `node --test` (Node 24 type-stripping; file `tests/*.test.mts`, tanpa runner pihak-3)
 - `npm run db:migrate` — buat & terapkan migration (dev)
 - `npm run db:deploy` — terapkan migration (produksi)
 - `npm run db:generate` — generate Prisma Client
