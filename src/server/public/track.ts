@@ -33,7 +33,10 @@ export async function trackServiceAction(number: string, phone: string): Promise
   const phoneNorm = normalizePhoneId(phone.trim());
   if (!num || !phoneNorm) return { found: false };
 
-  const ticket = await db.serviceTicket.findFirst({
+  // Endpoint publik tanpa sesi/tenant: nomor tiket berurutan per-tenant sehingga
+  // bisa bertabrakan antar toko. Ambil semua yang cocok nomornya, lalu pilih
+  // yang nomor HP-nya cocok (identitas = nomor tiket + HP).
+  const tickets = await db.serviceTicket.findMany({
     where: { number: num },
     select: {
       number: true,
@@ -47,8 +50,10 @@ export async function trackServiceAction(number: string, phone: string): Promise
     },
   });
 
-  if (!ticket || !ticket.customerPhone) return { found: false };
-  if (normalizePhoneId(ticket.customerPhone) !== phoneNorm) return { found: false };
+  const ticket = tickets.find(
+    (t) => t.customerPhone && normalizePhoneId(t.customerPhone) === phoneNorm,
+  );
+  if (!ticket) return { found: false };
 
   return {
     found: true,

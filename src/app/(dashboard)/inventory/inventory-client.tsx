@@ -20,6 +20,7 @@ export function SearchBox({ initial }: { initial: string }) {
     const next = new URLSearchParams(params.toString());
     if (value.trim()) next.set("q", value.trim());
     else next.delete("q");
+    next.delete("page"); // pencarian baru selalu mulai dari halaman 1
     startTransition(() => router.push(`/inventory?${next.toString()}`));
   };
 

@@ -1,7 +1,11 @@
 /** Susun teks CSV dari baris-baris nilai (auto quote bila perlu). Diawali BOM agar Excel benar. */
 export function toCsv(rows: (string | number | null | undefined)[][]): string {
+  // Karakter pembuka yang ditafsirkan Excel/Sheets sebagai formula → cegah CSV injection.
+  const FORMULA = /^[=+\-@\t\r]/;
   const escape = (v: string | number | null | undefined) => {
-    const s = v == null ? "" : String(v);
+    let s = v == null ? "" : String(v);
+    // Hanya nilai TEKS (bukan angka) yang berisiko; angka negatif tetap utuh.
+    if (typeof v === "string" && FORMULA.test(s)) s = `'${s}`;
     return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const body = rows.map((r) => r.map(escape).join(",")).join("\r\n");
