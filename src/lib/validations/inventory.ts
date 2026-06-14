@@ -30,6 +30,13 @@ export const productSchema = z.object({
 });
 export type ProductInput = z.infer<typeof productSchema>;
 
+/** Hasil hitung fisik stok opname (countedQty tak boleh negatif/NaN). */
+export const opnameCountSchema = z.object({
+  itemId: z.string().min(1),
+  countedQty: z.coerce.number().int("Jumlah harus bilangan bulat").min(0, "Jumlah tidak boleh negatif"),
+});
+export const opnameCountsSchema = z.array(opnameCountSchema);
+
 /** Penyesuaian stok manual. */
 export const stockAdjustSchema = z.object({
   productId: z.string().min(1),

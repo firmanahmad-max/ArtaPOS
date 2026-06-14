@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getAuthContext } from "@/lib/auth/guard";
 import { can } from "@/lib/rbac";
 import type { FormState } from "@/lib/form";
+import { opnameCountsSchema } from "@/lib/validations/inventory";
 import * as svc from "@/server/opname/service";
 
 const NO_PERM = "Anda tidak punya izin untuk stok opname.";
@@ -39,8 +40,12 @@ export async function saveOpnameCountsAction(
 ): Promise<OpnameActionResult> {
   const ctx = await getAuthContext();
   if (!can(ctx.role, "inventory.manage")) return { ok: false, message: NO_PERM };
+  const parsed = opnameCountsSchema.safeParse(counts);
+  if (!parsed.success) {
+    return { ok: false, message: "Hasil hitung tidak valid (jumlah harus bilangan bulat ≥ 0)." };
+  }
   try {
-    await svc.saveOpnameCounts(ctx.tenantId, opnameId, counts);
+    await svc.saveOpnameCounts(ctx.tenantId, opnameId, parsed.data);
     revalidatePath(`/inventory/opname/${opnameId}`);
     return { ok: true, message: "Hitungan tersimpan." };
   } catch (e) {

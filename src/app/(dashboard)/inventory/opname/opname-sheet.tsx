@@ -87,9 +87,10 @@ export function OpnameSheet({
                     {isDraft ? (
                       <Input
                         type="number"
+                        min="0"
                         value={counted}
                         onChange={(e) =>
-                          setCounts((c) => ({ ...c, [i.id]: Number(e.target.value) }))
+                          setCounts((c) => ({ ...c, [i.id]: Math.max(0, Math.floor(Number(e.target.value) || 0)) }))
                         }
                         className="mx-auto h-9 w-24 text-center"
                       />
