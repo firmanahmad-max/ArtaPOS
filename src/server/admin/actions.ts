@@ -32,6 +32,11 @@ export async function createUserAction(_prev: FormState, formData: FormData): Pr
   });
   if (!parsed.success) return { errors: toFieldErrors(parsed.error) };
 
+  // Cegah eskalasi privilege: hanya OWNER yang boleh membuat akun OWNER.
+  if (parsed.data.role === "OWNER" && user.role !== "OWNER") {
+    return { message: "Hanya Pemilik yang dapat membuat akun Pemilik." };
+  }
+
   try {
     await createUser(user.tenantId, parsed.data);
   } catch (e) {
@@ -45,7 +50,7 @@ export async function updateUserRoleAction(userId: string, role: UserRole): Prom
   const user = await getCurrentUser();
   if (!can(user.role, "users.manage")) return { ok: false, message: "Tidak punya izin." };
   try {
-    await updateUserRole(user.tenantId, userId, role);
+    await updateUserRole(user.tenantId, user.role, userId, role);
     revalidatePath("/users");
     return { ok: true };
   } catch (e) {
@@ -58,7 +63,7 @@ export async function setUserActiveAction(userId: string, isActive: boolean): Pr
   if (!can(user.role, "users.manage")) return { ok: false, message: "Tidak punya izin." };
   if (userId === user.id && !isActive) return { ok: false, message: "Tidak bisa menonaktifkan akun sendiri." };
   try {
-    await setUserActive(user.tenantId, userId, isActive);
+    await setUserActive(user.tenantId, user.role, userId, isActive);
     revalidatePath("/users");
     return { ok: true };
   } catch (e) {

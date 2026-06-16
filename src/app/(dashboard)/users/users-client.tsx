@@ -12,16 +12,21 @@ import { Select } from "@/components/ui/select";
 
 const ROLES: UserRole[] = ["OWNER", "ADMIN", "KASIR", "TEKNISI"];
 
-export function AddUserForm() {
+export function AddUserForm({ isOwner }: { isOwner: boolean }) {
   const [state, action, pending] = useActionState(createUserAction, undefined);
   const router = useRouter();
   const ref = useRef<HTMLFormElement>(null);
+  // Depend pada objek `state` (bukan `state?.ok`) agar refresh tetap jalan saat
+  // menambah berturut-turut.
   useEffect(() => {
     if (state?.ok) {
       ref.current?.reset();
       router.refresh();
     }
-  }, [state?.ok, router]);
+  }, [state, router]);
+
+  // Hanya OWNER yang boleh membuat akun OWNER.
+  const roleOptions = isOwner ? ROLES : ROLES.filter((r) => r !== "OWNER");
 
   return (
     <form ref={ref} action={action} className="grid gap-3 sm:grid-cols-2">
@@ -29,7 +34,7 @@ export function AddUserForm() {
       <Input name="email" type="email" placeholder="Email" required />
       <Input name="password" type="password" placeholder="Password (min 8)" required />
       <Select name="role" defaultValue="KASIR" className="h-10">
-        {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+        {roleOptions.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
       </Select>
       <div className="sm:col-span-2 flex items-center gap-3">
         <Button type="submit" disabled={pending}>
@@ -53,15 +58,21 @@ export function UserRowActions({
   role,
   isActive,
   isSelf,
+  isOwner,
 }: {
   userId: string;
   role: UserRole;
   isActive: boolean;
   isSelf: boolean;
+  isOwner: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
+
+  // Non-OWNER tak boleh menyentuh akun OWNER, juga tak boleh menetapkan peran OWNER.
+  const lockedOwnerRow = !isOwner && role === "OWNER";
+  const roleOptions = isOwner ? ROLES : ROLES.filter((r) => r !== "OWNER");
 
   const changeRole = (newRole: UserRole) => {
     setErr(null);
@@ -85,13 +96,15 @@ export function UserRowActions({
       {err && <span className="text-xs text-destructive">{err}</span>}
       <Select
         value={role}
-        disabled={pending}
+        disabled={pending || lockedOwnerRow}
         onChange={(e) => changeRole(e.target.value as UserRole)}
         className="h-8 w-28"
       >
-        {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+        {(lockedOwnerRow ? (["OWNER"] as UserRole[]) : roleOptions).map((r) => (
+          <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+        ))}
       </Select>
-      <Button variant="outline" size="sm" disabled={pending || isSelf} onClick={toggleActive}>
+      <Button variant="outline" size="sm" disabled={pending || isSelf || lockedOwnerRow} onClick={toggleActive}>
         {isActive ? "Nonaktifkan" : "Aktifkan"}
       </Button>
     </div>

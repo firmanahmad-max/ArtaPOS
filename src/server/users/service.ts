@@ -35,9 +35,19 @@ export async function createUser(tenantId: string, input: UserCreateInput) {
   });
 }
 
-export async function updateUserRole(tenantId: string, userId: string, role: UserRole) {
+export async function updateUserRole(
+  tenantId: string,
+  actorRole: UserRole,
+  userId: string,
+  role: UserRole,
+) {
   const u = await db.user.findFirst({ where: { id: userId, tenantId }, select: { id: true, role: true } });
   if (!u) throw new Error("Pengguna tidak ditemukan.");
+  // Cegah eskalasi privilege: hanya OWNER yang boleh menetapkan peran OWNER
+  // atau mengubah peran akun yang sudah OWNER.
+  if ((role === "OWNER" || u.role === "OWNER") && actorRole !== "OWNER") {
+    throw new Error("Hanya Pemilik yang dapat mengubah peran akun Pemilik.");
+  }
   // Cegah menurunkan OWNER terakhir.
   if (u.role === "OWNER" && role !== "OWNER") {
     const owners = await db.user.count({ where: { tenantId, role: "OWNER", isActive: true } });
@@ -46,9 +56,18 @@ export async function updateUserRole(tenantId: string, userId: string, role: Use
   return db.user.update({ where: { id: userId }, data: { role } });
 }
 
-export async function setUserActive(tenantId: string, userId: string, isActive: boolean) {
+export async function setUserActive(
+  tenantId: string,
+  actorRole: UserRole,
+  userId: string,
+  isActive: boolean,
+) {
   const u = await db.user.findFirst({ where: { id: userId, tenantId }, select: { id: true, role: true } });
   if (!u) throw new Error("Pengguna tidak ditemukan.");
+  // Hanya OWNER yang boleh mengubah status akun OWNER.
+  if (u.role === "OWNER" && actorRole !== "OWNER") {
+    throw new Error("Hanya Pemilik yang dapat mengubah status akun Pemilik.");
+  }
   if (!isActive && u.role === "OWNER") {
     const owners = await db.user.count({ where: { tenantId, role: "OWNER", isActive: true } });
     if (owners <= 1) throw new Error("Tidak bisa menonaktifkan satu-satunya Pemilik.");

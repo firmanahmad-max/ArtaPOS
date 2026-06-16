@@ -14,6 +14,7 @@ export default async function UsersPage() {
     return <Card className="p-8 text-center text-sm text-muted-foreground">Tidak punya izin mengelola pengguna.</Card>;
   }
   const users = await listUsersFull(me.tenantId);
+  const isOwner = me.role === "OWNER";
 
   return (
     <div className="space-y-6">
@@ -24,7 +25,7 @@ export default async function UsersPage() {
 
       <Card>
         <CardHeader><CardTitle>Tambah Pengguna</CardTitle></CardHeader>
-        <CardContent><AddUserForm /></CardContent>
+        <CardContent><AddUserForm isOwner={isOwner} /></CardContent>
       </Card>
 
       <Card className="overflow-x-auto">
@@ -48,7 +49,7 @@ export default async function UsersPage() {
                   {u.isActive ? <Badge variant="success">Aktif</Badge> : <Badge variant="muted">Nonaktif</Badge>}
                 </td>
                 <td className="p-3">
-                  <UserRowActions userId={u.id} role={u.role} isActive={u.isActive} isSelf={u.id === me.id} />
+                  <UserRowActions userId={u.id} role={u.role} isActive={u.isActive} isSelf={u.id === me.id} isOwner={isOwner} />
                 </td>
               </tr>
             ))}
