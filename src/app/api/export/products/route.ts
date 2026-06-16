@@ -1,4 +1,4 @@
-import { verifySession } from "@/lib/auth/dal";
+import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { toCsv } from "@/lib/csv";
@@ -7,13 +7,13 @@ export const dynamic = "force-dynamic";
 
 /** Ekspor seluruh produk tenant ke CSV (cadangan / analisis). */
 export async function GET() {
-  const session = await verifySession();
-  if (!can(session.role, "inventory.manage")) {
+  const user = await getCurrentUser();
+  if (!can(user.role, "inventory.manage")) {
     return new Response("Forbidden", { status: 403 });
   }
 
   const products = await db.product.findMany({
-    where: { tenantId: session.tenantId },
+    where: { tenantId: user.tenantId },
     include: { category: { select: { name: true } }, unit: { select: { symbol: true } } },
     orderBy: { name: "asc" },
   });

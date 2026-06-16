@@ -1,4 +1,4 @@
-import { verifySession } from "@/lib/auth/dal";
+import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { toCsv } from "@/lib/csv";
@@ -7,13 +7,13 @@ export const dynamic = "force-dynamic";
 
 /** Ekspor riwayat penjualan tenant ke CSV. */
 export async function GET() {
-  const session = await verifySession();
-  if (!can(session.role, "reports.view")) {
+  const user = await getCurrentUser();
+  if (!can(user.role, "reports.view")) {
     return new Response("Forbidden", { status: 403 });
   }
 
   const sales = await db.sale.findMany({
-    where: { tenantId: session.tenantId },
+    where: { tenantId: user.tenantId },
     orderBy: { createdAt: "desc" },
     take: 5000,
   });

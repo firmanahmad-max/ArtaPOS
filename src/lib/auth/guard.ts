@@ -1,5 +1,5 @@
 import "server-only";
-import { verifySession } from "@/lib/auth/dal";
+import { getCurrentUser } from "@/lib/auth/dal";
 import { can, type Permission } from "@/lib/rbac";
 import type { UserRole } from "@/generated/prisma/enums";
 
@@ -9,10 +9,15 @@ export interface AuthContext {
   role: UserRole;
 }
 
-/** Konteks auth untuk Server Action/Service. Redirect ke /login bila belum login. */
+/**
+ * Konteks auth untuk Server Action/Service. Redirect ke /login bila belum login.
+ * Memakai getCurrentUser (cek DB): role SELALU segar & status aktif user/tenant
+ * diverifikasi — bukan dari JWT yang bisa basi (peran lama / user nonaktif)
+ * sampai 7 hari. getCurrentUser ter-cache per request (nol biaya ganda).
+ */
 export async function getAuthContext(): Promise<AuthContext> {
-  const s = await verifySession();
-  return { userId: s.userId, tenantId: s.tenantId, role: s.role };
+  const user = await getCurrentUser();
+  return { userId: user.id, tenantId: user.tenantId, role: user.role };
 }
 
 /** Error izin (ditangkap action → pesan ke user). */

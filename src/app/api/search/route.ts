@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server";
-import { verifySession } from "@/lib/auth/dal";
+import { getCurrentUser } from "@/lib/auth/dal";
 import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 /** Pencarian global ringkas (produk, pelanggan, penjualan) — ter-scope tenant. */
 export async function GET(req: Request) {
-  const session = await verifySession();
+  const user = await getCurrentUser();
   const q = new URL(req.url).searchParams.get("q")?.trim() ?? "";
   if (q.length < 2) {
     return NextResponse.json({ products: [], customers: [], sales: [] });
   }
 
-  const tenantId = session.tenantId;
+  const tenantId = user.tenantId;
   const contains = { contains: q, mode: "insensitive" as const };
 
   const [products, customers, sales] = await Promise.all([
