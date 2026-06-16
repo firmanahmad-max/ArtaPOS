@@ -13,14 +13,16 @@ import { getCurrentUser } from "@/lib/auth/dal";
 import { db } from "@/lib/db";
 import { ROLE_LABELS } from "@/lib/rbac";
 import { formatRupiah } from "@/lib/utils";
+import { localParts, startOfDay as startOfLocalDay } from "@/lib/timezone";
 import { Card, CardContent } from "@/components/ui/card";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
+  // "Hari ini" dihitung pada zona laporan (WIB), bukan zona server (UTC di Vercel).
+  const { y, m, d } = localParts();
+  const startOfDay = startOfLocalDay(y, m, d);
 
   const [license, todayAgg, productCount, lowStock, activeService] =
     await Promise.all([
