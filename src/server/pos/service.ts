@@ -15,6 +15,7 @@ export function listProductsForSale(tenantId: string) {
       sellPrice: true,
       costPrice: true,
       stock: true,
+      minStock: true,
       unit: { select: { symbol: true } },
     },
     orderBy: { name: "asc" },

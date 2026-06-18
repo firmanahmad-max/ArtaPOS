@@ -14,7 +14,7 @@ export function RecordPaymentForm({ purchaseId, outstanding }: { purchaseId: str
   const router = useRouter();
   useEffect(() => {
     if (state?.ok) router.refresh();
-  }, [state?.ok, router]);
+  }, [state, router]);
 
   return (
     <form action={formAction} className="space-y-3">

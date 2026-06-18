@@ -35,6 +35,7 @@ export default async function PosPage() {
           barcode: p.barcode,
           sellPrice: p.sellPrice,
           stock: p.stock,
+          minStock: p.minStock,
           unit: p.unit,
         }))}
         customers={customers.map((c) => ({ id: c.id, name: c.name }))}

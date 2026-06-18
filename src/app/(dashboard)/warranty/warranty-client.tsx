@@ -30,7 +30,7 @@ export function RegisterWarrantyForm({
       ref.current?.reset();
       router.refresh();
     }
-  }, [state?.ok, router]);
+  }, [state, router]);
 
   // Isi field via DOM (uncontrolled) saat produk dipilih — tanpa setState.
   const onPickProduct = (id: string) => {

@@ -13,7 +13,7 @@ export function OpenShiftForm() {
   const router = useRouter();
   useEffect(() => {
     if (state?.ok) router.refresh();
-  }, [state?.ok, router]);
+  }, [state, router]);
 
   return (
     <form action={action} className="space-y-3">
@@ -38,7 +38,7 @@ export function CloseShiftForm({ shiftId }: { shiftId: string }) {
   const router = useRouter();
   useEffect(() => {
     if (state?.ok) router.refresh();
-  }, [state?.ok, router]);
+  }, [state, router]);
 
   return (
     <form action={formAction} className="space-y-3">

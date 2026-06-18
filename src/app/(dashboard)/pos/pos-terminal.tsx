@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Search, Plus, Minus, Trash2, ShoppingCart, Loader2, X, Pause, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { createSaleAction } from "@/server/pos/actions";
-import { formatRupiah } from "@/lib/utils";
+import { cn, formatRupiah } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -20,6 +20,7 @@ export interface PosProduct {
   barcode: string | null;
   sellPrice: number;
   stock: number;
+  minStock: number;
   unit: { symbol: string | null } | null;
 }
 export interface PosCustomer {
@@ -279,16 +280,27 @@ export function PosTerminal({
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {filtered.map((p) => {
             const out = p.stock <= 0;
+            const low = !out && p.minStock > 0 && p.stock <= p.minStock;
             return (
               <button
                 key={p.id}
                 disabled={out}
                 onClick={() => addToCart(p)}
-                className="flex flex-col rounded-lg border bg-card p-3 text-left transition-colors hover:border-primary disabled:opacity-50"
+                className="group relative flex flex-col rounded-lg border bg-card p-3 text-left transition-colors hover:border-primary hover:bg-accent/40 disabled:cursor-not-allowed disabled:opacity-60"
               >
+                {out && (
+                  <span className="absolute right-2 top-2 rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-semibold text-destructive-foreground">
+                    Habis
+                  </span>
+                )}
                 <span className="line-clamp-2 text-sm font-medium">{p.name}</span>
-                <span className="mt-1 text-xs text-muted-foreground">
-                  Stok {p.stock} {p.unit?.symbol ?? ""}
+                <span
+                  className={cn(
+                    "mt-1 text-xs",
+                    low ? "font-medium text-amber-600 dark:text-amber-400" : "text-muted-foreground",
+                  )}
+                >
+                  Stok {p.stock} {p.unit?.symbol ?? ""}{low ? " · menipis" : ""}
                 </span>
                 <span className="mt-1 font-semibold text-primary">{formatRupiah(p.sellPrice)}</span>
               </button>
@@ -335,13 +347,12 @@ export function PosTerminal({
                 </div>
                 <div className="flex items-center gap-1 pl-1 text-xs text-muted-foreground">
                   <span>Diskon:</span>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={l.discount || ""}
-                    onChange={(e) => setLineDiscount(l.product.id, Number(e.target.value))}
+                  <CurrencyInput
+                    value={l.discount}
+                    onValueChange={(v) => setLineDiscount(l.product.id, v)}
+                    prefix=""
                     placeholder="0"
-                    className="h-7 w-24 text-right text-xs"
+                    className="h-7 w-24 text-xs"
                   />
                 </div>
               </div>

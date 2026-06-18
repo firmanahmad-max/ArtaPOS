@@ -22,7 +22,7 @@ export function StockAdjustForm({
   // Setelah sukses, segarkan data server (stok terbaru). Efek cleanup-free, aman.
   useEffect(() => {
     if (state?.ok) router.refresh();
-  }, [state?.ok, router]);
+  }, [state, router]);
 
   return (
     <Card>

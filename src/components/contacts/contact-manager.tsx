@@ -42,7 +42,7 @@ export function ContactManager({
       formRef.current?.reset();
       router.refresh();
     }
-  }, [state?.ok, router]);
+  }, [state, router]);
 
   const onDelete = (id: string, name: string) => {
     startDelete(async () => {

@@ -18,7 +18,7 @@ export function AddExpenseForm() {
       ref.current?.reset();
       router.refresh();
     }
-  }, [state?.ok, router]);
+  }, [state, router]);
 
   return (
     <form ref={ref} action={action} className="grid gap-3 sm:grid-cols-4">
