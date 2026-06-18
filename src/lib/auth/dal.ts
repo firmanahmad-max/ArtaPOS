@@ -45,7 +45,9 @@ export const getCurrentUser = cache(async () => {
   });
 
   if (!user || !user.tenant.isActive) {
-    redirect("/login");
+    // Sesi valid (JWT) tapi user/tenant sudah tak aktif/terhapus: hapus cookie
+    // via route handler agar tak terjadi loop redirect dengan proxy optimistic.
+    redirect("/api/auth/logout");
   }
   return user;
 });
