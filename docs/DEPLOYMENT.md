@@ -49,15 +49,14 @@ Simpan hasilnya untuk dipakai di Vercel.
    | `DATABASE_URL` | URL pooler Supabase (port 6543, `?pgbouncer=true`) |
    | `DIRECT_URL` | URL direct Supabase (port 5432) |
    | `AUTH_SECRET` | hasil generate di Langkah 3 |
-   | `TZ` | `Asia/Jakarta` (penting — lihat catatan Zona Waktu) |
 5. Klik **Deploy**. Tunggu build selesai.
 
-> **Zona waktu (TZ):** server Vercel berjalan di UTC. Tanpa `TZ=Asia/Jakarta`,
-> tanggal/jam yang dirender di sisi-server (mis. riwayat penjualan, shift) tampil
-> 7 jam lebih awal. Batas hari pada *laporan keuangan & tren* sudah dihitung
-> eksplisit di WIB (benar tanpa env ini), tetapi set `TZ` tetap disarankan agar
-> SEMUA tampilan tanggal konsisten. Untuk WITA/WIT ganti nilainya
-> (`Asia/Makassar` / `Asia/Jayapura`).
+> **Zona waktu (WIB):** server Vercel berjalan di UTC. Nama env var `TZ`
+> **di-reserve Vercel** (tak bisa diset lewat dashboard), jadi zona waktu diset
+> di kode: `src/instrumentation.ts` men-set `process.env.TZ = "Asia/Jakarta"`
+> saat server start — **tanpa konfigurasi tambahan**. Batas hari laporan/analitik/
+> dashboard juga sudah dihitung eksplisit di WIB (`src/lib/timezone.ts`). Untuk
+> WITA/WIT, ubah nilai di `src/instrumentation.ts` (`Asia/Makassar` / `Asia/Jayapura`).
 
 ## Langkah 5 — Pakai aplikasinya
 1. Buka URL Vercel (mis. `https://arta-pos.vercel.app`).
