@@ -11,8 +11,8 @@ import {
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { db } from "@/lib/db";
-import { ROLE_LABELS } from "@/lib/rbac";
-import { formatRupiah } from "@/lib/utils";
+import { ROLE_LABELS, can, type Permission } from "@/lib/rbac";
+import { cn, formatRupiah } from "@/lib/utils";
 import { localParts, startOfDay as startOfLocalDay } from "@/lib/timezone";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -59,13 +59,23 @@ export default async function DashboardPage() {
   const todayTotal = todayAgg._sum.total ?? 0;
   const todayCount = todayAgg._count;
 
-  const stats = [
+  const stats: {
+    label: string;
+    value: string;
+    icon: typeof ShoppingCart;
+    hint: string;
+    tint: string;
+    href: string;
+    perm?: Permission;
+  }[] = [
     {
       label: "Penjualan Hari Ini",
       value: formatRupiah(todayTotal),
       icon: ShoppingCart,
       hint: `${todayCount} transaksi`,
       tint: "linear-gradient(135deg, var(--primary), var(--primary-accent))",
+      href: "/sales",
+      perm: "reports.view",
     },
     {
       label: "Produk Aktif",
@@ -73,6 +83,8 @@ export default async function DashboardPage() {
       icon: Boxes,
       hint: "Total item di katalog",
       tint: "linear-gradient(135deg, #10b981, #14b8a6)",
+      href: "/inventory",
+      perm: "inventory.manage",
     },
     {
       label: "Servis Aktif",
@@ -80,6 +92,8 @@ export default async function DashboardPage() {
       icon: Wrench,
       hint: "Tiket sedang dikerjakan",
       tint: "linear-gradient(135deg, #f59e0b, #f97316)",
+      href: "/service",
+      perm: "service.manage",
     },
     {
       label: "Stok Habis",
@@ -87,6 +101,8 @@ export default async function DashboardPage() {
       icon: AlertTriangle,
       hint: "Produk perlu restock",
       tint: "linear-gradient(135deg, #f43f5e, #ef4444)",
+      href: "/inventory",
+      perm: "inventory.manage",
     },
   ];
 
@@ -118,8 +134,9 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => {
           const Icon = s.icon;
-          return (
-            <Card key={s.label} className="card-hover">
+          const accessible = !s.perm || can(user.role, s.perm);
+          const card = (
+            <Card className={cn("h-full", accessible && "card-hover")}>
               <CardContent className="flex items-center gap-4 p-5">
                 <div
                   className="flex size-12 shrink-0 items-center justify-center rounded-2xl text-white shadow-sm"
@@ -134,6 +151,13 @@ export default async function DashboardPage() {
                 </div>
               </CardContent>
             </Card>
+          );
+          return accessible ? (
+            <Link key={s.label} href={s.href} className="block">
+              {card}
+            </Link>
+          ) : (
+            <div key={s.label}>{card}</div>
           );
         })}
       </div>

@@ -82,7 +82,7 @@ export default async function InventoryPage({
             <thead>
               <tr className="border-b text-left text-muted-foreground">
                 <th className="p-3 font-medium">Produk</th>
-                <th className="p-3 font-medium">Kategori</th>
+                <th className="hidden p-3 font-medium sm:table-cell">Kategori</th>
                 <th className="p-3 text-right font-medium">Harga Jual</th>
                 <th className="p-3 text-center font-medium">Stok</th>
                 <th className="p-3 text-right font-medium">Aksi</th>
@@ -101,7 +101,7 @@ export default async function InventoryPage({
                         {p.barcode ? ` · ${p.barcode}` : ""}
                       </div>
                     </td>
-                    <td className="p-3 text-muted-foreground">{p.category?.name ?? "—"}</td>
+                    <td className="hidden p-3 text-muted-foreground sm:table-cell">{p.category?.name ?? "—"}</td>
                     <td className="p-3 text-right font-medium">{formatRupiah(p.sellPrice)}</td>
                     <td className="p-3 text-center">
                       {out ? (

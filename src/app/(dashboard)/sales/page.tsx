@@ -62,9 +62,9 @@ export default async function SalesPage({
               <tr className="border-b text-left text-muted-foreground">
                 <th className="p-3 font-medium">No</th>
                 <th className="p-3 font-medium">Tanggal</th>
-                <th className="p-3 font-medium">Pelanggan</th>
+                <th className="hidden p-3 font-medium md:table-cell">Pelanggan</th>
                 <th className="p-3 text-right font-medium">Total</th>
-                <th className="p-3 text-center font-medium">Status</th>
+                <th className="hidden p-3 text-center font-medium sm:table-cell">Status</th>
                 <th className="p-3 text-right font-medium">Aksi</th>
               </tr>
             </thead>
@@ -78,9 +78,9 @@ export default async function SalesPage({
                       timeStyle: "short",
                     })}
                   </td>
-                  <td className="p-3 text-muted-foreground">{s.customerName || "Umum"}</td>
+                  <td className="hidden p-3 text-muted-foreground md:table-cell">{s.customerName || "Umum"}</td>
                   <td className="p-3 text-right font-medium">{formatRupiah(s.total)}</td>
-                  <td className="p-3 text-center">
+                  <td className="hidden p-3 text-center sm:table-cell">
                     {s.status === "VOID" ? (
                       <Badge variant="destructive">Void</Badge>
                     ) : (
