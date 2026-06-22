@@ -29,7 +29,22 @@ export function getCustomer(tenantId: string, id: string) {
   return db.customer.findFirst({ where: { id, tenantId } });
 }
 
-export function createCustomer(tenantId: string, input: ContactInput) {
+/** Cegah nama pelanggan duplikat (case-insensitive) dalam satu tenant. */
+async function assertUniqueCustomerName(tenantId: string, name: string, excludeId?: string) {
+  const dup = await db.customer.findFirst({
+    where: {
+      tenantId,
+      isActive: true,
+      name: { equals: name, mode: "insensitive" },
+      ...(excludeId ? { id: { not: excludeId } } : {}),
+    },
+    select: { id: true },
+  });
+  if (dup) throw new Error(`Pelanggan dengan nama "${name}" sudah ada.`);
+}
+
+export async function createCustomer(tenantId: string, input: ContactInput) {
+  await assertUniqueCustomerName(tenantId, input.name);
   return db.customer.create({
     data: {
       tenantId,
@@ -44,6 +59,7 @@ export function createCustomer(tenantId: string, input: ContactInput) {
 export async function updateCustomer(tenantId: string, id: string, input: ContactInput) {
   const e = await db.customer.findFirst({ where: { id, tenantId }, select: { id: true } });
   if (!e) throw new Error("Pelanggan tidak ditemukan.");
+  await assertUniqueCustomerName(tenantId, input.name, id);
   return db.customer.update({
     where: { id },
     data: {

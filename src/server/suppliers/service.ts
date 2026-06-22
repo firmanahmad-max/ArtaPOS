@@ -29,7 +29,22 @@ export function getSupplier(tenantId: string, id: string) {
   return db.supplier.findFirst({ where: { id, tenantId } });
 }
 
-export function createSupplier(tenantId: string, input: ContactInput) {
+/** Cegah nama supplier duplikat (case-insensitive) dalam satu tenant. */
+async function assertUniqueSupplierName(tenantId: string, name: string, excludeId?: string) {
+  const dup = await db.supplier.findFirst({
+    where: {
+      tenantId,
+      isActive: true,
+      name: { equals: name, mode: "insensitive" },
+      ...(excludeId ? { id: { not: excludeId } } : {}),
+    },
+    select: { id: true },
+  });
+  if (dup) throw new Error(`Supplier dengan nama "${name}" sudah ada.`);
+}
+
+export async function createSupplier(tenantId: string, input: ContactInput) {
+  await assertUniqueSupplierName(tenantId, input.name);
   return db.supplier.create({
     data: {
       tenantId,
@@ -44,6 +59,7 @@ export function createSupplier(tenantId: string, input: ContactInput) {
 export async function updateSupplier(tenantId: string, id: string, input: ContactInput) {
   const e = await db.supplier.findFirst({ where: { id, tenantId }, select: { id: true } });
   if (!e) throw new Error("Supplier tidak ditemukan.");
+  await assertUniqueSupplierName(tenantId, input.name, id);
   return db.supplier.update({
     where: { id },
     data: {
