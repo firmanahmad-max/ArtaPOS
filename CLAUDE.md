@@ -28,6 +28,7 @@ kirim laporan ke WhatsApp, lisensi/demo.
 - `npm run db:deploy` — terapkan migration (produksi)
 - `npm run db:generate` — generate Prisma Client
 - `npm run db:studio` — Prisma Studio
+- `npm run stock:reconcile` — audit konsistensi cache `product.stock` vs akumulasi `StockMovement` (dry-run; `--fix` menulis movement ADJUSTMENT agar ledger=cache, `--all` tampilkan semua). Untuk stok FISIK pakai Stok Opname, bukan ini.
 - Health check: `GET /api/health`
 
 ## Konvensi penting (JANGAN keliru)
