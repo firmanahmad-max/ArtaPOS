@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Printer } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { getTicket, listProductsForService } from "@/server/service-jobs/service";
@@ -35,6 +35,12 @@ export default async function TicketDetailPage({
           <ArrowLeft />
         </Link>
         <h1 className="text-2xl font-bold tracking-tight">{ticket.number}</h1>
+        <Link
+          href={`/service/${ticket.id}/nota`}
+          className={`${buttonVariants({ variant: "outline", size: "sm" })} ml-auto`}
+        >
+          <Printer /> Cetak Nota
+        </Link>
       </div>
 
       <Card>

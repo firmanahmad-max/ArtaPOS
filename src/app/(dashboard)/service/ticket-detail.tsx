@@ -182,10 +182,15 @@ export function TicketDetail({
             <p className="text-sm text-muted-foreground">Belum ada item.</p>
           )}
 
-          {/* Tambah sparepart */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari sparepart dari inventory…" className="pl-9" />
+          {/* Tambah sparepart dari inventory (memotong stok) */}
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium">
+              Tambah sparepart dari inventory{" "}
+              <span className="font-normal text-success">— stok otomatis berkurang</span>
+            </p>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari sparepart dari inventory…" className="pl-9" />
             {results.length > 0 && (
               <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border bg-popover shadow-md">
                 {results.map((p) => (
@@ -198,16 +203,23 @@ export function TicketDetail({
                 ))}
               </div>
             )}
+            </div>
           </div>
 
-          {/* Tambah baris jasa */}
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Input value={lineName} onChange={(e) => setLineName(e.target.value)} placeholder="Jasa lain (mis. Pasang OS)" className="flex-1" />
-            <Input type="number" min="0" value={linePrice} onChange={(e) => setLinePrice(Math.max(0, Number(e.target.value)))} placeholder="Harga" className="sm:w-36" />
-            <Button variant="outline" disabled={pending || !lineName.trim()}
-              onClick={() => { run(() => addLineAction(ticket.id, lineName.trim(), linePrice, 1)); setLineName(""); setLinePrice(0); }}>
-              <Plus /> Tambah Jasa
-            </Button>
+          {/* Tambah jasa / biaya lain (TIDAK memotong stok) */}
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium">
+              Tambah jasa / biaya lain{" "}
+              <span className="font-normal text-muted-foreground">— tidak mengurangi stok</span>
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input value={lineName} onChange={(e) => setLineName(e.target.value)} placeholder="Jasa lain (mis. Pasang OS)" className="flex-1" />
+              <Input type="number" min="0" value={linePrice} onChange={(e) => setLinePrice(Math.max(0, Number(e.target.value)))} placeholder="Harga" className="sm:w-36" />
+              <Button variant="outline" disabled={pending || !lineName.trim()}
+                onClick={() => { run(() => addLineAction(ticket.id, lineName.trim(), linePrice, 1)); setLineName(""); setLinePrice(0); }}>
+                <Plus /> Tambah Jasa
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
