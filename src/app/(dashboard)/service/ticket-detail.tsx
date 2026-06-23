@@ -133,7 +133,7 @@ export function TicketDetail({
                   number,
                   device,
                   statusLabel: meta.label,
-                  trackUrl: `${window.location.origin}/lacak`,
+                  trackUrl: `${window.location.origin}/lacak?no=${encodeURIComponent(number)}`,
                 });
                 window.open(waLink(text, customerPhone), "_blank", "noopener,noreferrer");
               }}

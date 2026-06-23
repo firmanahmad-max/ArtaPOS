@@ -32,7 +32,7 @@ export default async function NewTicketPage() {
         <h1 className="text-2xl font-bold tracking-tight">Tiket Servis Baru</h1>
       </div>
       <TicketForm
-        customers={customers.map((c) => ({ id: c.id, name: c.name }))}
+        customers={customers.map((c) => ({ id: c.id, name: c.name, phone: c.phone }))}
         technicians={technicians.map((t) => ({ id: t.id, name: t.name }))}
       />
     </div>

@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function TrackForm() {
-  const [number, setNumber] = useState("");
+export function TrackForm({ defaultNumber = "" }: { defaultNumber?: string }) {
+  const [number, setNumber] = useState(defaultNumber);
   const [phone, setPhone] = useState("");
   const [result, setResult] = useState<TrackResult | null>(null);
   const [pending, start] = useTransition();
@@ -31,7 +31,7 @@ export function TrackForm() {
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="phone">Nomor HP (saat servis didaftarkan)</Label>
-          <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="mis. 0812xxxx" required />
+          <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="mis. 0812xxxx" autoFocus={!!defaultNumber} required />
         </div>
         <Button type="submit" disabled={pending} className="w-full">
           {pending ? <Loader2 className="animate-spin" /> : <Search />} Lacak Status

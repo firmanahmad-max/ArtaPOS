@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { createTicketAction } from "@/server/service-jobs/actions";
@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface Option { id: string; name: string }
+interface CustomerOption { id: string; name: string; phone: string | null }
 
 function Err({ msg }: { msg?: string[] }) {
   return msg?.length ? <p className="text-sm text-destructive">{msg[0]}</p> : null;
@@ -21,31 +22,45 @@ export function TicketForm({
   customers,
   technicians,
 }: {
-  customers: Option[];
+  customers: CustomerOption[];
   technicians: Option[];
 }) {
   const [state, action, pending] = useActionState(createTicketAction, undefined);
+  const [customerId, setCustomerId] = useState("");
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+
+  // Tautkan pelanggan terdaftar → isi otomatis nama & HP (tetap bisa diedit).
+  function onLink(id: string) {
+    setCustomerId(id);
+    const c = customers.find((x) => x.id === id);
+    if (c) {
+      setCustomerName(c.name);
+      if (c.phone) setCustomerPhone(c.phone);
+    }
+  }
 
   return (
     <form action={action} className="space-y-6">
       <Card>
         <CardHeader><CardTitle>Pelanggan</CardTitle></CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-2 sm:col-span-2">
+            <Label htmlFor="customerId">Tautkan pelanggan terdaftar (opsional)</Label>
+            <Select id="customerId" name="customerId" value={customerId} onChange={(e) => onLink(e.target.value)}>
+              <option value="">— Tidak ditautkan —</option>
+              {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
+            <p className="text-xs text-muted-foreground">Memilih pelanggan akan mengisi nama & nomor HP di bawah otomatis.</p>
+          </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="customerName">Nama Pelanggan *</Label>
-            <Input id="customerName" name="customerName" placeholder="Nama" required />
+            <Input id="customerName" name="customerName" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Nama" required />
             <Err msg={state?.errors?.customerName} />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="customerPhone">No. Telepon</Label>
-            <Input id="customerPhone" name="customerPhone" placeholder="08…" />
-          </div>
-          <div className="flex flex-col gap-2 sm:col-span-2">
-            <Label htmlFor="customerId">Tautkan pelanggan terdaftar (opsional)</Label>
-            <Select id="customerId" name="customerId" defaultValue="">
-              <option value="">— Tidak ditautkan —</option>
-              {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </Select>
+            <Input id="customerPhone" name="customerPhone" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="08…" />
           </div>
         </CardContent>
       </Card>

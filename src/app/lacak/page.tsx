@@ -12,7 +12,12 @@ import { TrackForm } from "./track-form";
 
 export const metadata: Metadata = { title: "Lacak Servis" };
 
-export default function LacakPage() {
+export default async function LacakPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ no?: string }>;
+}) {
+  const { no } = await searchParams;
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
       <div className="absolute right-4 top-4">
@@ -28,7 +33,7 @@ export default function LacakPage() {
             <CardDescription>Masukkan nomor tiket & nomor HP Anda untuk melihat progres.</CardDescription>
           </CardHeader>
           <CardContent>
-            <TrackForm />
+            <TrackForm defaultNumber={no ?? ""} />
           </CardContent>
         </Card>
         <p className="mt-4 text-center text-xs text-muted-foreground">Dilayani oleh ArtaPOS</p>
