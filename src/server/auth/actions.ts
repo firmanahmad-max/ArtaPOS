@@ -1,24 +1,16 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { db } from "@/lib/db";
 import { verifyPassword } from "@/lib/auth/password";
 import { createSession, deleteSession } from "@/lib/auth/session";
 import { isLoginLocked, recordLoginFailure, clearLoginAttempts } from "@/lib/auth/rate-limit";
+import { getClientIp } from "@/lib/request-ip";
 import { loginSchema, type FormState } from "@/lib/validations/auth";
 
 // Ambang lebih longgar untuk IP (satu toko bisa ber-NAT / banyak kasir), tapi
 // tetap menangkap brute-force/credential-stuffing lintas akun dari satu sumber.
 const IP_LIMIT = { maxAttempts: 20 };
-
-/** IP klien dari header proxy (Vercel set x-forwarded-for). */
-async function getClientIp(): Promise<string> {
-  const h = await headers();
-  const fwd = h.get("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0]?.trim() || "unknown";
-  return h.get("x-real-ip")?.trim() || "unknown";
-}
 
 /**
  * Login dengan email + password.

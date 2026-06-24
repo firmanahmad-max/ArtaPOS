@@ -2,6 +2,8 @@
 
 import { db } from "@/lib/db";
 import { normalizePhoneId } from "@/lib/whatsapp";
+import { checkRateLimit } from "@/lib/auth/rate-limit";
+import { getClientIp } from "@/lib/request-ip";
 
 /**
  * Lacak status servis untuk pelanggan — PUBLIK (tanpa login).
@@ -20,6 +22,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 export interface TrackResult {
   found: boolean;
+  rateLimited?: boolean;
   number?: string;
   device?: string;
   statusLabel?: string;
@@ -29,6 +32,12 @@ export interface TrackResult {
 }
 
 export async function trackServiceAction(number: string, phone: string): Promise<TrackResult> {
+  // Rate-limit per IP (endpoint publik tanpa login) — cegah enumerasi/abuse.
+  const ip = await getClientIp();
+  if (!(await checkRateLimit(`track:ip:${ip}`, { maxAttempts: 20 }))) {
+    return { found: false, rateLimited: true };
+  }
+
   const num = number.trim().toUpperCase();
   const phoneNorm = normalizePhoneId(phone.trim());
   if (!num || !phoneNorm) return { found: false };

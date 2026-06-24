@@ -41,7 +41,9 @@ export function TrackForm({ defaultNumber = "" }: { defaultNumber?: string }) {
       {result && !result.found && (
         <div className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-3 text-sm text-destructive">
           <XCircle className="size-5 shrink-0" />
-          Tiket tidak ditemukan. Periksa nomor tiket & nomor HP Anda.
+          {result.rateLimited
+            ? "Terlalu banyak percobaan. Coba lagi dalam beberapa menit."
+            : "Tiket tidak ditemukan. Periksa nomor tiket & nomor HP Anda."}
         </div>
       )}
 
