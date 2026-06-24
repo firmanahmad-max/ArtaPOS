@@ -1,10 +1,21 @@
 import { z } from "zod";
 
-export const purchaseItemSchema = z.object({
-  productId: z.string().min(1),
-  qty: z.number().int().positive("Qty harus > 0"),
-  costPrice: z.number().int().min(0, "Harga beli tidak boleh negatif"),
-});
+export const purchaseItemSchema = z
+  .object({
+    // Item bisa berupa produk lama (productId) ATAU produk baru (newProduct).
+    productId: z.string().min(1).optional(),
+    newProduct: z
+      .object({
+        name: z.string().min(1, "Nama produk wajib diisi").max(150).trim(),
+        sku: z.string().min(1, "SKU wajib diisi").max(50).trim(),
+      })
+      .optional(),
+    qty: z.number().int().positive("Qty harus > 0"),
+    costPrice: z.number().int().min(0, "Harga beli tidak boleh negatif"),
+  })
+  .refine((it) => Boolean(it.productId) || Boolean(it.newProduct), {
+    message: "Item harus produk lama atau produk baru.",
+  });
 
 export const purchaseSchema = z.object({
   supplierId: z.string().min(1).optional().nullable(),

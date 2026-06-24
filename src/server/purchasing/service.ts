@@ -61,21 +61,58 @@ export async function createPurchase(
   input: PurchaseInput,
 ) {
   return db.$transaction(async (tx) => {
-    const ids = input.items.map((i) => i.productId);
-    const products = await tx.product.findMany({
-      where: { id: { in: ids }, tenantId, isActive: true },
-      select: { id: true, name: true, stock: true },
-    });
-    const map = new Map(products.map((p) => [p.id, p]));
-
+    // Resolusi tiap item ke productId konkret — buat produk baru bila perlu.
+    const stockMap = new Map<string, number>(); // stok awal sebelum pembelian ini
+    const itemsData: {
+      productId: string;
+      productName: string;
+      qty: number;
+      costPrice: number;
+      subtotal: number;
+    }[] = [];
     let subtotal = 0;
-    const itemsData = input.items.map((it) => {
-      const p = map.get(it.productId);
-      if (!p) throw new Error("Produk tidak ditemukan.");
+
+    for (const it of input.items) {
+      let productId: string;
+      let productName: string;
+      let currentStock: number;
+
+      if (it.productId) {
+        const p = await tx.product.findFirst({
+          where: { id: it.productId, tenantId, isActive: true },
+          select: { id: true, name: true, stock: true },
+        });
+        if (!p) throw new Error("Produk tidak ditemukan.");
+        productId = p.id;
+        productName = p.name;
+        currentStock = p.stock;
+      } else if (it.newProduct) {
+        const sku = it.newProduct.sku.trim();
+        const dup = await tx.product.findFirst({ where: { tenantId, sku }, select: { id: true } });
+        if (dup) throw new Error(`SKU "${sku}" sudah dipakai produk lain.`);
+        const created = await tx.product.create({
+          data: {
+            tenantId,
+            sku,
+            name: it.newProduct.name.trim(),
+            costPrice: it.costPrice,
+            sellPrice: it.costPrice, // harga jual awal = harga beli; sesuaikan nanti di Inventory
+            stock: 0,
+          },
+          select: { id: true, name: true },
+        });
+        productId = created.id;
+        productName = created.name;
+        currentStock = 0;
+      } else {
+        throw new Error("Item tidak valid.");
+      }
+
       const sub = it.costPrice * it.qty;
       subtotal += sub;
-      return { productId: p.id, productName: p.name, qty: it.qty, costPrice: it.costPrice, subtotal: sub };
-    });
+      stockMap.set(productId, currentStock);
+      itemsData.push({ productId, productName, qty: it.qty, costPrice: it.costPrice, subtotal: sub });
+    }
 
     const total = subtotal;
     const paid = Math.min(Math.max(0, input.paidAmount ?? 0), total);
@@ -115,8 +152,7 @@ export async function createPurchase(
 
     // Tambah stok + movement PURCHASE + update harga modal.
     for (const it of itemsData) {
-      const p = map.get(it.productId)!;
-      const stockAfter = p.stock + it.qty;
+      const stockAfter = (stockMap.get(it.productId) ?? 0) + it.qty;
       await tx.product.update({
         where: { id: it.productId },
         data: { stock: stockAfter, costPrice: it.costPrice },
