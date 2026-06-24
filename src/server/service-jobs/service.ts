@@ -44,7 +44,10 @@ export async function addServicePhoto(
   caption?: string,
 ) {
   await ensureTicket(tenantId, ticketId);
-  if (!dataUrl.startsWith("data:image/")) throw new Error("File bukan gambar.");
+  // Hanya raster base64 (tolak SVG / data: non-base64 yang bisa memuat skrip).
+  if (!/^data:image\/(png|jpe?g|webp|gif);base64,/.test(dataUrl)) {
+    throw new Error("Format foto tidak valid (harus PNG/JPG/WEBP).");
+  }
   if (dataUrl.length > MAX_PHOTO_CHARS) throw new Error("Foto terlalu besar. Coba foto lebih kecil.");
   return db.servicePhoto.create({
     data: { ticketId, dataUrl, caption: caption || null, createdById: userId },
