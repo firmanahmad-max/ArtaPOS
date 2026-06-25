@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Printer, Plus, Bluetooth, Loader2 } from "lucide-react";
+import { Printer, Plus, Bluetooth, Loader2, MessageCircle } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { formatRupiah } from "@/lib/utils";
+import { buildSaleReceiptText, waLink } from "@/lib/whatsapp";
 import { buildReceiptEscpos } from "@/lib/escpos";
 import { imageToEscposRaster } from "@/lib/escpos-image";
 import { printViaBluetooth } from "@/lib/bluetooth-printer";
@@ -24,6 +25,7 @@ export interface ReceiptData {
   number: string;
   createdAt: string;
   customerName: string | null;
+  customerPhone?: string | null;
   cashierName: string | null;
   subtotal: number;
   discount: number;
@@ -84,6 +86,25 @@ export function ReceiptView({ data }: { data: ReceiptData }) {
     } finally {
       setPrinting(false);
     }
+  }
+
+  function sendWhatsApp() {
+    const text = buildSaleReceiptText({
+      storeName: data.storeName,
+      number: data.number,
+      dateText: new Date(data.createdAt).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" }),
+      cashierName: data.cashierName,
+      customerName: data.customerName,
+      items: data.items.map((i) => ({ name: i.productName, qty: i.qty, price: i.price, subtotal: i.subtotal })),
+      subtotal: data.subtotal,
+      discount: data.discount,
+      total: data.total,
+      methodLabel: METHOD[data.paymentMethod] ?? data.paymentMethod,
+      paid: data.paid,
+      change: data.change,
+      footer: data.receiptFooter || undefined,
+    });
+    window.open(waLink(text, data.customerPhone ?? undefined), "_blank", "noopener,noreferrer");
   }
 
   return (
@@ -150,8 +171,14 @@ export function ReceiptView({ data }: { data: ReceiptData }) {
       </div>
 
       <div className="no-print mx-auto w-[300px] space-y-2">
+        <Button
+          className="w-full bg-[#25D366] text-white hover:bg-[#1ebe5b]"
+          onClick={sendWhatsApp}
+        >
+          <MessageCircle /> Kirim Struk via WhatsApp
+        </Button>
         <div className="flex gap-2">
-          <Button className="flex-1" onClick={printBluetooth} disabled={printing}>
+          <Button variant="outline" className="flex-1" onClick={printBluetooth} disabled={printing}>
             {printing ? <Loader2 className="animate-spin" /> : <Bluetooth />} Print Bluetooth
           </Button>
           <Button variant="outline" size="icon" title="Cetak via browser" onClick={() => window.print()}>

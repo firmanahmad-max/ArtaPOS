@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { getSale } from "@/server/pos/service";
 import { getReceiptStoreInfo } from "@/server/users/service";
+import { getCustomer } from "@/server/customers/service";
 import { ReceiptView } from "./receipt-view";
 
 export const metadata: Metadata = { title: "Struk" };
@@ -20,6 +21,9 @@ export default async function ReceiptPage({
   ]);
   if (!sale) notFound();
 
+  // HP pelanggan terdaftar (untuk kirim struk via WhatsApp).
+  const customer = sale.customerId ? await getCustomer(user.tenantId, sale.customerId) : null;
+
   return (
     <div className="py-4">
       <ReceiptView
@@ -32,6 +36,7 @@ export default async function ReceiptPage({
           number: sale.number,
           createdAt: sale.createdAt.toISOString(),
           customerName: sale.customerName,
+          customerPhone: customer?.phone ?? null,
           cashierName: sale.cashierName,
           subtotal: sale.subtotal,
           discount: sale.discount,

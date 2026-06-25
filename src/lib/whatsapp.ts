@@ -95,6 +95,41 @@ export function buildServiceNotaText(n: {
   return rows.join("\n");
 }
 
+/** Struk penjualan (POS) sebagai teks WhatsApp (wa.me hanya dukung teks). */
+export function buildSaleReceiptText(r: {
+  storeName: string;
+  number: string;
+  dateText: string;
+  cashierName: string | null;
+  customerName: string | null;
+  items: { name: string; qty: number; price: number; subtotal: number }[];
+  subtotal: number;
+  discount: number;
+  total: number;
+  methodLabel: string;
+  paid: number;
+  change: number;
+  footer?: string;
+}): string {
+  const line = "────────────────";
+  const rows = [`*${r.storeName}*`, "STRUK PENJUALAN", `No: ${r.number}`, `Tgl: ${r.dateText}`];
+  if (r.cashierName) rows.push(`Kasir: ${r.cashierName}`);
+  rows.push(`Pelanggan: ${r.customerName || "Umum"}`);
+  rows.push(line);
+  for (const it of r.items) {
+    rows.push(`• ${it.name} ${it.qty}x ${formatRupiah(it.price)} = ${formatRupiah(it.subtotal)}`);
+  }
+  rows.push(line);
+  rows.push(`Subtotal: ${formatRupiah(r.subtotal)}`);
+  if (r.discount > 0) rows.push(`Diskon: -${formatRupiah(r.discount)}`);
+  rows.push(`*TOTAL: ${formatRupiah(r.total)}*`);
+  rows.push(`Bayar (${r.methodLabel}): ${formatRupiah(r.paid)}`);
+  if (r.change > 0) rows.push(`Kembali: ${formatRupiah(r.change)}`);
+  rows.push(line);
+  rows.push(r.footer || "Terima kasih telah berbelanja 🙏");
+  return rows.join("\n");
+}
+
 /** Normalisasi no. HP Indonesia ke format internasional (62…) untuk wa.me. */
 export function normalizePhoneId(phone: string): string {
   let p = phone.replace(/[^0-9]/g, "");
