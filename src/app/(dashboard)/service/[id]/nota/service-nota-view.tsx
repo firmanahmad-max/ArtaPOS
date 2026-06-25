@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Printer, ArrowLeft } from "lucide-react";
+import { Printer, ArrowLeft, MessageCircle } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { formatRupiah } from "@/lib/utils";
+import { buildServiceNotaText, waLink } from "@/lib/whatsapp";
 
 export interface NotaItem {
   name: string;
@@ -36,6 +37,24 @@ export interface ServiceNotaData {
 
 export function ServiceNotaView({ data, backHref }: { data: ServiceNotaData; backHref: string }) {
   const outstanding = Math.max(0, data.total - data.paid);
+
+  function sendWhatsApp() {
+    const trackUrl = `${window.location.origin}/lacak?no=${encodeURIComponent(data.number)}`;
+    const text = buildServiceNotaText({
+      storeName: data.storeName,
+      number: data.number,
+      dateText: data.dateText,
+      statusLabel: data.statusLabel,
+      customerName: data.customerName,
+      device: data.device,
+      items: data.items,
+      laborCost: data.laborCost,
+      total: data.total,
+      paid: data.paid,
+      trackUrl,
+    });
+    window.open(waLink(text, data.customerPhone ?? undefined), "_blank", "noopener,noreferrer");
+  }
 
   return (
     <div className="space-y-4">
@@ -120,13 +139,21 @@ export function ServiceNotaView({ data, backHref }: { data: ServiceNotaData; bac
         </p>
       </div>
 
-      <div className="no-print mx-auto flex w-[320px] gap-2">
-        <Link href={backHref} className={`${buttonVariants({ variant: "outline" })} flex-1`}>
-          <ArrowLeft /> Kembali
-        </Link>
-        <Button className="flex-1" onClick={() => window.print()}>
-          <Printer /> Cetak Nota
+      <div className="no-print mx-auto w-[320px] space-y-2">
+        <Button
+          className="w-full bg-[#25D366] text-white hover:bg-[#1ebe5b]"
+          onClick={sendWhatsApp}
+        >
+          <MessageCircle /> Kirim Nota via WhatsApp
         </Button>
+        <div className="flex gap-2">
+          <Link href={backHref} className={`${buttonVariants({ variant: "outline" })} flex-1`}>
+            <ArrowLeft /> Kembali
+          </Link>
+          <Button variant="outline" className="flex-1" onClick={() => window.print()}>
+            <Printer /> Cetak Nota
+          </Button>
+        </div>
       </div>
     </div>
   );

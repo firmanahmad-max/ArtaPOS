@@ -51,6 +51,50 @@ export function buildServiceStatusText(args: {
   return lines.join("\n");
 }
 
+/** Nota/struk servis lengkap sebagai teks WhatsApp (wa.me hanya dukung teks). */
+export function buildServiceNotaText(n: {
+  storeName: string;
+  number: string;
+  dateText: string;
+  statusLabel: string;
+  customerName: string | null;
+  device: string;
+  items: { name: string; qty: number; price: number; subtotal: number; isPart: boolean }[];
+  laborCost: number;
+  total: number;
+  paid: number;
+  trackUrl?: string;
+}): string {
+  const line = "────────────────";
+  const rows = [
+    `*${n.storeName}*`,
+    "NOTA SERVIS",
+    `No: ${n.number}`,
+    `Tgl: ${n.dateText}`,
+    `Status: *${n.statusLabel}*`,
+  ];
+  if (n.customerName) rows.push(`Pelanggan: ${n.customerName}`);
+  if (n.device) rows.push(`Perangkat: ${n.device}`);
+  rows.push(line);
+  if (n.items.length > 0) {
+    rows.push("Sparepart & Jasa:");
+    for (const it of n.items) {
+      rows.push(`• ${it.name}${it.isPart ? " (part)" : ""} ${it.qty}x ${formatRupiah(it.price)} = ${formatRupiah(it.subtotal)}`);
+    }
+  }
+  if (n.laborCost > 0) rows.push(`Biaya Jasa: ${formatRupiah(n.laborCost)}`);
+  rows.push(line);
+  rows.push(`*TOTAL: ${formatRupiah(n.total)}*`);
+  rows.push(`Dibayar: ${formatRupiah(n.paid)}`);
+  rows.push(`Sisa: ${formatRupiah(Math.max(0, n.total - n.paid))}`);
+  if (n.trackUrl) {
+    rows.push(line);
+    rows.push(`Lacak status: ${n.trackUrl}`);
+  }
+  rows.push("Terima kasih 🙏");
+  return rows.join("\n");
+}
+
 /** Normalisasi no. HP Indonesia ke format internasional (62…) untuk wa.me. */
 export function normalizePhoneId(phone: string): string {
   let p = phone.replace(/[^0-9]/g, "");
