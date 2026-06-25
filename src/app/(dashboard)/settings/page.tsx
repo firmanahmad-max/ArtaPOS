@@ -52,6 +52,7 @@ export default async function SettingsPage() {
             address={storeInfo.address}
             phone={storeInfo.phone}
             receiptFooter={storeInfo.receiptFooter}
+            trackPromo={storeInfo.trackPromo}
           />
         </CardContent>
       </Card>

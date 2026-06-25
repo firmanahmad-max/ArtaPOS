@@ -33,5 +33,6 @@ export const settingsSchema = z.object({
   address: optionalText(200),
   phone: optionalText(30),
   receiptFooter: optionalText(150),
+  trackPromo: optionalText(500),
 });
 export type SettingsInput = z.infer<typeof settingsSchema>;

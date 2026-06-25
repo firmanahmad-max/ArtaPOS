@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 function useRefreshOnOk(ok?: boolean) {
   const router = useRouter();
@@ -22,11 +23,13 @@ export function StoreSettingsForm({
   address,
   phone,
   receiptFooter,
+  trackPromo,
 }: {
   name: string;
   address: string | null;
   phone: string | null;
   receiptFooter: string | null;
+  trackPromo: string | null;
 }) {
   const [state, action, pending] = useActionState(updateSettingsAction, undefined);
   useRefreshOnOk(state?.ok);
@@ -57,6 +60,19 @@ export function StoreSettingsForm({
         />
         <p className="text-xs text-muted-foreground">
           Tampil di bagian bawah struk. Kosongkan untuk pakai teks bawaan.
+        </p>
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="trackPromo">Info / Promo Halaman Lacak Servis</Label>
+        <Textarea
+          id="trackPromo"
+          name="trackPromo"
+          defaultValue={trackPromo ?? ""}
+          rows={3}
+          placeholder="mis. Promo: SSD 1TB diskon 10% s/d akhir bulan! Hub. 0812-3456-7890"
+        />
+        <p className="text-xs text-muted-foreground">
+          Tampil untuk pelanggan di halaman publik lacak servis (/lacak). Boleh beberapa baris. Kosongkan untuk menyembunyikan.
         </p>
       </div>
       <div className="flex items-center gap-3">

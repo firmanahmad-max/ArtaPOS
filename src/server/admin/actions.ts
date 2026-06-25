@@ -103,6 +103,7 @@ export async function updateSettingsAction(_prev: FormState, formData: FormData)
     address: formData.get("address") ?? undefined,
     phone: formData.get("phone") ?? undefined,
     receiptFooter: formData.get("receiptFooter") ?? undefined,
+    trackPromo: formData.get("trackPromo") ?? undefined,
   });
   if (!parsed.success) return { errors: toFieldErrors(parsed.error) };
 
@@ -117,6 +118,7 @@ export async function updateSettingsAction(_prev: FormState, formData: FormData)
   }
   revalidatePath("/settings");
   revalidatePath("/dashboard");
+  revalidatePath("/lacak");
   return { ok: true, message: "Pengaturan disimpan." };
 }
 

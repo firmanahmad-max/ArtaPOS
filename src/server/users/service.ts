@@ -85,9 +85,10 @@ export interface TenantSettingsInput {
   address?: string | null;
   phone?: string | null;
   receiptFooter?: string | null;
+  trackPromo?: string | null;
 }
 
-/** Perbarui profil toko (nama + identitas struk). */
+/** Perbarui profil toko (nama + identitas struk + promo halaman lacak). */
 export async function updateTenantSettings(tenantId: string, data: TenantSettingsInput) {
   return db.tenant.update({
     where: { id: tenantId },
@@ -96,6 +97,7 @@ export async function updateTenantSettings(tenantId: string, data: TenantSetting
       address: data.address ?? null,
       phone: data.phone ?? null,
       receiptFooter: data.receiptFooter ?? null,
+      trackPromo: data.trackPromo ?? null,
     },
   });
 }
@@ -105,6 +107,7 @@ export interface ReceiptStoreInfo {
   phone: string | null;
   receiptFooter: string | null;
   logo: string | null;
+  trackPromo: string | null;
 }
 
 /**
@@ -115,16 +118,17 @@ export async function getReceiptStoreInfo(tenantId: string): Promise<ReceiptStor
   try {
     const t = await db.tenant.findUnique({
       where: { id: tenantId },
-      select: { address: true, phone: true, receiptFooter: true, logo: true },
+      select: { address: true, phone: true, receiptFooter: true, logo: true, trackPromo: true },
     });
     return {
       address: t?.address ?? null,
       phone: t?.phone ?? null,
       receiptFooter: t?.receiptFooter ?? null,
       logo: t?.logo ?? null,
+      trackPromo: t?.trackPromo ?? null,
     };
   } catch {
-    return { address: null, phone: null, receiptFooter: null, logo: null };
+    return { address: null, phone: null, receiptFooter: null, logo: null, trackPromo: null };
   }
 }
 
