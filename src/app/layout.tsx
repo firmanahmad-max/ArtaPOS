@@ -30,6 +30,14 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="id" suppressHydrationWarning className="h-full">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var t=localStorage.getItem('color-theme');if(t&&t!=='terakota')document.documentElement.dataset.theme=t;}catch(e){}",
+          }}
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} min-h-full font-sans antialiased`}
       >

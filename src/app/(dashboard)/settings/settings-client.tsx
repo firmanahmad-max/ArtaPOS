@@ -1,15 +1,73 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState, useTransition } from "react";
+import { useActionState, useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Save, ImagePlus, Trash2 } from "lucide-react";
+import { Loader2, Save, ImagePlus, Trash2, Check } from "lucide-react";
 import { updateSettingsAction, updateLicenseAction, updateStoreLogoAction } from "@/server/admin/actions";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+
+const COLOR_THEMES = [
+  { id: "terakota", name: "Terakota", c1: "#C0603E", c2: "#DE9572" },
+  { id: "mint", name: "Mint", c1: "#3FAE8E", c2: "#7FCDB8" },
+  { id: "lavender", name: "Lavender", c1: "#7B6FD0", c2: "#B492E6" },
+  { id: "sky", name: "Sky", c1: "#4F92D8", c2: "#93BEEA" },
+] as const;
+
+const themeListeners = new Set<() => void>();
+function subscribeTheme(cb: () => void) {
+  themeListeners.add(cb);
+  return () => themeListeners.delete(cb);
+}
+function getThemeSnapshot() {
+  return document.documentElement.getAttribute("data-theme") || "terakota";
+}
+function setColorTheme(id: string) {
+  if (id === "terakota") {
+    localStorage.removeItem("color-theme");
+    document.documentElement.removeAttribute("data-theme");
+  } else {
+    localStorage.setItem("color-theme", id);
+    document.documentElement.setAttribute("data-theme", id);
+  }
+  themeListeners.forEach((l) => l());
+}
+
+/** Pemilih tema warna — berlaku instan & tersimpan per-perangkat (localStorage). */
+export function ColorThemePicker() {
+  const active = useSyncExternalStore(subscribeTheme, getThemeSnapshot, () => "terakota");
+
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {COLOR_THEMES.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          onClick={() => setColorTheme(t.id)}
+          aria-pressed={active === t.id}
+          className={cn(
+            "flex flex-col items-center gap-2 rounded-xl border p-3 transition-colors hover:bg-accent",
+            active === t.id ? "border-primary ring-2 ring-primary/40" : "border-border",
+          )}
+        >
+          <span
+            className="h-9 w-full rounded-md"
+            style={{ backgroundImage: `linear-gradient(135deg, ${t.c1}, ${t.c2})` }}
+          />
+          <span className="flex items-center gap-1 text-sm font-medium">
+            {active === t.id && <Check className="size-3.5 text-primary" />}
+            {t.name}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function useRefreshOnOk(ok?: boolean) {
   const router = useRouter();

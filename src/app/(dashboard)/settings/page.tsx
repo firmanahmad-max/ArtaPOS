@@ -9,7 +9,7 @@ import { formatRupiah } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { StoreSettingsForm, StoreLogoForm, LicenseForm } from "./settings-client";
+import { StoreSettingsForm, StoreLogoForm, LicenseForm, ColorThemePicker } from "./settings-client";
 
 export const metadata: Metadata = { title: "Pengaturan" };
 
@@ -39,6 +39,16 @@ export default async function SettingsPage() {
           </Link>
         )}
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Tema Warna</CardTitle>
+          <CardDescription>Pilih nuansa pastel aplikasi. Berlaku langsung & tersimpan di perangkat ini (terpisah dari mode terang/gelap).</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ColorThemePicker />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
