@@ -5,59 +5,60 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --radius: 0.75rem;
+  /* Tema Terakota — pastel hangat (clay/terracotta). */
+  --radius: 0.8rem;
 
-  --background: oklch(0.99 0.004 270);
-  --foreground: oklch(0.16 0.01 270);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.16 0.01 270);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.16 0.01 270);
-  --primary: oklch(0.53 0.23 274);
-  --primary-foreground: oklch(0.99 0 0);
-  --primary-accent: oklch(0.58 0.22 305); /* violet, untuk gradien */
-  --secondary: oklch(0.968 0.006 270);
-  --secondary-foreground: oklch(0.22 0.02 270);
-  --muted: oklch(0.968 0.006 270);
-  --muted-foreground: oklch(0.55 0.02 270);
-  --accent: oklch(0.962 0.012 274);
-  --accent-foreground: oklch(0.3 0.05 274);
-  --destructive: oklch(0.585 0.22 25);
+  --background: oklch(0.975 0.012 55);
+  --foreground: oklch(0.25 0.03 40);
+  --card: oklch(0.995 0.005 60);
+  --card-foreground: oklch(0.25 0.03 40);
+  --popover: oklch(0.995 0.005 60);
+  --popover-foreground: oklch(0.25 0.03 40);
+  --primary: oklch(0.55 0.135 41);
+  --primary-foreground: oklch(0.99 0.012 70);
+  --primary-accent: oklch(0.68 0.115 52); /* terakota hangat, untuk gradien */
+  --secondary: oklch(0.95 0.013 55);
+  --secondary-foreground: oklch(0.32 0.03 42);
+  --muted: oklch(0.95 0.013 55);
+  --muted-foreground: oklch(0.52 0.025 48);
+  --accent: oklch(0.945 0.025 50);
+  --accent-foreground: oklch(0.42 0.09 42);
+  --destructive: oklch(0.585 0.2 27);
   --destructive-foreground: oklch(0.99 0 0);
-  --success: oklch(0.62 0.16 155);
+  --success: oklch(0.6 0.13 155);
   --success-foreground: oklch(0.99 0 0);
-  --border: oklch(0.915 0.008 270);
-  --input: oklch(0.915 0.008 270);
-  --ring: oklch(0.53 0.23 274);
+  --border: oklch(0.9 0.014 55);
+  --input: oklch(0.9 0.014 55);
+  --ring: oklch(0.55 0.135 41);
 
-  --shadow-color: 268 60% 30%;
+  --shadow-color: 24 42% 26%;
 }
 
 .dark {
-  --background: oklch(0.155 0.012 274);
-  --foreground: oklch(0.97 0.005 270);
-  --card: oklch(0.205 0.014 274);
-  --card-foreground: oklch(0.97 0.005 270);
-  --popover: oklch(0.205 0.014 274);
-  --popover-foreground: oklch(0.97 0.005 270);
-  --primary: oklch(0.68 0.2 274);
-  --primary-foreground: oklch(0.16 0.02 274);
-  --primary-accent: oklch(0.7 0.19 305);
-  --secondary: oklch(0.27 0.015 274);
-  --secondary-foreground: oklch(0.97 0.005 270);
-  --muted: oklch(0.27 0.015 274);
-  --muted-foreground: oklch(0.72 0.015 270);
-  --accent: oklch(0.3 0.03 274);
-  --accent-foreground: oklch(0.97 0.005 270);
-  --destructive: oklch(0.7 0.19 22);
-  --destructive-foreground: oklch(0.16 0 0);
-  --success: oklch(0.72 0.16 155);
-  --success-foreground: oklch(0.16 0 0);
+  --background: oklch(0.185 0.013 38);
+  --foreground: oklch(0.96 0.008 55);
+  --card: oklch(0.23 0.014 40);
+  --card-foreground: oklch(0.96 0.008 55);
+  --popover: oklch(0.23 0.014 40);
+  --popover-foreground: oklch(0.96 0.008 55);
+  --primary: oklch(0.7 0.13 46);
+  --primary-foreground: oklch(0.2 0.03 40);
+  --primary-accent: oklch(0.75 0.12 58);
+  --secondary: oklch(0.29 0.016 42);
+  --secondary-foreground: oklch(0.96 0.008 55);
+  --muted: oklch(0.29 0.016 42);
+  --muted-foreground: oklch(0.73 0.02 50);
+  --accent: oklch(0.33 0.03 45);
+  --accent-foreground: oklch(0.96 0.008 55);
+  --destructive: oklch(0.7 0.18 25);
+  --destructive-foreground: oklch(0.18 0 0);
+  --success: oklch(0.72 0.15 155);
+  --success-foreground: oklch(0.18 0 0);
   --border: oklch(1 0 0 / 11%);
-  --input: oklch(1 0 0 / 16%);
-  --ring: oklch(0.68 0.2 274);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.7 0.13 46);
 
-  --shadow-color: 270 50% 4%;
+  --shadow-color: 25 50% 4%;
 }
 
 @theme inline {
