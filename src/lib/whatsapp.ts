@@ -63,6 +63,7 @@ export function buildServiceNotaText(n: {
   laborCost: number;
   total: number;
   paid: number;
+  paymentMethodLabel?: string;
   trackUrl?: string;
 }): string {
   const line = "────────────────";
@@ -85,7 +86,7 @@ export function buildServiceNotaText(n: {
   if (n.laborCost > 0) rows.push(`Biaya Jasa: ${formatRupiah(n.laborCost)}`);
   rows.push(line);
   rows.push(`*TOTAL: ${formatRupiah(n.total)}*`);
-  rows.push(`Dibayar: ${formatRupiah(n.paid)}`);
+  rows.push(`Dibayar${n.paymentMethodLabel ? ` (${n.paymentMethodLabel})` : ""}: ${formatRupiah(n.paid)}`);
   rows.push(`Sisa: ${formatRupiah(Math.max(0, n.total - n.paid))}`);
   if (n.trackUrl) {
     rows.push(line);

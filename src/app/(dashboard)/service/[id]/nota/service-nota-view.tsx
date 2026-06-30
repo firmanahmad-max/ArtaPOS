@@ -33,10 +33,19 @@ export interface ServiceNotaData {
   laborCost: number;
   total: number;
   paid: number;
+  paymentMethod: string | null;
 }
+
+const METHOD_LABEL: Record<string, string> = {
+  CASH: "Tunai",
+  TRANSFER: "Transfer",
+  QRIS: "QRIS",
+  CREDIT: "Kredit/Tempo",
+};
 
 export function ServiceNotaView({ data, backHref }: { data: ServiceNotaData; backHref: string }) {
   const outstanding = Math.max(0, data.total - data.paid);
+  const methodLabel = data.paymentMethod ? METHOD_LABEL[data.paymentMethod] ?? data.paymentMethod : null;
 
   function sendWhatsApp() {
     const trackUrl = `${window.location.origin}/lacak?no=${encodeURIComponent(data.number)}`;
@@ -51,6 +60,7 @@ export function ServiceNotaView({ data, backHref }: { data: ServiceNotaData; bac
       laborCost: data.laborCost,
       total: data.total,
       paid: data.paid,
+      paymentMethodLabel: methodLabel ?? undefined,
       trackUrl,
     });
     window.open(waLink(text, data.customerPhone ?? undefined), "_blank", "noopener,noreferrer");
@@ -129,7 +139,7 @@ export function ServiceNotaView({ data, backHref }: { data: ServiceNotaData; bac
             <div className="flex justify-between"><span>Biaya Jasa</span><span>{formatRupiah(data.laborCost)}</span></div>
           )}
           <div className="flex justify-between text-sm font-bold"><span>TOTAL</span><span>{formatRupiah(data.total)}</span></div>
-          <div className="flex justify-between"><span>Dibayar</span><span>{formatRupiah(data.paid)}</span></div>
+          <div className="flex justify-between"><span>Dibayar{methodLabel ? ` (${methodLabel})` : ""}</span><span>{formatRupiah(data.paid)}</span></div>
           <div className="flex justify-between font-semibold"><span>Sisa</span><span>{formatRupiah(outstanding)}</span></div>
         </div>
 

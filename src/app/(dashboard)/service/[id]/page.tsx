@@ -63,6 +63,7 @@ export default async function TicketDetailPage({
           partsCost: ticket.partsCost,
           total: ticket.total,
           paid: ticket.paid,
+          paymentMethod: ticket.paymentMethod,
           items: ticket.items.map((i) => ({
             id: i.id,
             name: i.name,

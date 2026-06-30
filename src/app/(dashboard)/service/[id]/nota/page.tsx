@@ -58,6 +58,7 @@ export default async function ServiceNotaPage({
           laborCost: ticket.laborCost,
           total: ticket.total,
           paid: ticket.paid,
+          paymentMethod: ticket.paymentMethod,
         }}
       />
     </div>

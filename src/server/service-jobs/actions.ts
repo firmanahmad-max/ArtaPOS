@@ -149,12 +149,22 @@ export async function removeServicePhotoAction(ticketId: string, photoId: string
   }
 }
 
-export async function recordServicePaymentAction(ticketId: string, amount: number): Promise<Result> {
+const PAYMENT_METHODS = ["CASH", "TRANSFER", "QRIS", "CREDIT"] as const;
+type PaymentMethodVal = (typeof PAYMENT_METHODS)[number];
+
+export async function recordServicePaymentAction(
+  ticketId: string,
+  amount: number,
+  method: string,
+): Promise<Result> {
   const u = await guard();
   if (!u) return { ok: false, message: NO_PERM };
+  if (!PAYMENT_METHODS.includes(method as PaymentMethodVal)) {
+    return { ok: false, message: "Metode pembayaran tidak valid." };
+  }
   const user = await getCurrentUser();
   try {
-    const r = await svc.recordPayment(user.tenantId, ticketId, amount);
+    const r = await svc.recordPayment(user.tenantId, ticketId, amount, method as PaymentMethodVal);
     revalidatePath(`/service/${ticketId}`);
     return { ok: true, message: r.outstanding > 0 ? `Sisa: ${r.outstanding}` : "Lunas." };
   } catch (e) {

@@ -16,9 +16,17 @@ import { formatRupiah } from "@/lib/utils";
 import { buildServiceStatusText, waLink } from "@/lib/whatsapp";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SERVICE_STATUS_META, SERVICE_FLOW } from "./status-config";
+
+const METHOD_LABEL: Record<string, string> = {
+  CASH: "Tunai",
+  TRANSFER: "Transfer",
+  QRIS: "QRIS",
+  CREDIT: "Kredit/Tempo",
+};
 
 export interface TicketItem {
   id: string;
@@ -35,6 +43,7 @@ export interface TicketData {
   partsCost: number;
   total: number;
   paid: number;
+  paymentMethod: string | null;
   items: TicketItem[];
 }
 export interface ServiceProduct {
@@ -69,6 +78,7 @@ export function TicketDetail({
   const [lineName, setLineName] = useState("");
   const [linePrice, setLinePrice] = useState(0);
   const [payAmount, setPayAmount] = useState(0);
+  const [payMethod, setPayMethod] = useState("CASH");
 
   const outstanding = ticket.total - ticket.paid;
   const results = useMemo(() => {
@@ -240,7 +250,12 @@ export function TicketDetail({
           </div>
           <div className="flex justify-between"><span className="text-muted-foreground">Sparepart & jasa lain</span><span>{formatRupiah(ticket.partsCost)}</span></div>
           <div className="flex justify-between border-t pt-2 text-base font-bold"><span>Total</span><span>{formatRupiah(ticket.total)}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Dibayar</span><span>{formatRupiah(ticket.paid)}</span></div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">
+              Dibayar{ticket.paymentMethod ? ` · ${METHOD_LABEL[ticket.paymentMethod] ?? ticket.paymentMethod}` : ""}
+            </span>
+            <span>{formatRupiah(ticket.paid)}</span>
+          </div>
           <div className="flex justify-between font-medium">
             <span className={outstanding > 0 ? "text-destructive" : "text-success"}>Sisa</span>
             <span className={outstanding > 0 ? "text-destructive" : "text-success"}>{formatRupiah(outstanding)}</span>
@@ -252,8 +267,17 @@ export function TicketDetail({
                 <label className="text-xs text-muted-foreground">Terima pembayaran (maks {outstanding.toLocaleString("id-ID")})</label>
                 <Input type="number" min="1" max={outstanding} value={payAmount || ""} onChange={(e) => setPayAmount(Math.max(0, Number(e.target.value)))} placeholder="0" />
               </div>
+              <div className="flex flex-col gap-1 sm:w-40">
+                <label className="text-xs text-muted-foreground">Metode</label>
+                <Select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} className="h-10">
+                  <option value="CASH">Tunai</option>
+                  <option value="TRANSFER">Transfer</option>
+                  <option value="QRIS">QRIS</option>
+                  <option value="CREDIT">Kredit/Tempo</option>
+                </Select>
+              </div>
               <Button disabled={pending || payAmount <= 0}
-                onClick={() => { run(() => recordServicePaymentAction(ticket.id, payAmount)); setPayAmount(0); }}>
+                onClick={() => { run(() => recordServicePaymentAction(ticket.id, payAmount, payMethod)); setPayAmount(0); }}>
                 <HandCoins /> Terima
               </Button>
             </div>

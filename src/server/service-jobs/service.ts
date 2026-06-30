@@ -2,7 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { assertPositiveInt, assertNonNegativeInt } from "@/lib/utils";
 import type { Prisma } from "@/generated/prisma/client";
-import type { ServiceStatus } from "@/generated/prisma/enums";
+import type { ServiceStatus, PaymentMethod } from "@/generated/prisma/enums";
 import type { ServiceTicketInput } from "@/lib/validations/service";
 
 /** Service Jasa Servis — ter-scope tenantId, mutasi stok transaksional. */
@@ -246,7 +246,12 @@ export async function updateStatus(tenantId: string, ticketId: string, status: S
   });
 }
 
-export async function recordPayment(tenantId: string, ticketId: string, amount: number) {
+export async function recordPayment(
+  tenantId: string,
+  ticketId: string,
+  amount: number,
+  method: PaymentMethod,
+) {
   assertPositiveInt(amount, "Jumlah pembayaran");
   return db.$transaction(async (tx) => {
     const t = await tx.serviceTicket.findFirst({
@@ -260,7 +265,7 @@ export async function recordPayment(tenantId: string, ticketId: string, amount: 
     const newPaid = t.paid + amount;
     await tx.serviceTicket.update({
       where: { id: t.id },
-      data: { paid: newPaid, paymentStatus: newPaid >= t.total ? "PAID" : "PARTIAL" },
+      data: { paid: newPaid, paymentStatus: newPaid >= t.total ? "PAID" : "PARTIAL", paymentMethod: method },
     });
     return { paid: newPaid, outstanding: t.total - newPaid };
   });

@@ -594,12 +594,13 @@ model ServiceTicket {
   laborCost      Int           @default(0) // biaya jasa
   partsCost      Int           @default(0) // akumulasi sparepart
   total          Int           @default(0) // laborCost + partsCost
-  paid           Int           @default(0)
-  paymentStatus  PaymentStatus @default(UNPAID)
+  paid           Int            @default(0)
+  paymentStatus  PaymentStatus  @default(UNPAID)
+  paymentMethod  PaymentMethod? // metode bayar terakhir (tunai/transfer/QRIS/kredit)
   note           String?
   createdById    String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
   completedAt    DateTime?
 
   tenant Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
