@@ -57,7 +57,8 @@ model Tenant {
   phone         String? // no. telepon/HP toko
   receiptFooter String? // catatan kaki struk, mis. "Barang tidak bisa ditukar"
   logo          String? // logo toko (data URL PNG/JPEG, tampil di struk)
-  trackPromo    String? // info/promo tampil di halaman publik lacak servis (/lacak)
+  trackPromo      String? // info/promo tampil di halaman publik lacak servis (/lacak)
+  trackPromoImage String? // foto promo (data URL) tampil di kartu Info & Promo /lacak
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

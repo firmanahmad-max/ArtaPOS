@@ -19,7 +19,7 @@ export default async function LacakPage({
   searchParams: Promise<{ no?: string }>;
 }) {
   const { no } = await searchParams;
-  const { storeName, promo } = await getTrackPagePromo();
+  const { storeName, promo, promoImage } = await getTrackPagePromo();
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
       <div className="absolute right-4 top-4">
@@ -41,14 +41,17 @@ export default async function LacakPage({
           </CardContent>
         </Card>
 
-        {promo && (
-          <Card className="mt-4 border-primary/30 bg-primary/5">
-            <CardContent className="flex gap-3 p-4">
-              <Megaphone className="size-5 shrink-0 text-primary" />
-              <div className="min-w-0">
-                <p className="mb-0.5 text-xs font-semibold uppercase tracking-wide text-primary">Info &amp; Promo</p>
-                <p className="whitespace-pre-line break-words text-sm">{promo}</p>
-              </div>
+        {(promo || promoImage) && (
+          <Card className="mt-4 overflow-hidden border-primary/30 bg-primary/5">
+            <CardContent className="p-4">
+              <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-primary">
+                <Megaphone className="size-4" /> Info &amp; Promo
+              </p>
+              {promoImage && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={promoImage} alt="Foto promo" className="mb-3 w-full rounded-lg border" />
+              )}
+              {promo && <p className="whitespace-pre-line break-words text-sm">{promo}</p>}
             </CardContent>
           </Card>
         )}

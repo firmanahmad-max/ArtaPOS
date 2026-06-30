@@ -108,6 +108,7 @@ export interface ReceiptStoreInfo {
   receiptFooter: string | null;
   logo: string | null;
   trackPromo: string | null;
+  trackPromoImage: string | null;
 }
 
 /**
@@ -118,7 +119,7 @@ export async function getReceiptStoreInfo(tenantId: string): Promise<ReceiptStor
   try {
     const t = await db.tenant.findUnique({
       where: { id: tenantId },
-      select: { address: true, phone: true, receiptFooter: true, logo: true, trackPromo: true },
+      select: { address: true, phone: true, receiptFooter: true, logo: true, trackPromo: true, trackPromoImage: true },
     });
     return {
       address: t?.address ?? null,
@@ -126,10 +127,16 @@ export async function getReceiptStoreInfo(tenantId: string): Promise<ReceiptStor
       receiptFooter: t?.receiptFooter ?? null,
       logo: t?.logo ?? null,
       trackPromo: t?.trackPromo ?? null,
+      trackPromoImage: t?.trackPromoImage ?? null,
     };
   } catch {
-    return { address: null, phone: null, receiptFooter: null, logo: null, trackPromo: null };
+    return { address: null, phone: null, receiptFooter: null, logo: null, trackPromo: null, trackPromoImage: null };
   }
+}
+
+/** Set/hapus foto promo halaman lacak (data URL). */
+export async function updateTrackPromoImage(tenantId: string, image: string | null) {
+  return db.tenant.update({ where: { id: tenantId }, data: { trackPromoImage: image } });
 }
 
 /** Set/hapus logo toko (data URL). */

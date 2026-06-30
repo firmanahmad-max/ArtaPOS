@@ -4,7 +4,7 @@ import { useActionState, useEffect, useRef, useState, useSyncExternalStore, useT
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Save, ImagePlus, Trash2, Check } from "lucide-react";
-import { updateSettingsAction, updateLicenseAction, updateStoreLogoAction } from "@/server/admin/actions";
+import { updateSettingsAction, updateLicenseAction, updateStoreLogoAction, updateTrackPromoImageAction } from "@/server/admin/actions";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -232,6 +232,114 @@ export function StoreLogoForm({ logo }: { logo: string | null }) {
         <div className="flex gap-2">
           <Button type="button" variant="outline" size="sm" disabled={pending} onClick={() => inputRef.current?.click()}>
             {pending ? <Loader2 className="animate-spin" /> : <ImagePlus />} {current ? "Ganti Logo" : "Unggah Logo"}
+          </Button>
+          {current && (
+            <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={onRemove}>
+              <Trash2 className="text-destructive" /> Hapus
+            </Button>
+          )}
+        </div>
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) onFile(f);
+          e.target.value = "";
+        }}
+      />
+    </div>
+  );
+}
+
+/** Resize foto promo di browser → JPEG data URL (maks 800px sisi terpanjang). */
+function fileToPromoDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Gagal membaca file"));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Gagal memuat gambar"));
+      img.onload = () => {
+        const max = 800;
+        let { width, height } = img;
+        if (width > max || height > max) {
+          const r = Math.min(max / width, max / height);
+          width = Math.round(width * r);
+          height = Math.round(height * r);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject(new Error("Canvas tidak didukung"));
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.78));
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+export function TrackPromoImageForm({ image }: { image: string | null }) {
+  const router = useRouter();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [pending, start] = useTransition();
+  const [current, setCurrent] = useState<string | null>(image);
+
+  const onFile = async (file: File) => {
+    let dataUrl: string;
+    try {
+      dataUrl = await fileToPromoDataUrl(file);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Gagal memproses gambar.");
+      return;
+    }
+    start(async () => {
+      const r = await updateTrackPromoImageAction(dataUrl);
+      if (r.ok) {
+        setCurrent(dataUrl);
+        toast.success("Foto promo diperbarui");
+        router.refresh();
+      } else {
+        toast.error(r.message ?? "Gagal mengunggah foto.");
+      }
+    });
+  };
+
+  const onRemove = () =>
+    start(async () => {
+      const r = await updateTrackPromoImageAction(null);
+      if (r.ok) {
+        setCurrent(null);
+        toast.success("Foto promo dihapus");
+        router.refresh();
+      } else {
+        toast.error(r.message ?? "Gagal menghapus foto.");
+      }
+    });
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex aspect-video w-full max-w-sm items-center justify-center overflow-hidden rounded-xl border bg-muted/30">
+        {current ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={current} alt="Foto promo" className="h-full w-full object-cover" />
+        ) : (
+          <ImagePlus className="size-7 text-muted-foreground" />
+        )}
+      </div>
+      <div className="flex flex-col gap-2">
+        <p className="text-sm text-muted-foreground">
+          Foto produk/promo yang tampil di kartu Info &amp; Promo halaman lacak. PNG/JPG, otomatis diperkecil (maks ~900KB).
+        </p>
+        <div className="flex gap-2">
+          <Button type="button" variant="outline" size="sm" disabled={pending} onClick={() => inputRef.current?.click()}>
+            {pending ? <Loader2 className="animate-spin" /> : <ImagePlus />} {current ? "Ganti Foto" : "Unggah Foto"}
           </Button>
           {current && (
             <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={onRemove}>

@@ -9,7 +9,7 @@ import { formatRupiah } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { StoreSettingsForm, StoreLogoForm, LicenseForm, ColorThemePicker } from "./settings-client";
+import { StoreSettingsForm, StoreLogoForm, LicenseForm, ColorThemePicker, TrackPromoImageForm } from "./settings-client";
 
 export const metadata: Metadata = { title: "Pengaturan" };
 
@@ -64,6 +64,10 @@ export default async function SettingsPage() {
             receiptFooter={storeInfo.receiptFooter}
             trackPromo={storeInfo.trackPromo}
           />
+          <div className="space-y-2 border-t pt-6">
+            <p className="text-sm font-medium">Foto Promo (Halaman Lacak)</p>
+            <TrackPromoImageForm image={storeInfo.trackPromoImage} />
+          </div>
         </CardContent>
       </Card>
 

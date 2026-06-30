@@ -6,7 +6,7 @@ import { can } from "@/lib/rbac";
 import { toFieldErrors, type FormState } from "@/lib/form";
 import { userCreateSchema, licenseUpdateSchema, settingsSchema } from "@/lib/validations/admin";
 import type { UserRole } from "@/generated/prisma/enums";
-import { createUser, updateUserRole, setUserActive, updateTenantSettings, updateTenantLogo } from "@/server/users/service";
+import { createUser, updateUserRole, setUserActive, updateTenantSettings, updateTenantLogo, updateTrackPromoImage } from "@/server/users/service";
 import { updateLicense } from "@/server/license/service";
 
 type Result = { ok: boolean; message?: string };
@@ -147,5 +147,34 @@ export async function updateStoreLogoAction(logo: string | null): Promise<Result
     return { ok: false, message: friendly(e) };
   }
   revalidatePath("/settings");
+  return { ok: true };
+}
+
+/** Set/hapus foto promo halaman lacak. `image` = data URL, atau null untuk menghapus. */
+export async function updateTrackPromoImageAction(image: string | null): Promise<Result> {
+  const user = await getCurrentUser();
+  if (!can(user.role, "settings.manage")) return { ok: false, message: "Tidak punya izin." };
+
+  if (image !== null) {
+    if (!/^data:image\/(png|jpe?g|webp);base64,/.test(image)) {
+      return { ok: false, message: "Format foto tidak valid (PNG/JPG/WEBP)." };
+    }
+    // Batasi ~1.2MB data URL agar DB & halaman lacak tetap ringan.
+    if (image.length > 1_200_000) {
+      return { ok: false, message: "Ukuran foto terlalu besar (maks ~900KB). Coba foto lebih kecil." };
+    }
+  }
+
+  try {
+    await updateTrackPromoImage(user.tenantId, image);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/column|does not exist|P2022/i.test(msg)) {
+      return { ok: false, message: "Database produksi belum dimigrasi (kolom foto promo belum ada)." };
+    }
+    return { ok: false, message: friendly(e) };
+  }
+  revalidatePath("/settings");
+  revalidatePath("/lacak");
   return { ok: true };
 }
