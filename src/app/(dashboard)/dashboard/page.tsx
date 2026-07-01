@@ -16,7 +16,7 @@ import { db } from "@/lib/db";
 import { ROLE_LABELS, can, type Permission } from "@/lib/rbac";
 import { formatRupiah } from "@/lib/utils";
 import { localParts, startOfDay as startOfLocalDay } from "@/lib/timezone";
-import { salesTrend } from "@/server/analytics/service";
+import { salesTrend, serviceTrend } from "@/server/analytics/service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard, type StatTone } from "@/components/ui/stat-card";
 import { BarChart } from "@/components/charts/bar-chart";
@@ -67,9 +67,10 @@ export default async function DashboardPage() {
 
   // Panel tren & aktivitas hanya untuk yang boleh lihat laporan.
   const canReports = can(user.role, "reports.view");
-  const [trend, recentSales] = canReports
+  const [trend, svcTrend, recentSales] = canReports
     ? await Promise.all([
         salesTrend(user.tenantId, 14),
+        serviceTrend(user.tenantId, 14),
         db.sale.findMany({
           where: { tenantId: user.tenantId, status: "COMPLETED" },
           orderBy: { createdAt: "desc" },
@@ -77,8 +78,9 @@ export default async function DashboardPage() {
           select: { id: true, number: true, customerName: true, total: true, createdAt: true },
         }),
       ])
-    : [[], []];
+    : [[], [], []];
   const trendTotal = trend.reduce((s, d) => s + d.total, 0);
+  const svcTrendTotal = svcTrend.reduce((s, d) => s + d.total, 0);
 
   const stats: {
     label: string;
@@ -233,6 +235,38 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* Panel tren jasa servis */}
+      {canReports && (
+        <Card>
+          <CardHeader className="flex-row items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Wrench className="size-5 text-amber-600 dark:text-amber-400" /> Tren Jasa Servis (14 hari)
+              </CardTitle>
+              <CardDescription>
+                Total pendapatan servis:{" "}
+                <span className="font-medium text-foreground">{formatRupiah(svcTrendTotal)}</span>
+              </CardDescription>
+            </div>
+            <Link href="/service" className="text-xs font-medium text-primary hover:underline">
+              Lihat semua
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {svcTrendTotal === 0 ? (
+              <p className="py-10 text-center text-sm text-muted-foreground">
+                Belum ada pendapatan servis dalam 14 hari terakhir.
+              </p>
+            ) : (
+              <BarChart
+                data={svcTrend.map((d) => ({ label: d.label, value: d.total }))}
+                formatValue={formatRupiah}
+              />
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Pintasan cepat */}

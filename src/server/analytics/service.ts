@@ -28,6 +28,29 @@ export async function salesTrend(tenantId: string, days = 14) {
   });
 }
 
+/** Tren pendapatan jasa servis harian `days` hari terakhir, termasuk hari nol. */
+export async function serviceTrend(tenantId: string, days = 14) {
+  const { y, m, d } = localParts();
+  const start = startOfDay(y, m, d - (days - 1));
+  const tickets = await db.serviceTicket.findMany({
+    where: { tenantId, status: { not: "CANCELLED" }, createdAt: { gte: start } },
+    select: { total: true, createdAt: true },
+  });
+
+  const buckets = new Map<string, number>();
+  for (let i = 0; i < days; i++) {
+    buckets.set(dayKey(startOfDay(y, m, d - (days - 1) + i)), 0);
+  }
+  for (const t of tickets) {
+    const k = dayKey(t.createdAt);
+    if (buckets.has(k)) buckets.set(k, (buckets.get(k) ?? 0) + t.total);
+  }
+  return [...buckets.entries()].map(([key, total]) => {
+    const [, m, day] = key.split("-");
+    return { key, label: `${day}/${m}`, total };
+  });
+}
+
 /** Produk terlaris `days` hari terakhir (berdasarkan qty terjual). */
 export async function topProducts(tenantId: string, days = 30, limit = 5) {
   const since = new Date(Date.now() - days * 86400000);

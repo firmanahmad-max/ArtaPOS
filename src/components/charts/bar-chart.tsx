@@ -19,7 +19,7 @@ export function BarChart({
 }) {
   const max = Math.max(1, ...data.map((d) => d.value));
   return (
-    <div className={cn("flex h-40 items-end gap-1", className)}>
+    <div className={cn("flex h-40 items-stretch gap-1", className)}>
       {data.map((d, i) => {
         const pct = Math.round((d.value / max) * 100);
         return (
