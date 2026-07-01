@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Wallet, FileText, AlertTriangle } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { listPayables } from "@/server/purchasing/service";
 import { formatRupiah } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { StatCard } from "@/components/ui/stat-card";
 
 export const metadata: Metadata = { title: "Utang" };
 
@@ -18,6 +19,7 @@ export default async function PayablesPage() {
   }
   const payables = await listPayables(user.tenantId);
   const totalOutstanding = payables.reduce((s, p) => s + p.outstanding, 0);
+  const overdueCount = payables.filter((p) => p.overdue).length;
 
   return (
     <div className="space-y-6">
@@ -31,12 +33,30 @@ export default async function PayablesPage() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardDescription>Total Utang Berjalan</CardDescription>
-          <CardTitle className="text-3xl">{formatRupiah(totalOutstanding)}</CardTitle>
-        </CardHeader>
-      </Card>
+      {/* Ringkasan KPI */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard
+          icon={Wallet}
+          label="Total Utang Berjalan"
+          value={formatRupiah(totalOutstanding)}
+          hint="Belum dibayar"
+          tone="rose"
+        />
+        <StatCard
+          icon={FileText}
+          label="Jumlah Tagihan"
+          value={String(payables.length)}
+          hint="Pembelian kredit terbuka"
+          tone="blue"
+        />
+        <StatCard
+          icon={AlertTriangle}
+          label="Lewat Tempo"
+          value={String(overdueCount)}
+          hint="Sudah jatuh tempo"
+          tone="amber"
+        />
+      </div>
 
       {payables.length === 0 ? (
         <Card className="flex flex-col items-center gap-3 p-12 text-center">

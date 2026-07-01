@@ -8,6 +8,7 @@ import { formatRupiah } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatCard } from "@/components/ui/stat-card";
 import { BarChart } from "@/components/charts/bar-chart";
 
 export const metadata: Metadata = { title: "Laporan & Analitik" };
@@ -36,6 +37,38 @@ export default async function ReportsPage() {
           <p className="text-muted-foreground">Ringkasan performa toko Anda.</p>
         </div>
         <Link href="/finance" className={buttonVariants({ variant: "outline" })}>Laporan Keuangan</Link>
+      </div>
+
+      {/* Ringkasan KPI */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          icon={TrendingUp}
+          label="Omzet 14 Hari"
+          value={formatRupiah(trendTotal)}
+          hint="Total penjualan"
+          tone="blue"
+        />
+        <StatCard
+          icon={Trophy}
+          label="Produk Terlaris"
+          value={top[0]?.name ?? "—"}
+          hint={top[0] ? `${top[0].qty} terjual (30 hari)` : "Belum ada data"}
+          tone="emerald"
+        />
+        <StatCard
+          icon={AlertTriangle}
+          label="Stok Menipis"
+          value={String(low.length)}
+          hint="Produk perlu perhatian"
+          tone="amber"
+        />
+        <StatCard
+          icon={PackageX}
+          label="Stok Mati"
+          value={String(dead.length)}
+          hint="Tak terjual 60 hari"
+          tone="rose"
+        />
       </div>
 
       <Card>

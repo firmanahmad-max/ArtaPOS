@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Plus, Truck, Wallet, ShoppingBag } from "lucide-react";
+import { Plus, Truck, Wallet, ShoppingBag, PackageCheck, CircleDollarSign } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { listPurchases } from "@/server/purchasing/service";
@@ -8,6 +8,7 @@ import { formatRupiah } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { StatCard } from "@/components/ui/stat-card";
 
 export const metadata: Metadata = { title: "Pembelian" };
 
@@ -23,6 +24,8 @@ export default async function PurchasingPage() {
     return <Card className="p-8 text-center text-sm text-muted-foreground">Tidak punya izin.</Card>;
   }
   const purchases = await listPurchases(user.tenantId);
+  const purchaseTotal = purchases.reduce((s, p) => s + p.total, 0);
+  const unpaidCount = purchases.filter((p) => p.paymentStatus !== "PAID").length;
 
   return (
     <div className="space-y-6">
@@ -43,6 +46,32 @@ export default async function PurchasingPage() {
           </Link>
         </div>
       </div>
+
+      {purchases.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatCard
+            icon={CircleDollarSign}
+            label="Total Pembelian"
+            value={formatRupiah(purchaseTotal)}
+            hint={`${purchases.length} transaksi`}
+            tone="blue"
+          />
+          <StatCard
+            icon={PackageCheck}
+            label="Sudah Lunas"
+            value={String(purchases.length - unpaidCount)}
+            hint="Pembelian terbayar"
+            tone="emerald"
+          />
+          <StatCard
+            icon={Wallet}
+            label="Belum Lunas"
+            value={String(unpaidCount)}
+            hint="Masih ada utang"
+            tone="amber"
+          />
+        </div>
+      )}
 
       {purchases.length === 0 ? (
         <Card className="flex flex-col items-center gap-3 p-12 text-center">
