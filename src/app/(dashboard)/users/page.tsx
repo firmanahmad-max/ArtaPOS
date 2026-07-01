@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { Users, UserCheck, ShieldCheck } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can, ROLE_LABELS } from "@/lib/rbac";
 import { listUsersFull } from "@/server/users/service";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatCard } from "@/components/ui/stat-card";
 import { AddUserForm, UserRowActions } from "./users-client";
 
 export const metadata: Metadata = { title: "Pengguna" };
@@ -15,12 +17,21 @@ export default async function UsersPage() {
   }
   const users = await listUsersFull(me.tenantId);
   const isOwner = me.role === "OWNER";
+  const activeCount = users.filter((u) => u.isActive).length;
+  const ownerCount = users.filter((u) => u.role === "OWNER").length;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Pengguna</h1>
         <p className="text-muted-foreground">Kelola akun & peran karyawan toko.</p>
+      </div>
+
+      {/* Ringkasan KPI */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard icon={Users} label="Total Pengguna" value={String(users.length)} hint="Akun karyawan" tone="blue" />
+        <StatCard icon={UserCheck} label="Aktif" value={String(activeCount)} hint="Bisa masuk sistem" tone="emerald" />
+        <StatCard icon={ShieldCheck} label="Pemilik" value={String(ownerCount)} hint="Akses penuh (OWNER)" tone="violet" />
       </div>
 
       <Card>
