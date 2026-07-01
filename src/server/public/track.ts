@@ -29,6 +29,9 @@ export interface TrackResult {
   createdAt?: string;
   completedAt?: string | null;
   technician?: string | null;
+  /** Biaya tiket: estimasi saat dikerjakan, total saat selesai. */
+  cost?: number;
+  costFinal?: boolean;
 }
 
 export async function trackServiceAction(number: string, phone: string): Promise<TrackResult> {
@@ -52,6 +55,7 @@ export async function trackServiceAction(number: string, phone: string): Promise
       deviceType: true,
       deviceBrand: true,
       status: true,
+      total: true,
       customerPhone: true,
       createdAt: true,
       completedAt: true,
@@ -64,6 +68,10 @@ export async function trackServiceAction(number: string, phone: string): Promise
   );
   if (!ticket) return { found: false };
 
+  // Biaya: estimasi selama dikerjakan, total final saat selesai/diserahkan.
+  const costFinal = ticket.status === "DONE" || ticket.status === "DELIVERED";
+  const showCost = ticket.status !== "CANCELLED" && ticket.total > 0;
+
   return {
     found: true,
     number: ticket.number,
@@ -72,5 +80,7 @@ export async function trackServiceAction(number: string, phone: string): Promise
     createdAt: ticket.createdAt.toISOString(),
     completedAt: ticket.completedAt ? ticket.completedAt.toISOString() : null,
     technician: ticket.technicianName,
+    cost: showCost ? ticket.total : undefined,
+    costFinal,
   };
 }

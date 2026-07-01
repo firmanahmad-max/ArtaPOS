@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Search, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { trackServiceAction, type TrackResult } from "@/server/public/track";
+import { formatRupiah } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -69,6 +70,17 @@ export function TrackForm({ defaultNumber = "" }: { defaultNumber?: string }) {
               </>
             )}
           </div>
+          {result.cost != null && (
+            <div className="mt-1 flex items-center justify-between rounded-md bg-primary/5 px-3 py-2">
+              <span className="text-sm text-muted-foreground">
+                {result.costFinal ? "Total Biaya" : "Estimasi Biaya"}
+              </span>
+              <span className="text-base font-bold text-primary">{formatRupiah(result.cost)}</span>
+            </div>
+          )}
+          {result.cost != null && !result.costFinal && (
+            <p className="text-center text-xs text-muted-foreground">Estimasi dapat berubah selama pengerjaan.</p>
+          )}
         </div>
       )}
     </div>
