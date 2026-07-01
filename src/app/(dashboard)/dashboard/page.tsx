@@ -12,9 +12,10 @@ import {
 import { getCurrentUser } from "@/lib/auth/dal";
 import { db } from "@/lib/db";
 import { ROLE_LABELS, can, type Permission } from "@/lib/rbac";
-import { cn, formatRupiah } from "@/lib/utils";
+import { formatRupiah } from "@/lib/utils";
 import { localParts, startOfDay as startOfLocalDay } from "@/lib/timezone";
 import { Card, CardContent } from "@/components/ui/card";
+import { StatCard, type StatTone } from "@/components/ui/stat-card";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -64,9 +65,7 @@ export default async function DashboardPage() {
     value: string;
     icon: typeof ShoppingCart;
     hint: string;
-    iconBg: string;
-    iconText: string;
-    hintText: string;
+    tone: StatTone;
     href: string;
     perm?: Permission;
   }[] = [
@@ -75,9 +74,7 @@ export default async function DashboardPage() {
       value: formatRupiah(todayTotal),
       icon: ShoppingCart,
       hint: `${todayCount} transaksi`,
-      iconBg: "bg-primary/10",
-      iconText: "text-primary",
-      hintText: "text-primary",
+      tone: "blue",
       href: "/sales",
       perm: "reports.view",
     },
@@ -86,9 +83,7 @@ export default async function DashboardPage() {
       value: String(productCount),
       icon: Boxes,
       hint: "Total item di katalog",
-      iconBg: "bg-emerald-500/12",
-      iconText: "text-emerald-600 dark:text-emerald-400",
-      hintText: "text-emerald-600 dark:text-emerald-400",
+      tone: "emerald",
       href: "/inventory",
       perm: "inventory.manage",
     },
@@ -97,9 +92,7 @@ export default async function DashboardPage() {
       value: String(activeService),
       icon: Wrench,
       hint: "Tiket sedang dikerjakan",
-      iconBg: "bg-amber-500/15",
-      iconText: "text-amber-600 dark:text-amber-400",
-      hintText: "text-amber-600 dark:text-amber-400",
+      tone: "amber",
       href: "/service",
       perm: "service.manage",
     },
@@ -108,9 +101,7 @@ export default async function DashboardPage() {
       value: String(lowStock),
       icon: AlertTriangle,
       hint: "Produk perlu restock",
-      iconBg: "bg-rose-500/12",
-      iconText: "text-rose-600 dark:text-rose-400",
-      hintText: "text-rose-600 dark:text-rose-400",
+      tone: "rose",
       href: "/inventory",
       perm: "inventory.manage",
     },
@@ -143,42 +134,17 @@ export default async function DashboardPage() {
       {/* Kartu statistik */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => {
-          const Icon = s.icon;
           const accessible = !s.perm || can(user.role, s.perm);
-          const card = (
-            <Card className={cn("relative h-full overflow-hidden", accessible && "card-hover")}>
-              {/* Lingkaran dekoratif samar (senada warna kartu). */}
-              <span
-                aria-hidden
-                className={cn(
-                  "pointer-events-none absolute -right-8 -top-8 size-28 rounded-full opacity-50",
-                  s.iconBg,
-                )}
-              />
-              <CardContent className="relative flex items-center gap-4 p-5">
-                <div
-                  className={cn(
-                    "flex size-14 shrink-0 items-center justify-center rounded-2xl",
-                    s.iconBg,
-                    s.iconText,
-                  )}
-                >
-                  <Icon className="size-7" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-muted-foreground">{s.label}</p>
-                  <p className="truncate text-2xl font-bold tabular-nums text-foreground">{s.value}</p>
-                  <p className={cn("mt-0.5 text-xs font-medium", s.hintText)}>{s.hint}</p>
-                </div>
-              </CardContent>
-            </Card>
-          );
-          return accessible ? (
-            <Link key={s.label} href={s.href} className="block">
-              {card}
-            </Link>
-          ) : (
-            <div key={s.label}>{card}</div>
+          return (
+            <StatCard
+              key={s.label}
+              icon={s.icon}
+              label={s.label}
+              value={s.value}
+              hint={s.hint}
+              tone={s.tone}
+              href={accessible ? s.href : undefined}
+            />
           );
         })}
       </div>

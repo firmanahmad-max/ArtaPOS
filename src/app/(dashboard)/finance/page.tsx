@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Wallet } from "lucide-react";
+import { Wallet, TrendingUp, LineChart, Receipt } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { getFinanceReport } from "@/server/finance/service";
@@ -9,6 +9,7 @@ import { formatRupiah } from "@/lib/utils";
 import type { ReportPeriod } from "@/lib/validations/finance";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatCard } from "@/components/ui/stat-card";
 import { cn } from "@/lib/utils";
 import { ReportActions } from "./report-actions";
 
@@ -44,6 +45,11 @@ export default async function FinancePage({
     { label: "Biaya operasional", value: -report.expenseTotal },
   ];
 
+  // Ringkasan KPI (kartu atas).
+  const totalRevenue = report.salesRevenue + report.serviceRevenue + report.buildRevenue;
+  const grossProfit = report.salesGrossProfit + report.serviceRevenue + report.buildRevenue;
+  const grossMargin = totalRevenue > 0 ? Math.round((grossProfit / totalRevenue) * 100) : 0;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -66,6 +72,38 @@ export default async function FinancePage({
             {p.label}
           </Link>
         ))}
+      </div>
+
+      {/* Ringkasan KPI */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          icon={Wallet}
+          label="Pendapatan"
+          value={formatRupiah(totalRevenue)}
+          hint="Total omzet periode ini"
+          tone="blue"
+        />
+        <StatCard
+          icon={TrendingUp}
+          label="Laba Kotor"
+          value={formatRupiah(grossProfit)}
+          hint={`Margin ${grossMargin}%`}
+          tone="emerald"
+        />
+        <StatCard
+          icon={LineChart}
+          label="Laba Bersih"
+          value={formatRupiah(report.estimatedNet)}
+          hint={report.estimatedNet >= 0 ? "Setelah biaya" : "Rugi periode ini"}
+          tone={report.estimatedNet >= 0 ? "violet" : "rose"}
+        />
+        <StatCard
+          icon={Receipt}
+          label="Biaya"
+          value={formatRupiah(report.expenseTotal)}
+          hint="Operasional periode ini"
+          tone="amber"
+        />
       </div>
 
       <Card>
