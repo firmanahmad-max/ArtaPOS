@@ -69,17 +69,22 @@ export default async function DashboardPage() {
 
   // Panel tren & aktivitas hanya untuk yang boleh lihat laporan.
   const canReports = can(user.role, "reports.view");
+  // Panel dashboard bersifat tambahan: bila salah satu query gagal sesaat
+  // (mis. koneksi DB), degradasi anggun — JANGAN meng-crash halaman (ini juga
+  // tujuan tombol "Ke Dashboard" pada layar error).
   const [trend, svcTrend, recentSales, artaInsights] = canReports
     ? await Promise.all([
-        salesTrend(user.tenantId, 14),
-        serviceTrend(user.tenantId, 14),
-        db.sale.findMany({
-          where: { tenantId: user.tenantId, status: "COMPLETED" },
-          orderBy: { createdAt: "desc" },
-          take: 5,
-          select: { id: true, number: true, customerName: true, total: true, createdAt: true },
-        }),
-        getArtaInsights(user.tenantId, user.role),
+        salesTrend(user.tenantId, 14).catch(() => []),
+        serviceTrend(user.tenantId, 14).catch(() => []),
+        db.sale
+          .findMany({
+            where: { tenantId: user.tenantId, status: "COMPLETED" },
+            orderBy: { createdAt: "desc" },
+            take: 5,
+            select: { id: true, number: true, customerName: true, total: true, createdAt: true },
+          })
+          .catch(() => []),
+        getArtaInsights(user.tenantId, user.role).catch(() => []),
       ])
     : [[], [], [], []];
   const trendTotal = trend.reduce((s, d) => s + d.total, 0);

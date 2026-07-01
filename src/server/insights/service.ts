@@ -54,6 +54,9 @@ export async function getArtaInsights(tenantId: string, role: UserRole): Promise
   const since30 = new Date(Date.now() - 30 * 86400000);
   const insights: Insight[] = [];
 
+  try {
+  // Query dipecah 2 tahap agar tidak menembakkan terlalu banyak koneksi DB
+  // sekaligus (bisa memicu error transien pada koneksi ter-pool/serverless).
   const [
     sTrend,
     svcTrend,
@@ -62,7 +65,6 @@ export async function getArtaInsights(tenantId: string, role: UserRole): Promise
     invSum,
     receivables,
     payables,
-    finance,
     svcStatus,
     lossItems,
     completed30,
@@ -75,7 +77,6 @@ export async function getArtaInsights(tenantId: string, role: UserRole): Promise
     canInv ? inventorySummary(tenantId) : Promise.resolve(null),
     canReports ? listReceivables(tenantId) : Promise.resolve([]),
     canPur ? listPayables(tenantId) : Promise.resolve([]),
-    canFin ? getFinanceComparison(tenantId, "month") : Promise.resolve(null),
     canReports
       ? db.serviceTicket.groupBy({ by: ["status"], where: { tenantId }, _count: true })
       : Promise.resolve([]),
@@ -92,6 +93,7 @@ export async function getArtaInsights(tenantId: string, role: UserRole): Promise
       ? db.sale.count({ where: { tenantId, status: "VOID", createdAt: { gte: since30 } } })
       : Promise.resolve(0),
   ]);
+  const finance = canFin ? await getFinanceComparison(tenantId, "month") : null;
 
   // ── Penjualan ──────────────────────────────────────────────────────────
   if (canReports) {
@@ -394,6 +396,13 @@ export async function getArtaInsights(tenantId: string, role: UserRole): Promise
     }
   }
 
-  insights.sort((a, b) => TONE_RANK[a.tone] - TONE_RANK[b.tone]);
-  return insights;
+    insights.sort((a, b) => TONE_RANK[a.tone] - TONE_RANK[b.tone]);
+    return insights;
+  } catch (e) {
+    // Fail-safe: kegagalan sesaat (mis. koneksi DB) tak boleh meng-crash
+    // halaman. Kembalikan apa yang sempat terkumpul, jangan lempar error.
+    console.error("getArtaInsights gagal:", e);
+    insights.sort((a, b) => TONE_RANK[a.tone] - TONE_RANK[b.tone]);
+    return insights;
+  }
 }
