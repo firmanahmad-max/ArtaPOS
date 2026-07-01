@@ -126,6 +126,23 @@ export async function listProductsPaged(
   return { items, total, page, perPage, totalPages: Math.max(1, Math.ceil(total / perPage)) };
 }
 
+/** Ringkasan inventory untuk kartu KPI: jumlah produk, stok habis/menipis, nilai modal stok. */
+export async function inventorySummary(tenantId: string) {
+  const products = await db.product.findMany({
+    where: { tenantId, isActive: true },
+    select: { stock: true, costPrice: true, minStock: true },
+  });
+  let outOfStock = 0;
+  let lowStock = 0;
+  let stockValue = 0;
+  for (const p of products) {
+    if (p.stock <= 0) outOfStock++;
+    else if (p.minStock > 0 && p.stock <= p.minStock) lowStock++;
+    stockValue += Math.max(0, p.stock) * p.costPrice;
+  }
+  return { productCount: products.length, outOfStock, lowStock, stockValue };
+}
+
 export function getProduct(tenantId: string, id: string) {
   return db.product.findFirst({ where: { id, tenantId } });
 }

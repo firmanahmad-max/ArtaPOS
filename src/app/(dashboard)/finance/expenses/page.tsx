@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Receipt, ListChecks } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { listExpenses } from "@/server/finance/service";
 import { formatRupiah } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatCard } from "@/components/ui/stat-card";
 import { AddExpenseForm, DeleteExpenseButton } from "./expenses-client";
 
 export const metadata: Metadata = { title: "Biaya" };
@@ -17,6 +18,7 @@ export default async function ExpensesPage() {
     return <Card className="p-8 text-center text-sm text-muted-foreground">Tidak punya izin.</Card>;
   }
   const expenses = await listExpenses(user.tenantId);
+  const expenseTotal = expenses.reduce((s, e) => s + e.amount, 0);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -25,6 +27,24 @@ export default async function ExpensesPage() {
           <ArrowLeft />
         </Link>
         <h1 className="text-2xl font-bold tracking-tight">Biaya Operasional</h1>
+      </div>
+
+      {/* Ringkasan KPI */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <StatCard
+          icon={Receipt}
+          label="Total Biaya"
+          value={formatRupiah(expenseTotal)}
+          hint="Seluruh biaya tercatat"
+          tone="amber"
+        />
+        <StatCard
+          icon={ListChecks}
+          label="Jumlah Catatan"
+          value={String(expenses.length)}
+          hint="Entri biaya"
+          tone="blue"
+        />
       </div>
 
       <Card>

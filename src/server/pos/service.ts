@@ -157,6 +157,19 @@ export async function listSalesPaged(tenantId: string, page = 1, perPage = 25) {
   return { items, total, page: safePage, perPage, totalPages: Math.max(1, Math.ceil(total / perPage)) };
 }
 
+/** Ringkasan penjualan untuk kartu KPI: omzet & jumlah transaksi selesai, jumlah void. */
+export async function salesSummary(tenantId: string) {
+  const [agg, voidCount] = await Promise.all([
+    db.sale.aggregate({
+      where: { tenantId, status: "COMPLETED" },
+      _sum: { total: true },
+      _count: true,
+    }),
+    db.sale.count({ where: { tenantId, status: "VOID" } }),
+  ]);
+  return { revenue: agg._sum.total ?? 0, completedCount: agg._count, voidCount };
+}
+
 /** Batalkan transaksi (VOID): kembalikan stok + catat movement RETURN_IN. */
 export async function voidSale(tenantId: string, userId: string, saleId: string) {
   return db.$transaction(async (tx) => {

@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, Shield, ShieldX, Award } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { listWarranties, listProductsForWarranty } from "@/server/warranty/service";
 import { listCustomers } from "@/server/customers/service";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatCard } from "@/components/ui/stat-card";
 import { RegisterWarrantyForm, WarrantySearch, ClaimButton } from "./warranty-client";
 
 export const metadata: Metadata = { title: "Garansi" };
@@ -33,11 +34,23 @@ export default async function WarrantyPage({
     listCustomers(user.tenantId),
   ]);
 
+  const activeCount = units.filter((u) => u.status === "ACTIVE").length;
+  const expiredCount = units.filter((u) => u.status === "EXPIRED").length;
+  const claimedCount = units.filter((u) => u.status === "CLAIMED").length;
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Garansi & Nomor Seri</h1>
         <p className="text-muted-foreground">Daftarkan unit ber-nomor seri & lacak masa garansi.</p>
+      </div>
+
+      {/* Ringkasan KPI */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard icon={Shield} label="Total Unit" value={String(units.length)} hint="Terdaftar" tone="blue" />
+        <StatCard icon={ShieldCheck} label="Garansi Aktif" value={String(activeCount)} hint="Masih berlaku" tone="emerald" />
+        <StatCard icon={ShieldX} label="Kedaluwarsa" value={String(expiredCount)} hint="Masa habis" tone="rose" />
+        <StatCard icon={Award} label="Diklaim" value={String(claimedCount)} hint="Sudah diklaim" tone="violet" />
       </div>
 
       <Card>

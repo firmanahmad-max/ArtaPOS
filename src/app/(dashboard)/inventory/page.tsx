@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Plus, Pencil, QrCode, Boxes, Tags, ClipboardCheck, Upload, Download } from "lucide-react";
+import { Plus, Pencil, QrCode, Boxes, Tags, ClipboardCheck, Upload, Download, PackageX, AlertTriangle, Coins } from "lucide-react";
 import { getAuthContext } from "@/lib/auth/guard";
-import { listProductsPaged, ensureDefaultUnits } from "@/server/inventory/service";
+import { listProductsPaged, inventorySummary, ensureDefaultUnits } from "@/server/inventory/service";
 import { formatRupiah } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/ui/pagination";
 import { SearchBox, DeleteProductButton } from "./inventory-client";
@@ -22,11 +23,10 @@ export default async function InventoryPage({
   await ensureDefaultUnits(tenantId);
   const { q, page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
-  const { items: products, total, totalPages } = await listProductsPaged(tenantId, {
-    search: q,
-    page,
-    perPage: 25,
-  });
+  const [{ items: products, total, totalPages }, summary] = await Promise.all([
+    listProductsPaged(tenantId, { search: q, page, perPage: 25 }),
+    inventorySummary(tenantId),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -52,6 +52,38 @@ export default async function InventoryPage({
             <Plus /> Tambah Produk
           </Link>
         </div>
+      </div>
+
+      {/* Ringkasan KPI */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          icon={Boxes}
+          label="Produk Aktif"
+          value={String(summary.productCount)}
+          hint="Total item katalog"
+          tone="blue"
+        />
+        <StatCard
+          icon={Coins}
+          label="Nilai Stok (modal)"
+          value={formatRupiah(summary.stockValue)}
+          hint="Perkiraan modal tersimpan"
+          tone="emerald"
+        />
+        <StatCard
+          icon={AlertTriangle}
+          label="Stok Menipis"
+          value={String(summary.lowStock)}
+          hint="Perlu restock segera"
+          tone="amber"
+        />
+        <StatCard
+          icon={PackageX}
+          label="Stok Habis"
+          value={String(summary.outOfStock)}
+          hint="Kosong / nol"
+          tone="rose"
+        />
       </div>
 
       <div className="flex flex-wrap items-center gap-3">

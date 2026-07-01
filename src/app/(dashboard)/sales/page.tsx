@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Receipt, Download } from "lucide-react";
+import { Receipt, Download, Wallet, ShoppingCart, Ban } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
-import { listSalesPaged } from "@/server/pos/service";
+import { listSalesPaged, salesSummary } from "@/server/pos/service";
 import { formatRupiah } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/ui/pagination";
 
@@ -28,7 +29,10 @@ export default async function SalesPage({
   }
   const { page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
-  const { items: sales, total, totalPages } = await listSalesPaged(user.tenantId, page, 25);
+  const [{ items: sales, total, totalPages }, summary] = await Promise.all([
+    listSalesPaged(user.tenantId, page, 25),
+    salesSummary(user.tenantId),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -43,6 +47,32 @@ export default async function SalesPage({
           </a>
         )}
       </div>
+
+      {total > 0 && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatCard
+            icon={Wallet}
+            label="Total Omzet"
+            value={formatRupiah(summary.revenue)}
+            hint="Transaksi selesai"
+            tone="blue"
+          />
+          <StatCard
+            icon={ShoppingCart}
+            label="Transaksi Selesai"
+            value={String(summary.completedCount)}
+            hint="Penjualan berhasil"
+            tone="emerald"
+          />
+          <StatCard
+            icon={Ban}
+            label="Dibatalkan (Void)"
+            value={String(summary.voidCount)}
+            hint="Transaksi dibatalkan"
+            tone="rose"
+          />
+        </div>
+      )}
 
       {sales.length === 0 ? (
         <EmptyState
