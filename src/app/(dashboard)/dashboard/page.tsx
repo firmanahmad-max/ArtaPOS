@@ -10,13 +10,15 @@ import {
   ArrowRight,
   TrendingUp,
   Receipt,
+  Sparkles,
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { db } from "@/lib/db";
 import { ROLE_LABELS, can, type Permission } from "@/lib/rbac";
-import { formatRupiah } from "@/lib/utils";
+import { cn, formatRupiah } from "@/lib/utils";
 import { localParts, startOfDay as startOfLocalDay } from "@/lib/timezone";
 import { salesTrend, serviceTrend } from "@/server/analytics/service";
+import { getArtaInsights } from "@/server/insights/service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard, type StatTone } from "@/components/ui/stat-card";
 import { BarChart } from "@/components/charts/bar-chart";
@@ -67,7 +69,7 @@ export default async function DashboardPage() {
 
   // Panel tren & aktivitas hanya untuk yang boleh lihat laporan.
   const canReports = can(user.role, "reports.view");
-  const [trend, svcTrend, recentSales] = canReports
+  const [trend, svcTrend, recentSales, artaInsights] = canReports
     ? await Promise.all([
         salesTrend(user.tenantId, 14),
         serviceTrend(user.tenantId, 14),
@@ -77,10 +79,18 @@ export default async function DashboardPage() {
           take: 5,
           select: { id: true, number: true, customerName: true, total: true, createdAt: true },
         }),
+        getArtaInsights(user.tenantId, user.role),
       ])
-    : [[], [], []];
+    : [[], [], [], []];
   const trendTotal = trend.reduce((s, d) => s + d.total, 0);
   const svcTrendTotal = svcTrend.reduce((s, d) => s + d.total, 0);
+  const topInsights = artaInsights.slice(0, 3);
+  const insightDot: Record<string, string> = {
+    critical: "bg-rose-500",
+    warning: "bg-amber-500",
+    info: "bg-primary",
+    positive: "bg-emerald-500",
+  };
 
   const stats: {
     label: string;
@@ -173,6 +183,39 @@ export default async function DashboardPage() {
           );
         })}
       </div>
+
+      {/* Ringkasan insight Arta */}
+      {canReports && topInsights.length > 0 && (
+        <Card>
+          <CardHeader className="flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Sparkles className="size-5 text-primary" /> Tanya Arta
+            </CardTitle>
+            <Link href="/insights" className="text-xs font-medium text-primary hover:underline">
+              Lihat semua
+            </Link>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <ul className="divide-y">
+              {topInsights.map((it) => (
+                <li key={it.id}>
+                  <Link
+                    href={it.href ?? "/insights"}
+                    className="-mx-2 flex items-start gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-accent"
+                  >
+                    <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", insightDot[it.tone])} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{it.title}</p>
+                      <p className="truncate text-xs text-muted-foreground">{it.detail}</p>
+                    </div>
+                    <ArrowRight className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Panel tren & aktivitas terbaru */}
       {canReports && (

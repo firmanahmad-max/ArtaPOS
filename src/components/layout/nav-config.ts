@@ -17,6 +17,7 @@ import {
   Clock,
   Coins,
   ShieldCheck,
+  Sparkles,
 } from "lucide-react";
 import type { Permission } from "@/lib/rbac";
 
@@ -77,6 +78,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Keuangan & Laporan",
     items: [
+      { href: "/insights", label: "Tanya Arta", icon: Sparkles, permission: "reports.view", enabled: true },
       { href: "/finance", label: "Keuangan", icon: Wallet, permission: "finance.view", enabled: true },
       { href: "/reports", label: "Laporan", icon: FileBarChart, permission: "reports.view", enabled: true },
     ],
