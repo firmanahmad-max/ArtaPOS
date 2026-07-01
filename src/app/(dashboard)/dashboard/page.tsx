@@ -8,14 +8,18 @@ import {
   BarChart3,
   PackagePlus,
   ArrowRight,
+  TrendingUp,
+  Receipt,
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { db } from "@/lib/db";
 import { ROLE_LABELS, can, type Permission } from "@/lib/rbac";
 import { formatRupiah } from "@/lib/utils";
 import { localParts, startOfDay as startOfLocalDay } from "@/lib/timezone";
-import { Card, CardContent } from "@/components/ui/card";
+import { salesTrend } from "@/server/analytics/service";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard, type StatTone } from "@/components/ui/stat-card";
+import { BarChart } from "@/components/charts/bar-chart";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -59,6 +63,21 @@ export default async function DashboardPage() {
 
   const todayTotal = todayAgg._sum.total ?? 0;
   const todayCount = todayAgg._count;
+
+  // Panel tren & aktivitas hanya untuk yang boleh lihat laporan.
+  const canReports = can(user.role, "reports.view");
+  const [trend, recentSales] = canReports
+    ? await Promise.all([
+        salesTrend(user.tenantId, 14),
+        db.sale.findMany({
+          where: { tenantId: user.tenantId, status: "COMPLETED" },
+          orderBy: { createdAt: "desc" },
+          take: 5,
+          select: { id: true, number: true, customerName: true, total: true, createdAt: true },
+        }),
+      ])
+    : [[], []];
+  const trendTotal = trend.reduce((s, d) => s + d.total, 0);
 
   const stats: {
     label: string;
@@ -148,6 +167,69 @@ export default async function DashboardPage() {
           );
         })}
       </div>
+
+      {/* Panel tren & aktivitas terbaru */}
+      {canReports && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <TrendingUp className="size-5 text-primary" /> Tren Penjualan (14 hari)
+              </CardTitle>
+              <CardDescription>
+                Total omzet: <span className="font-medium text-foreground">{formatRupiah(trendTotal)}</span>
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {trendTotal === 0 ? (
+                <p className="py-10 text-center text-sm text-muted-foreground">
+                  Belum ada penjualan dalam 14 hari terakhir.
+                </p>
+              ) : (
+                <BarChart data={trend.map((d) => ({ label: d.label, value: d.total }))} formatValue={formatRupiah} />
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Receipt className="size-5 text-primary" /> Penjualan Terbaru
+              </CardTitle>
+              <Link href="/sales" className="text-xs font-medium text-primary hover:underline">
+                Lihat semua
+              </Link>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {recentSales.length === 0 ? (
+                <p className="py-10 text-center text-sm text-muted-foreground">Belum ada transaksi.</p>
+              ) : (
+                <ul className="divide-y">
+                  {recentSales.map((s) => (
+                    <li key={s.id}>
+                      <Link
+                        href={`/sales/${s.id}`}
+                        className="-mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-accent"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-primary">{s.number}</p>
+                          <p className="truncate text-xs text-muted-foreground">{s.customerName || "Pelanggan umum"}</p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-sm font-semibold tabular-nums">{formatRupiah(s.total)}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {new Date(s.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
+                          </p>
+                        </div>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Pintasan cepat */}
       <div>
