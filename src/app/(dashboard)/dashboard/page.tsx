@@ -64,7 +64,9 @@ export default async function DashboardPage() {
     value: string;
     icon: typeof ShoppingCart;
     hint: string;
-    tint: string;
+    iconBg: string;
+    iconText: string;
+    hintText: string;
     href: string;
     perm?: Permission;
   }[] = [
@@ -73,7 +75,9 @@ export default async function DashboardPage() {
       value: formatRupiah(todayTotal),
       icon: ShoppingCart,
       hint: `${todayCount} transaksi`,
-      tint: "linear-gradient(135deg, var(--primary), var(--primary-accent))",
+      iconBg: "bg-primary/10",
+      iconText: "text-primary",
+      hintText: "text-primary",
       href: "/sales",
       perm: "reports.view",
     },
@@ -82,7 +86,9 @@ export default async function DashboardPage() {
       value: String(productCount),
       icon: Boxes,
       hint: "Total item di katalog",
-      tint: "linear-gradient(135deg, #10b981, #14b8a6)",
+      iconBg: "bg-emerald-500/12",
+      iconText: "text-emerald-600 dark:text-emerald-400",
+      hintText: "text-emerald-600 dark:text-emerald-400",
       href: "/inventory",
       perm: "inventory.manage",
     },
@@ -91,7 +97,9 @@ export default async function DashboardPage() {
       value: String(activeService),
       icon: Wrench,
       hint: "Tiket sedang dikerjakan",
-      tint: "linear-gradient(135deg, #f59e0b, #f97316)",
+      iconBg: "bg-amber-500/15",
+      iconText: "text-amber-600 dark:text-amber-400",
+      hintText: "text-amber-600 dark:text-amber-400",
       href: "/service",
       perm: "service.manage",
     },
@@ -100,7 +108,9 @@ export default async function DashboardPage() {
       value: String(lowStock),
       icon: AlertTriangle,
       hint: "Produk perlu restock",
-      tint: "linear-gradient(135deg, #f43f5e, #ef4444)",
+      iconBg: "bg-rose-500/12",
+      iconText: "text-rose-600 dark:text-rose-400",
+      hintText: "text-rose-600 dark:text-rose-400",
       href: "/inventory",
       perm: "inventory.manage",
     },
@@ -136,18 +146,29 @@ export default async function DashboardPage() {
           const Icon = s.icon;
           const accessible = !s.perm || can(user.role, s.perm);
           const card = (
-            <Card className={cn("h-full", accessible && "card-hover")}>
-              <CardContent className="flex items-center gap-4 p-5">
+            <Card className={cn("relative h-full overflow-hidden", accessible && "card-hover")}>
+              {/* Lingkaran dekoratif samar (senada warna kartu). */}
+              <span
+                aria-hidden
+                className={cn(
+                  "pointer-events-none absolute -right-8 -top-8 size-28 rounded-full opacity-50",
+                  s.iconBg,
+                )}
+              />
+              <CardContent className="relative flex items-center gap-4 p-5">
                 <div
-                  className="flex size-12 shrink-0 items-center justify-center rounded-2xl text-white shadow-sm"
-                  style={{ backgroundImage: s.tint }}
+                  className={cn(
+                    "flex size-14 shrink-0 items-center justify-center rounded-2xl",
+                    s.iconBg,
+                    s.iconText,
+                  )}
                 >
-                  <Icon className="size-6" />
+                  <Icon className="size-7" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs font-medium text-muted-foreground">{s.label}</p>
-                  <p className="truncate text-2xl font-bold tabular-nums">{s.value}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{s.hint}</p>
+                  <p className="truncate text-2xl font-bold tabular-nums text-foreground">{s.value}</p>
+                  <p className={cn("mt-0.5 text-xs font-medium", s.hintText)}>{s.hint}</p>
                 </div>
               </CardContent>
             </Card>

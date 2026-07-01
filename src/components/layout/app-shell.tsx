@@ -164,28 +164,44 @@ export function AppShell({
 
       {/* Konten */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 items-center gap-2 border-b bg-card px-4">
+        <header className="flex h-16 items-center gap-2 border-b bg-header px-4 text-header-foreground">
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden"
+            className="text-header-foreground hover:bg-header-foreground/10 md:hidden"
             onClick={() => setMobileOpen(true)}
             aria-label="Buka menu"
           >
             <Menu className="size-5" />
           </Button>
+          {/* Brand tampil di header untuk mobile (desktop sudah ada di sidebar). */}
+          <Link href="/dashboard" className="flex items-center gap-2 md:hidden">
+            <Logo size={30} />
+            <span className="truncate font-semibold tracking-tight">{APP_NAME}</span>
+          </Link>
+          {/* Pencarian penuh (desktop). */}
           <button
             type="button"
             onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
-            className="flex h-9 max-w-xs flex-1 items-center gap-2 rounded-lg border bg-background px-3 text-sm text-muted-foreground transition-colors hover:bg-accent"
+            className="hidden h-9 max-w-xs flex-1 items-center gap-2 rounded-lg border border-header-foreground/15 bg-header-foreground/5 px-3 text-sm text-header-foreground/70 transition-colors hover:bg-header-foreground/10 md:flex"
           >
             <Search className="size-4" />
             <span className="flex-1 text-left">Cari…</span>
-            <kbd className="hidden rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium sm:inline">
+            <kbd className="hidden rounded border border-header-foreground/20 bg-header-foreground/10 px-1.5 py-0.5 text-[10px] font-medium sm:inline">
               Ctrl K
             </kbd>
           </button>
           <div className="flex-1" />
+          {/* Pencarian ringkas (mobile). */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-header-foreground hover:bg-header-foreground/10 md:hidden"
+            onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
+            aria-label="Cari"
+          >
+            <Search className="size-5" />
+          </Button>
           <ThemeToggle />
         </header>
         {!online && (

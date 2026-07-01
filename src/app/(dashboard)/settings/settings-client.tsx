@@ -17,6 +17,7 @@ const COLOR_THEMES = [
   { id: "mint", name: "Mint", c1: "#3FAE8E", c2: "#7FCDB8" },
   { id: "lavender", name: "Lavender", c1: "#7B6FD0", c2: "#B492E6" },
   { id: "sky", name: "Sky", c1: "#4F92D8", c2: "#93BEEA" },
+  { id: "ocean", name: "Ocean", c1: "#1E2A44", c2: "#3B82F6" },
 ] as const;
 
 const themeListeners = new Set<() => void>();
@@ -43,7 +44,7 @@ export function ColorThemePicker() {
   const active = useSyncExternalStore(subscribeTheme, getThemeSnapshot, () => "terakota");
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
       {COLOR_THEMES.map((t) => (
         <button
           key={t.id}
