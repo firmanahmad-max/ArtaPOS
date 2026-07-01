@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Wallet, TrendingUp, LineChart, Receipt } from "lucide-react";
+import { Wallet, TrendingUp, LineChart, Receipt, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
-import { getFinanceReport } from "@/server/finance/service";
+import { getFinanceComparison } from "@/server/finance/service";
 import { buildReportText } from "@/lib/whatsapp";
 import { formatRupiah } from "@/lib/utils";
 import type { ReportPeriod } from "@/lib/validations/finance";
@@ -18,8 +18,41 @@ export const metadata: Metadata = { title: "Keuangan" };
 const PERIODS: { key: ReportPeriod; label: string }[] = [
   { key: "today", label: "Hari Ini" },
   { key: "month", label: "Bulan Ini" },
+  { key: "last-month", label: "Bulan Lalu" },
   { key: "year", label: "Tahun Ini" },
 ];
+
+/** Persentase perubahan; null bila tak ada pembanding (periode lalu nol). */
+function deltaPct(cur: number, prev: number): number | null {
+  if (prev === 0) return cur === 0 ? 0 : null;
+  return ((cur - prev) / Math.abs(prev)) * 100;
+}
+
+function DeltaBadge({ cur, prev, higherIsBetter = true }: { cur: number; prev: number; higherIsBetter?: boolean }) {
+  const pct = deltaPct(cur, prev);
+  if (pct === null) return <span className="text-xs font-medium text-muted-foreground">baru</span>;
+  if (Math.abs(pct) < 0.05) {
+    return (
+      <span className="inline-flex items-center gap-0.5 text-xs font-medium text-muted-foreground">
+        <Minus className="size-3" /> 0%
+      </span>
+    );
+  }
+  const up = pct > 0;
+  const good = up === higherIsBetter;
+  const Icon = up ? ArrowUpRight : ArrowDownRight;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-0.5 text-xs font-semibold",
+        good ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400",
+      )}
+    >
+      <Icon className="size-3" />
+      {Math.abs(pct).toLocaleString("id-ID", { maximumFractionDigits: 1 })}%
+    </span>
+  );
+}
 
 export default async function FinancePage({
   searchParams,
@@ -31,9 +64,10 @@ export default async function FinancePage({
     return <Card className="p-8 text-center text-sm text-muted-foreground">Tidak punya izin melihat keuangan.</Card>;
   }
   const { period: rawPeriod } = await searchParams;
-  const period: ReportPeriod = rawPeriod === "today" || rawPeriod === "year" ? rawPeriod : "month";
+  const period: ReportPeriod =
+    rawPeriod === "today" || rawPeriod === "year" || rawPeriod === "last-month" ? rawPeriod : "month";
 
-  const report = await getFinanceReport(user.tenantId, period);
+  const { current: report, previous } = await getFinanceComparison(user.tenantId, period);
   const reportText = buildReportText(user.tenant.name, report);
 
   const rows = [
@@ -45,10 +79,19 @@ export default async function FinancePage({
     { label: "Biaya operasional", value: -report.expenseTotal },
   ];
 
-  // Ringkasan KPI (kartu atas).
+  // Ringkasan KPI (kartu atas) + turunan pembanding.
   const totalRevenue = report.salesRevenue + report.serviceRevenue + report.buildRevenue;
   const grossProfit = report.salesGrossProfit + report.serviceRevenue + report.buildRevenue;
   const grossMargin = totalRevenue > 0 ? Math.round((grossProfit / totalRevenue) * 100) : 0;
+  const prevRevenue = previous.salesRevenue + previous.serviceRevenue + previous.buildRevenue;
+  const prevGross = previous.salesGrossProfit + previous.serviceRevenue + previous.buildRevenue;
+
+  const compareRows: { label: string; cur: number; prev: number; higherIsBetter?: boolean }[] = [
+    { label: "Pendapatan", cur: totalRevenue, prev: prevRevenue },
+    { label: "Laba kotor", cur: grossProfit, prev: prevGross },
+    { label: "Laba bersih", cur: report.estimatedNet, prev: previous.estimatedNet },
+    { label: "Biaya operasional", cur: report.expenseTotal, prev: previous.expenseTotal, higherIsBetter: false },
+  ];
 
   return (
     <div className="space-y-6">
@@ -62,7 +105,7 @@ export default async function FinancePage({
         </Link>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {PERIODS.map((p) => (
           <Link
             key={p.key}
@@ -106,9 +149,36 @@ export default async function FinancePage({
         />
       </div>
 
+      {/* Perbandingan dengan periode sebelumnya */}
       <Card>
         <CardHeader>
-          <CardDescription>Estimasi Laba Bersih</CardDescription>
+          <CardTitle className="text-base">Perbandingan dengan {previous.periodLabel}</CardTitle>
+          <CardDescription>Perubahan {report.periodLabel} terhadap periode sebelumnya.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-0.5">
+          <div className="grid grid-cols-[1fr_auto_auto] items-center gap-x-4 border-b pb-1.5 text-xs font-medium text-muted-foreground">
+            <span>Metrik</span>
+            <span className="text-right">{report.periodLabel}</span>
+            <span className="text-right">vs {previous.periodLabel}</span>
+          </div>
+          {compareRows.map((r) => (
+            <div key={r.label} className="grid grid-cols-[1fr_auto_auto] items-center gap-x-4 py-1.5 text-sm">
+              <span className="text-muted-foreground">{r.label}</span>
+              <span className="text-right font-medium tabular-nums">{formatRupiah(r.cur)}</span>
+              <span className="text-right">
+                <DeltaBadge cur={r.cur} prev={r.prev} higherIsBetter={r.higherIsBetter} />
+              </span>
+            </div>
+          ))}
+          <p className="pt-1.5 text-xs text-muted-foreground">
+            {previous.periodLabel}: pendapatan {formatRupiah(prevRevenue)} · laba bersih {formatRupiah(previous.estimatedNet)}.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardDescription>Estimasi Laba Bersih · {report.periodLabel}</CardDescription>
           <CardTitle className={cn("text-3xl", report.estimatedNet >= 0 ? "text-success" : "text-destructive")}>
             {formatRupiah(report.estimatedNet)}
           </CardTitle>

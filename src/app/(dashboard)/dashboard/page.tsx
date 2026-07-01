@@ -20,6 +20,7 @@ import { salesTrend } from "@/server/analytics/service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard, type StatTone } from "@/components/ui/stat-card";
 import { BarChart } from "@/components/charts/bar-chart";
+import { MonthlyReportReminder } from "@/components/finance/monthly-report-reminder";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -135,6 +136,9 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Pengingat kirim laporan bulanan (akhir/awal bulan) — untuk peran keuangan */}
+      {can(user.role, "finance.view") && <MonthlyReportReminder />}
+
       {/* Header sambutan */}
       <div className="overflow-hidden rounded-2xl gradient-brand p-6 text-primary-foreground elevate-lg">
         <h1 className="text-2xl font-bold tracking-tight">

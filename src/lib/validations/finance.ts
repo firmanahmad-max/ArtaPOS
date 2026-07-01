@@ -10,4 +10,4 @@ export const expenseSchema = z.object({
 });
 export type ExpenseInput = z.infer<typeof expenseSchema>;
 
-export type ReportPeriod = "today" | "month" | "year";
+export type ReportPeriod = "today" | "month" | "last-month" | "year";

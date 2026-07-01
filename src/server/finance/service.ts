@@ -41,9 +41,37 @@ export function periodRange(period: ReportPeriod): { from: Date; to: Date; label
   if (period === "year") {
     return { from: startOfDay(y, 0, 1), to: startOfDay(y + 1, 0, 1), label: `Tahun ${y}` };
   }
-  // month
+  if (period === "last-month") {
+    // Bulan m-1 (Date.UTC menormalkan luapan negatif ke tahun sebelumnya).
+    const from = startOfDay(y, m - 1, 1);
+    const to = startOfDay(y, m, 1);
+    return { from, to, label: formatLocalDate(from, { month: "long", year: "numeric" }) };
+  }
+  // month (bulan berjalan)
   const from = startOfDay(y, m, 1);
   const to = startOfDay(y, m + 1, 1);
+  return { from, to, label: formatLocalDate(from, { month: "long", year: "numeric" }) };
+}
+
+/** Rentang periode SEBELUMNYA yang sebanding (untuk perbandingan). */
+export function previousRange(period: ReportPeriod): { from: Date; to: Date; label: string } {
+  const { y, m, d } = localParts();
+  if (period === "today") {
+    const from = startOfDay(y, m, d - 1);
+    const to = startOfDay(y, m, d);
+    return { from, to, label: formatLocalDate(from, { dateStyle: "full" }) };
+  }
+  if (period === "year") {
+    return { from: startOfDay(y - 1, 0, 1), to: startOfDay(y, 0, 1), label: `Tahun ${y - 1}` };
+  }
+  if (period === "last-month") {
+    const from = startOfDay(y, m - 2, 1);
+    const to = startOfDay(y, m - 1, 1);
+    return { from, to, label: formatLocalDate(from, { month: "long", year: "numeric" }) };
+  }
+  // month → bulan sebelumnya
+  const from = startOfDay(y, m - 1, 1);
+  const to = startOfDay(y, m, 1);
   return { from, to, label: formatLocalDate(from, { month: "long", year: "numeric" }) };
 }
 
@@ -67,6 +95,29 @@ export async function getFinanceReport(
   period: ReportPeriod,
 ): Promise<FinanceReport> {
   const { from, to, label } = periodRange(period);
+  return computeReport(tenantId, from, to, label);
+}
+
+/** Laporan periode terpilih + periode sebelumnya (untuk perbandingan). */
+export async function getFinanceComparison(
+  tenantId: string,
+  period: ReportPeriod,
+): Promise<{ current: FinanceReport; previous: FinanceReport }> {
+  const cur = periodRange(period);
+  const prev = previousRange(period);
+  const [current, previous] = await Promise.all([
+    computeReport(tenantId, cur.from, cur.to, cur.label),
+    computeReport(tenantId, prev.from, prev.to, prev.label),
+  ]);
+  return { current, previous };
+}
+
+async function computeReport(
+  tenantId: string,
+  from: Date,
+  to: Date,
+  label: string,
+): Promise<FinanceReport> {
   const range = { gte: from, lt: to };
 
   const [sales, services, builds, purchaseAgg, expenseAgg] = await Promise.all([
