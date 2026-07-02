@@ -9,6 +9,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
+import { formatLocalDate } from "@/lib/timezone";
 
 export const metadata: Metadata = { title: "Utang" };
 
@@ -86,7 +87,7 @@ export default async function PayablesPage() {
                     <td className="p-3">
                       {p.dueDate ? (
                         <span className="flex items-center gap-2">
-                          {new Date(p.dueDate).toLocaleDateString("id-ID", { dateStyle: "medium" })}
+                          {formatLocalDate(p.dueDate, { dateStyle: "medium" })}
                           {overdue && <Badge variant="destructive">Lewat tempo</Badge>}
                         </span>
                       ) : (

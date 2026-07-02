@@ -7,6 +7,7 @@ import { getReceiptStoreInfo } from "@/server/users/service";
 import { Card } from "@/components/ui/card";
 import { SERVICE_STATUS_META } from "../../status-config";
 import { ServiceNotaView } from "./service-nota-view";
+import { formatLocalDateTime } from "@/lib/timezone";
 
 export const metadata: Metadata = { title: "Nota Servis" };
 
@@ -37,7 +38,7 @@ export default async function ServiceNotaPage({
           storePhone: store.phone,
           receiptFooter: store.receiptFooter,
           number: ticket.number,
-          dateText: new Date(ticket.createdAt).toLocaleString("id-ID", {
+          dateText: formatLocalDateTime(ticket.createdAt, {
             dateStyle: "medium",
             timeStyle: "short",
           }),

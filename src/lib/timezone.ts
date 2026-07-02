@@ -35,6 +35,12 @@ export function dayKey(at: Date): string {
 }
 
 /** Format tanggal pada zona laporan (anti-ikut zona server). */
-export function formatLocalDate(at: Date, opts: Intl.DateTimeFormatOptions): string {
-  return at.toLocaleDateString("id-ID", { ...opts, timeZone: REPORT_TIME_ZONE });
+export function formatLocalDate(at: Date | string, opts: Intl.DateTimeFormatOptions = { dateStyle: "short" }): string {
+  return new Date(at).toLocaleDateString("id-ID", { ...opts, timeZone: REPORT_TIME_ZONE });
+}
+
+/** Format tanggal+jam pada zona laporan. WAJIB dipakai di Server Component —
+ * di server produksi (UTC) toLocaleString tanpa timeZone meleset 7 jam. */
+export function formatLocalDateTime(at: Date | string, opts: Intl.DateTimeFormatOptions): string {
+  return new Date(at).toLocaleString("id-ID", { ...opts, timeZone: REPORT_TIME_ZONE });
 }

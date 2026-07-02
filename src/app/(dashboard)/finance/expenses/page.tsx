@@ -9,6 +9,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
 import { AddExpenseForm, DeleteExpenseButton } from "./expenses-client";
+import { formatLocalDate } from "@/lib/timezone";
 
 export const metadata: Metadata = { title: "Biaya" };
 
@@ -70,7 +71,7 @@ export default async function ExpensesPage() {
               {expenses.map((e) => (
                 <tr key={e.id} className="border-b last:border-0 hover:bg-muted/40">
                   <td className="p-3 text-muted-foreground">
-                    {new Date(e.date).toLocaleDateString("id-ID", { dateStyle: "medium" })}
+                    {formatLocalDate(e.date, { dateStyle: "medium" })}
                   </td>
                   <td className="p-3">{e.category}</td>
                   <td className="p-3 text-muted-foreground">{e.description || "—"}</td>

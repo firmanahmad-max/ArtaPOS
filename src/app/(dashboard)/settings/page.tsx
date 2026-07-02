@@ -10,6 +10,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StoreSettingsForm, StoreLogoForm, LicenseForm, ColorThemePicker, TrackPromoImageForm } from "./settings-client";
+import { formatLocalDate } from "@/lib/timezone";
 
 export const metadata: Metadata = { title: "Pengaturan" };
 
@@ -84,7 +85,7 @@ export default async function SettingsPage() {
                 ? ` · Transaksi ${license.transactionsUsed}/${license.maxTransactions}`
                 : ` · Transaksi terpakai: ${license.transactionsUsed}`}
               {license.validUntil
-                ? ` · Berlaku s/d ${new Date(license.validUntil).toLocaleDateString("id-ID", { dateStyle: "medium" })}`
+                ? ` · Berlaku s/d ${formatLocalDate(license.validUntil, { dateStyle: "medium" })}`
                 : ""}
             </CardDescription>
           </CardHeader>

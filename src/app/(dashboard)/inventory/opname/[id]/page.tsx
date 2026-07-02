@@ -7,6 +7,7 @@ import { getOpname } from "@/server/opname/service";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { OpnameSheet } from "../opname-sheet";
+import { formatLocalDateTime } from "@/lib/timezone";
 
 export const metadata: Metadata = { title: "Detail Opname" };
 
@@ -45,7 +46,7 @@ export default async function OpnameDetailPage({
         <p className="text-sm text-muted-foreground">
           Opname telah diterapkan ke stok pada{" "}
           {opname.completedAt &&
-            new Date(opname.completedAt).toLocaleString("id-ID", {
+            formatLocalDateTime(opname.completedAt, {
               dateStyle: "medium",
               timeStyle: "short",
             })}

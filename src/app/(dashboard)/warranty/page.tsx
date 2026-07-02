@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
 import { RegisterWarrantyForm, WarrantySearch, ClaimButton } from "./warranty-client";
+import { formatLocalDate } from "@/lib/timezone";
 
 export const metadata: Metadata = { title: "Garansi" };
 
@@ -96,7 +97,7 @@ export default async function WarrantyPage({
                     <td className="p-3 text-muted-foreground">{u.customerName || "Umum"}</td>
                     <td className="p-3 text-muted-foreground">
                       {u.warrantyUntil
-                        ? new Date(u.warrantyUntil).toLocaleDateString("id-ID", { dateStyle: "medium" })
+                        ? formatLocalDate(u.warrantyUntil, { dateStyle: "medium" })
                         : "—"}
                       {u.status === "ACTIVE" && u.daysLeft != null && (
                         <span className="ml-1 text-xs">({u.daysLeft} hari lagi)</span>

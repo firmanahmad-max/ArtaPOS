@@ -9,6 +9,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TicketDetail } from "../ticket-detail";
 import { ServicePhotos } from "../photos";
+import { formatLocalDateTime } from "@/lib/timezone";
 
 export const metadata: Metadata = { title: "Detail Servis" };
 
@@ -49,7 +50,7 @@ export default async function TicketDetailPage({
           <div><span className="text-muted-foreground">Pelanggan: </span>{ticket.customerName || "—"}{ticket.customerPhone ? ` (${ticket.customerPhone})` : ""}</div>
           <div><span className="text-muted-foreground">Teknisi: </span>{ticket.technicianName || "Belum ditugaskan"}</div>
           <div><span className="text-muted-foreground">Perangkat: </span>{ticket.deviceType}{ticket.deviceBrand ? ` · ${ticket.deviceBrand}` : ""}{ticket.deviceInfo ? ` · ${ticket.deviceInfo}` : ""}</div>
-          <div><span className="text-muted-foreground">Masuk: </span>{new Date(ticket.createdAt).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</div>
+          <div><span className="text-muted-foreground">Masuk: </span>{formatLocalDateTime(ticket.createdAt, { dateStyle: "medium", timeStyle: "short" })}</div>
           <div className="sm:col-span-2"><span className="text-muted-foreground">Keluhan: </span>{ticket.complaint}</div>
           {ticket.diagnosis && <div className="sm:col-span-2"><span className="text-muted-foreground">Diagnosa: </span>{ticket.diagnosis}</div>}
         </CardContent>

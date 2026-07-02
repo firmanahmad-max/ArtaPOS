@@ -130,6 +130,17 @@ export async function getArtaInsights(tenantId: string, role: UserRole): Promise
         href: "/reports",
         actionLabel: "Lihat tren",
       });
+    } else if (prev7 === 0 && last7 > 0) {
+      // pct() null saat pembanding nol — jangan sebut "setara minggu sebelumnya".
+      insights.push({
+        id: "sales-resumed",
+        domain: "penjualan",
+        tone: "positive",
+        title: "Penjualan mulai masuk minggu ini",
+        detail: `Omzet 7 hari terakhir ${formatRupiah(last7)}, setelah minggu sebelumnya tanpa transaksi.`,
+        href: "/reports",
+        actionLabel: "Lihat tren",
+      });
     } else if (last7 > 0) {
       insights.push({
         id: "sales-stable",

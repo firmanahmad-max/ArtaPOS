@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SERVICE_STATUS_META } from "./status-config";
+import { formatLocalDate } from "@/lib/timezone";
 
 export const metadata: Metadata = { title: "Jasa Servis" };
 
@@ -118,7 +119,7 @@ export default async function ServicePage() {
                   <div className="shrink-0 text-right">
                     <p className="font-bold tabular-nums">{formatRupiah(t.total)}</p>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(t.createdAt).toLocaleDateString("id-ID", { dateStyle: "medium" })}
+                      {formatLocalDate(t.createdAt, { dateStyle: "medium" })}
                     </p>
                   </div>
                   <ChevronRight className="size-4 shrink-0 text-muted-foreground" />

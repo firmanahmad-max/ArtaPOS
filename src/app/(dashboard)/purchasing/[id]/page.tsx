@@ -10,6 +10,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RecordPaymentForm } from "../payment-form";
+import { formatLocalDate, formatLocalDateTime } from "@/lib/timezone";
 
 export const metadata: Metadata = { title: "Detail Pembelian" };
 
@@ -54,13 +55,13 @@ export default async function PurchaseDetailPage({
         <CardContent className="grid grid-cols-2 gap-2 text-sm">
           <span className="text-muted-foreground">Tanggal</span>
           <span className="text-right">
-            {new Date(purchase.createdAt).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}
+            {formatLocalDateTime(purchase.createdAt, { dateStyle: "medium", timeStyle: "short" })}
           </span>
           <span className="text-muted-foreground">Supplier</span>
           <span className="text-right">{purchase.supplierName || "—"}</span>
           <span className="text-muted-foreground">Jatuh tempo</span>
           <span className="text-right">
-            {purchase.dueDate ? new Date(purchase.dueDate).toLocaleDateString("id-ID", { dateStyle: "medium" }) : "—"}
+            {purchase.dueDate ? formatLocalDate(purchase.dueDate, { dateStyle: "medium" }) : "—"}
           </span>
           <span className="text-muted-foreground">Dibuat oleh</span>
           <span className="text-right">{purchase.createdByName ?? "—"}</span>
@@ -116,7 +117,7 @@ export default async function PurchaseDetailPage({
             {purchase.payments.map((p) => (
               <div key={p.id} className="flex justify-between border-b pb-1 last:border-0">
                 <span className="text-muted-foreground">
-                  {new Date(p.createdAt).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}
+                  {formatLocalDateTime(p.createdAt, { dateStyle: "short", timeStyle: "short" })}
                   {p.note ? ` · ${p.note}` : ""}
                 </span>
                 <span>{formatRupiah(p.amount)}</span>

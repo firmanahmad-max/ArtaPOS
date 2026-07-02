@@ -9,6 +9,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
+import { formatLocalDate } from "@/lib/timezone";
 
 export const metadata: Metadata = { title: "Pembelian" };
 
@@ -98,7 +99,7 @@ export default async function PurchasingPage() {
                   <tr key={p.id} className="border-b last:border-0 hover:bg-muted/40">
                     <td className="p-3 font-medium">{p.number}</td>
                     <td className="p-3 text-muted-foreground">
-                      {new Date(p.createdAt).toLocaleDateString("id-ID", { dateStyle: "medium" })}
+                      {formatLocalDate(p.createdAt, { dateStyle: "medium" })}
                     </td>
                     <td className="p-3 text-muted-foreground">{p.supplierName || "—"}</td>
                     <td className="p-3 text-right font-medium">{formatRupiah(p.total)}</td>

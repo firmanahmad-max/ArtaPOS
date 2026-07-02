@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { formatLocalDateTime } from "@/lib/timezone";
 import { OpenShiftForm, CloseShiftForm } from "./shift-client";
 
 export const metadata: Metadata = { title: "Shift Kasir" };
@@ -46,7 +47,7 @@ export default async function ShiftPage() {
               </CardTitle>
               <CardDescription>
                 {user.name} · dibuka{" "}
-                {new Date(openShift.openedAt).toLocaleString("id-ID", {
+                {formatLocalDateTime(openShift.openedAt, {
                   dateStyle: "medium",
                   timeStyle: "short",
                 })}
@@ -121,11 +122,11 @@ export default async function ShiftPage() {
                   <tr key={s.id} className="border-b last:border-0">
                     <td className="p-3">{s.userName}</td>
                     <td className="p-3 text-muted-foreground">
-                      {new Date(s.openedAt).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}
+                      {formatLocalDateTime(s.openedAt, { dateStyle: "short", timeStyle: "short" })}
                     </td>
                     <td className="p-3 text-muted-foreground">
                       {s.closedAt
-                        ? new Date(s.closedAt).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })
+                        ? formatLocalDateTime(s.closedAt, { dateStyle: "short", timeStyle: "short" })
                         : "—"}
                     </td>
                     <td className="p-3 text-right">

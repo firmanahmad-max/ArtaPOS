@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BUILD_STATUS_META } from "./build-status";
+import { formatLocalDate } from "@/lib/timezone";
 
 export const metadata: Metadata = { title: "Rakit PC" };
 
@@ -101,7 +102,7 @@ export default async function PcBuildPage() {
                   <div className="shrink-0 text-right">
                     <p className="font-bold tabular-nums">{formatRupiah(b.total)}</p>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(b.createdAt).toLocaleDateString("id-ID", { dateStyle: "medium" })}
+                      {formatLocalDate(b.createdAt, { dateStyle: "medium" })}
                     </p>
                   </div>
                   <ChevronRight className="size-4 shrink-0 text-muted-foreground" />

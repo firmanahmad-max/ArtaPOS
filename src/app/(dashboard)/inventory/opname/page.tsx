@@ -7,6 +7,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { StartOpnameButton } from "./start-button";
+import { formatLocalDateTime } from "@/lib/timezone";
 
 export const metadata: Metadata = { title: "Stok Opname" };
 
@@ -59,7 +60,7 @@ export default async function OpnamePage() {
                 return (
                   <tr key={o.id} className="border-b last:border-0 hover:bg-muted/40">
                     <td className="p-3">
-                      {new Date(o.createdAt).toLocaleString("id-ID", {
+                      {formatLocalDateTime(o.createdAt, {
                         dateStyle: "medium",
                         timeStyle: "short",
                       })}

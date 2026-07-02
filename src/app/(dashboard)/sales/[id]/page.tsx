@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { VoidSaleButton } from "../void-button";
 import { ReceivablePaymentForm } from "../receivable-payment-form";
 import { ReturnForm } from "../return-form";
+import { formatLocalDateTime } from "@/lib/timezone";
 
 export const metadata: Metadata = { title: "Detail Penjualan" };
 
@@ -62,7 +63,7 @@ export default async function SaleDetailPage({
         <CardContent className="grid grid-cols-2 gap-2 text-sm">
           <span className="text-muted-foreground">Tanggal</span>
           <span className="text-right">
-            {new Date(sale.createdAt).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}
+            {formatLocalDateTime(sale.createdAt, { dateStyle: "medium", timeStyle: "short" })}
           </span>
           <span className="text-muted-foreground">Kasir</span>
           <span className="text-right">{sale.cashierName ?? "-"}</span>
@@ -140,7 +141,7 @@ export default async function SaleDetailPage({
             {sale.payments.map((p) => (
               <div key={p.id} className="flex justify-between border-b pb-1 last:border-0">
                 <span className="text-muted-foreground">
-                  {new Date(p.createdAt).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}
+                  {formatLocalDateTime(p.createdAt, { dateStyle: "short", timeStyle: "short" })}
                   {p.note ? ` · ${p.note}` : ""}
                 </span>
                 <span>{formatRupiah(p.amount)}</span>
@@ -174,7 +175,7 @@ export default async function SaleDetailPage({
                   <span className="text-destructive">refund {formatRupiah(r.refundAmount)}</span>
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {new Date(r.createdAt).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })} ·{" "}
+                  {formatLocalDateTime(r.createdAt, { dateStyle: "short", timeStyle: "short" })} ·{" "}
                   {r.items.map((it) => `${it.productName} ×${it.qty}`).join(", ")}
                 </div>
               </div>

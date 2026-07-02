@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { formatLocalDate } from "@/lib/timezone";
 import type { WarrantyRegisterInput } from "@/lib/validations/warranty";
 
 /** Service Garansi & Nomor Seri — ter-scope tenantId. */
@@ -123,7 +124,7 @@ export async function claimWarranty(tenantId: string, id: string, note?: string)
   if (w.warrantyUntil && w.warrantyUntil.getTime() < Date.now()) {
     throw new Error("Masa garansi sudah berakhir.");
   }
-  const stamp = new Date().toLocaleDateString("id-ID");
+  const stamp = formatLocalDate(new Date());
   const merged = [w.note, note ? `[Klaim ${stamp}] ${note}` : `[Klaim ${stamp}]`].filter(Boolean).join(" • ");
   return db.warrantyUnit.update({ where: { id }, data: { status: "CLAIMED", note: merged } });
 }

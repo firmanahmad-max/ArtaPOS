@@ -19,7 +19,7 @@ export function LoginForm() {
   const [state, action, pending] = useActionState(loginAction, undefined);
 
   return (
-    <Card>
+    <Card className="elevate-lg">
       <CardHeader className="items-center text-center">
         <Logo size={52} className="mb-2" />
         <CardTitle className="text-xl">Masuk ke ArtaPOS</CardTitle>

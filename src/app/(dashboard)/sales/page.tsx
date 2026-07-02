@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/ui/pagination";
+import { formatLocalDateTime } from "@/lib/timezone";
 
 export const metadata: Metadata = { title: "Riwayat Penjualan" };
 
@@ -103,7 +104,7 @@ export default async function SalesPage({
                 <tr key={s.id} className="border-b last:border-0 hover:bg-muted/40">
                   <td className="p-3 font-medium">{s.number}</td>
                   <td className="p-3 text-muted-foreground">
-                    {new Date(s.createdAt).toLocaleString("id-ID", {
+                    {formatLocalDateTime(s.createdAt, {
                       dateStyle: "medium",
                       timeStyle: "short",
                     })}

@@ -16,7 +16,7 @@ import { getCurrentUser } from "@/lib/auth/dal";
 import { db } from "@/lib/db";
 import { ROLE_LABELS, can, type Permission } from "@/lib/rbac";
 import { cn, formatRupiah } from "@/lib/utils";
-import { localParts, startOfDay as startOfLocalDay } from "@/lib/timezone";
+import { localParts, startOfDay as startOfLocalDay, formatLocalDate } from "@/lib/timezone";
 import { salesTrend, serviceTrend } from "@/server/analytics/service";
 import { getArtaInsights } from "@/server/insights/service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -272,7 +272,7 @@ export default async function DashboardPage() {
                         <div className="shrink-0 text-right">
                           <p className="text-sm font-semibold tabular-nums">{formatRupiah(s.total)}</p>
                           <p className="text-[11px] text-muted-foreground">
-                            {new Date(s.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
+                            {formatLocalDate(s.createdAt, { day: "numeric", month: "short" })}
                           </p>
                         </div>
                       </Link>
