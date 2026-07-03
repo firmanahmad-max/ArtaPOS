@@ -11,7 +11,7 @@ import {
 import { getTrackPagePromo } from "@/server/public/track-info";
 import { TrackForm } from "./track-form";
 
-export const metadata: Metadata = { title: "Lacak Servis" };
+export const metadata: Metadata = { title: "Lacak Servis & Garansi" };
 
 export default async function LacakPage({
   searchParams,
@@ -31,9 +31,9 @@ export default async function LacakPage({
             <div className="mb-2 flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
               <Wrench className="size-6" />
             </div>
-            <CardTitle className="text-xl">Lacak Status Servis</CardTitle>
+            <CardTitle className="text-xl">Lacak Status</CardTitle>
             <CardDescription>
-              {storeName ? `${storeName} — ` : ""}Masukkan nomor tiket & nomor HP Anda untuk melihat progres.
+              {storeName ? `${storeName} — ` : ""}Lacak status servis atau klaim garansi Anda dengan nomor & nomor HP.
             </CardDescription>
           </CardHeader>
           <CardContent>

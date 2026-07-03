@@ -51,6 +51,25 @@ export function buildServiceStatusText(args: {
   return lines.join("\n");
 }
 
+/** Pesan WhatsApp status klaim RMA (garansi) untuk pelanggan. */
+export function buildRmaStatusText(args: {
+  storeName: string;
+  number: string;
+  productName: string;
+  statusLabel: string;
+  trackUrl?: string;
+}): string {
+  const lines = [
+    `Halo, berikut update klaim garansi Anda di *${args.storeName}*:`,
+    `No. Klaim: ${args.number}`,
+    `Produk: ${args.productName}`,
+    `Status: *${args.statusLabel}*`,
+  ];
+  if (args.trackUrl) lines.push(`Cek status: ${args.trackUrl}`);
+  lines.push("Terima kasih 🙏");
+  return lines.join("\n");
+}
+
 /** Nota/struk servis lengkap sebagai teks WhatsApp (wa.me hanya dukung teks). */
 export function buildServiceNotaText(n: {
   storeName: string;

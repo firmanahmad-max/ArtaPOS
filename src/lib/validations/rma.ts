@@ -7,6 +7,8 @@ export const rmaClaimSchema = z.object({
   productName: z.string().min(1, "Nama produk wajib diisi").max(200).trim(),
   serialNumber: z.string().max(100).trim().optional(),
   complaint: z.string().min(3, "Kerusakan/keluhan wajib diisi").max(1000).trim(),
+  customerName: z.string().max(120).trim().optional(),
+  customerPhone: z.string().max(30).trim().optional(),
   supplierId: z.string().min(1).optional(),
   supplierName: z.string().min(1, "Distributor/supplier wajib diisi").max(200).trim(),
   trackingNumber: z.string().max(100).trim().optional(),

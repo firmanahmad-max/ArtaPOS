@@ -27,6 +27,8 @@ export async function createRmaAction(_prev: FormState, formData: FormData): Pro
     productName: formData.get("productName"),
     serialNumber: formData.get("serialNumber") || undefined,
     complaint: formData.get("complaint"),
+    customerName: formData.get("customerName") || undefined,
+    customerPhone: formData.get("customerPhone") || undefined,
     supplierId: formData.get("supplierId") || undefined,
     supplierName: formData.get("supplierName"),
     trackingNumber: formData.get("trackingNumber") || undefined,

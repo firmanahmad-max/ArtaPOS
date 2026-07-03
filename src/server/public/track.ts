@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { normalizePhoneId } from "@/lib/whatsapp";
 import { checkRateLimit } from "@/lib/auth/rate-limit";
 import { getClientIp } from "@/lib/request-ip";
+import { rmaPublicStatusLabel } from "@/app/(dashboard)/rma/status-config";
 
 /**
  * Lacak status servis untuk pelanggan — PUBLIK (tanpa login).
@@ -82,5 +83,63 @@ export async function trackServiceAction(number: string, phone: string): Promise
     technician: ticket.technicianName,
     cost: showCost ? ticket.total : undefined,
     costFinal,
+  };
+}
+
+export interface TrackRmaResult {
+  found: boolean;
+  rateLimited?: boolean;
+  number?: string;
+  product?: string;
+  serialNumber?: string | null;
+  statusLabel?: string;
+  done?: boolean; // true bila sudah kembali/ditolak (final)
+  sentAt?: string;
+  receivedAt?: string | null;
+}
+
+/**
+ * Lacak status klaim RMA (garansi) untuk pelanggan — PUBLIK (tanpa login).
+ * Verifikasi dengan no. klaim (RMA-xxxxx) + no. HP. Hanya info aman
+ * (tanpa distributor/resi/catatan internal).
+ */
+export async function trackRmaAction(number: string, phone: string): Promise<TrackRmaResult> {
+  const ip = await getClientIp();
+  if (!(await checkRateLimit(`track:ip:${ip}`, { maxAttempts: 20 }))) {
+    return { found: false, rateLimited: true };
+  }
+
+  const num = number.trim().toUpperCase();
+  const phoneNorm = normalizePhoneId(phone.trim());
+  if (!num || !phoneNorm) return { found: false };
+
+  const claims = await db.rmaClaim.findMany({
+    where: { number: num },
+    select: {
+      number: true,
+      productName: true,
+      serialNumber: true,
+      status: true,
+      resolution: true,
+      customerPhone: true,
+      sentAt: true,
+      receivedAt: true,
+    },
+  });
+
+  const claim = claims.find(
+    (c) => c.customerPhone && normalizePhoneId(c.customerPhone) === phoneNorm,
+  );
+  if (!claim) return { found: false };
+
+  return {
+    found: true,
+    number: claim.number,
+    product: claim.productName,
+    serialNumber: claim.serialNumber,
+    statusLabel: rmaPublicStatusLabel(claim.status, claim.resolution),
+    done: claim.status !== "SENT",
+    sentAt: claim.sentAt.toISOString(),
+    receivedAt: claim.receivedAt ? claim.receivedAt.toISOString() : null,
   };
 }

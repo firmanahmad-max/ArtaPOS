@@ -787,6 +787,8 @@ model RmaClaim {
   productName    String // snapshot nama produk
   serialNumber   String?
   complaint      String // kerusakan/keluhan
+  customerName   String? // pelanggan pemilik barang (untuk tiket lacak)
+  customerPhone  String? // no. HP pelanggan (verifikasi lacak + kirim WhatsApp)
   supplierId     String? // opsional: tautan ke supplier terdaftar
   supplierName   String // distributor tujuan (snapshot)
   trackingNumber String? // no. resi pengiriman

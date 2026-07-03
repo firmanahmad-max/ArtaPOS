@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, PackageCheck, PackageX, Undo2, Save } from "lucide-react";
+import { Loader2, PackageCheck, PackageX, Undo2, Save, MessageCircle } from "lucide-react";
 import { receiveRmaAction, rejectRmaAction, reopenRmaAction, updateRmaNoteAction } from "@/server/rma/actions";
+import { buildRmaStatusText, waLink } from "@/lib/whatsapp";
 import type { RmaStatus } from "@/generated/prisma/enums";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,12 +20,22 @@ function todayLocal(): string {
 
 export function RmaDetail({
   claimId,
+  number,
+  productName,
   status,
   note,
+  storeName,
+  customerPhone,
+  publicStatusLabel,
 }: {
   claimId: string;
+  number: string;
+  productName: string;
   status: RmaStatus;
   note: string | null;
+  storeName: string;
+  customerPhone: string | null;
+  publicStatusLabel: string;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -48,8 +59,36 @@ export function RmaDetail({
     });
   };
 
+  const notifyWhatsApp = () => {
+    if (!customerPhone) return;
+    const text = buildRmaStatusText({
+      storeName,
+      number,
+      productName,
+      statusLabel: publicStatusLabel,
+      trackUrl: `${window.location.origin}/lacak?no=${encodeURIComponent(number)}`,
+    });
+    window.open(waLink(text, customerPhone), "_blank", "noopener,noreferrer");
+  };
+
   return (
     <div className="space-y-6">
+      {customerPhone && (
+        <Card>
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Tiket pelanggan</p>
+              <p className="text-xs text-muted-foreground">
+                Pelanggan bisa lacak status klaim ini di halaman lacak dengan no. klaim &amp; HP-nya.
+              </p>
+            </div>
+            <Button variant="outline" size="sm" className="text-success" onClick={notifyWhatsApp}>
+              <MessageCircle /> Beri tahu via WhatsApp
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {status === "SENT" ? (
         <Card>
           <CardHeader>

@@ -9,7 +9,7 @@ import { formatLocalDate } from "@/lib/timezone";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { RMA_STATUS_META, RMA_RESOLUTION_LABEL } from "../status-config";
+import { RMA_STATUS_META, RMA_RESOLUTION_LABEL, rmaPublicStatusLabel } from "../status-config";
 import { RmaDetail } from "./rma-detail";
 import { RmaPhotos } from "./rma-photos";
 
@@ -33,6 +33,14 @@ export default async function RmaDetailPage({
   const infoRows: { label: string; value: React.ReactNode }[] = [
     { label: "Produk", value: <span className="font-medium">{claim.productName}</span> },
     { label: "Nomor Seri", value: claim.serialNumber || "—" },
+    ...(claim.customerName || claim.customerPhone
+      ? [
+          {
+            label: "Pelanggan",
+            value: [claim.customerName, claim.customerPhone].filter(Boolean).join(" · ") || "—",
+          },
+        ]
+      : []),
     ...(claim.warrantyUnit
       ? [
           {
@@ -100,8 +108,13 @@ export default async function RmaDetailPage({
 
       <RmaDetail
         claimId={claim.id}
+        number={claim.number}
+        productName={claim.productName}
         status={claim.status}
         note={claim.note}
+        storeName={user.tenant.name}
+        customerPhone={claim.customerPhone}
+        publicStatusLabel={rmaPublicStatusLabel(claim.status, claim.resolution)}
       />
 
       <RmaPhotos

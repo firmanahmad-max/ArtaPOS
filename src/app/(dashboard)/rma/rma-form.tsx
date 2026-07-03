@@ -46,6 +46,7 @@ export function RmaForm({
   const [productId, setProductId] = useState("");
   const [productName, setProductName] = useState(defaultWu?.productName ?? "");
   const [serialNumber, setSerialNumber] = useState(defaultWu?.serialNumber ?? "");
+  const [customerName, setCustomerName] = useState(defaultWu?.customerName ?? "");
   const [supplierId, setSupplierId] = useState("");
   const [supplierName, setSupplierName] = useState("");
 
@@ -55,6 +56,7 @@ export function RmaForm({
     if (w) {
       setProductName(w.productName);
       setSerialNumber(w.serialNumber);
+      if (w.customerName) setCustomerName(w.customerName);
     }
   }
   function onPickProduct(id: string) {
@@ -116,6 +118,24 @@ export function RmaForm({
             <Textarea id="complaint" name="complaint" rows={3} placeholder="mis. Tidak terdeteksi BIOS, bad sector, mati total…" required />
             <Err msg={state?.errors?.complaint} />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Pelanggan (untuk tiket lacak)</CardTitle></CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="customerName">Nama Pelanggan</Label>
+            <Input id="customerName" name="customerName" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Nama pemilik barang" />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="customerPhone">No. HP Pelanggan</Label>
+            <Input id="customerPhone" name="customerPhone" placeholder="08…" />
+          </div>
+          <p className="text-xs text-muted-foreground sm:col-span-2">
+            No. HP diperlukan agar pelanggan bisa <b>melacak status di halaman lacak</b> dan Anda bisa
+            mengirim update lewat WhatsApp. Opsional bila barang milik toko sendiri.
+          </p>
         </CardContent>
       </Card>
 
