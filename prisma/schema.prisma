@@ -80,6 +80,7 @@ model Tenant {
   pcBuilds       PcBuild[]
   expenses       Expense[]
   warrantyUnits  WarrantyUnit[]
+  rmaClaims      RmaClaim[]
 
   @@map("tenants")
 }
@@ -757,4 +758,66 @@ model WarrantyUnit {
   @@index([tenantId])
   @@index([tenantId, customerName])
   @@map("warranty_units")
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// RMA — klaim garansi ke distributor/supplier (barang toko dikirim keluar)
+// ──────────────────────────────────────────────────────────────────────────
+
+enum RmaStatus {
+  SENT // dikirim ke distributor, menunggu
+  RETURNED // sudah kembali/diterima dari distributor
+  REJECTED // klaim ditolak distributor
+}
+
+enum RmaResolution {
+  REPAIRED // unit diservis/diperbaiki
+  REPLACED // diganti unit baru
+  REFUNDED // dikembalikan dananya (refund/nota kredit)
+}
+
+/// Satu klaim RMA: produk dikirim ke distributor untuk klaim garansi.
+model RmaClaim {
+  id             String         @id @default(cuid())
+  tenantId       String
+  number         String // RMA-00001
+  productId      String? // opsional: tautan ke produk katalog
+  productName    String // snapshot nama produk
+  serialNumber   String?
+  complaint      String // kerusakan/keluhan
+  supplierId     String? // opsional: tautan ke supplier terdaftar
+  supplierName   String // distributor tujuan (snapshot)
+  trackingNumber String? // no. resi pengiriman
+  sentAt         DateTime       @default(now()) // tanggal dikirim
+  receivedAt     DateTime? // tanggal kembali diterima toko
+  status         RmaStatus      @default(SENT)
+  resolution     RmaResolution? // hasil saat kembali (diservis/ganti unit/refund)
+  replacementSn  String? // SN unit pengganti (bila REPLACED)
+  note           String?
+  createdById    String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  tenant Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  photos RmaPhoto[]
+
+  @@unique([tenantId, number])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@map("rma_claims")
+}
+
+/// Foto kondisi produk saat dikirim (data URL terkompres, pola sama ServicePhoto).
+model RmaPhoto {
+  id          String   @id @default(cuid())
+  rmaId       String
+  dataUrl     String // data:image/jpeg;base64,… (sudah di-resize di browser)
+  caption     String?
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  rma RmaClaim @relation(fields: [rmaId], references: [id], onDelete: Cascade)
+
+  @@index([rmaId])
+  @@map("rma_photos")
 }

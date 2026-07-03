@@ -18,6 +18,7 @@ import {
   Coins,
   ShieldCheck,
   Sparkles,
+  PackageOpen,
 } from "lucide-react";
 import type { Permission } from "@/lib/rbac";
 
@@ -58,6 +59,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/inventory", label: "Inventory", icon: Boxes, permission: "inventory.manage", enabled: true },
       { href: "/warranty", label: "Garansi", icon: ShieldCheck, permission: "inventory.manage", enabled: true },
+      { href: "/rma", label: "Klaim RMA", icon: PackageOpen, permission: "inventory.manage", enabled: true },
     ],
   },
   {
