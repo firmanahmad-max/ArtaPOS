@@ -11,6 +11,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface Option { id: string; name: string }
+interface WarrantyOption {
+  id: string;
+  productName: string;
+  serialNumber: string;
+  customerName: string | null;
+}
 
 function Err({ msg }: { msg?: string[] }) {
   return msg?.length ? <p className="text-sm text-destructive">{msg[0]}</p> : null;
@@ -22,13 +28,35 @@ function todayLocal(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-export function RmaForm({ products, suppliers }: { products: Option[]; suppliers: Option[] }) {
+export function RmaForm({
+  products,
+  suppliers,
+  warranties,
+  defaultWarrantyUnitId,
+}: {
+  products: Option[];
+  suppliers: Option[];
+  warranties: WarrantyOption[];
+  defaultWarrantyUnitId?: string;
+}) {
   const [state, action, pending] = useActionState(createRmaAction, undefined);
+  // Prefill dari ?wu= (tombol "RMA" di halaman Garansi).
+  const defaultWu = warranties.find((w) => w.id === defaultWarrantyUnitId);
+  const [warrantyUnitId, setWarrantyUnitId] = useState(defaultWu?.id ?? "");
   const [productId, setProductId] = useState("");
-  const [productName, setProductName] = useState("");
+  const [productName, setProductName] = useState(defaultWu?.productName ?? "");
+  const [serialNumber, setSerialNumber] = useState(defaultWu?.serialNumber ?? "");
   const [supplierId, setSupplierId] = useState("");
   const [supplierName, setSupplierName] = useState("");
 
+  function onPickWarranty(id: string) {
+    setWarrantyUnitId(id);
+    const w = warranties.find((x) => x.id === id);
+    if (w) {
+      setProductName(w.productName);
+      setSerialNumber(w.serialNumber);
+    }
+  }
   function onPickProduct(id: string) {
     setProductId(id);
     const p = products.find((x) => x.id === id);
@@ -45,6 +73,27 @@ export function RmaForm({ products, suppliers }: { products: Option[]; suppliers
       <Card>
         <CardHeader><CardTitle>Produk yang Diklaim</CardTitle></CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
+          {warranties.length > 0 && (
+            <div className="flex flex-col gap-2 sm:col-span-2">
+              <Label htmlFor="warrantyUnitId">Tautkan garansi pelanggan (opsional)</Label>
+              <Select
+                id="warrantyUnitId"
+                name="warrantyUnitId"
+                value={warrantyUnitId}
+                onChange={(e) => onPickWarranty(e.target.value)}
+              >
+                <option value="">— Tidak ditautkan —</option>
+                {warranties.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.serialNumber} — {w.productName}{w.customerName ? ` (${w.customerName})` : ""}
+                  </option>
+                ))}
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Memilih unit garansi mengisi nama produk & SN otomatis, dan klaim tertaut ke pelanggan tsb.
+              </p>
+            </div>
+          )}
           <div className="flex flex-col gap-2 sm:col-span-2">
             <Label htmlFor="productId">Pilih dari katalog (opsional)</Label>
             <Select id="productId" name="productId" value={productId} onChange={(e) => onPickProduct(e.target.value)}>
@@ -60,7 +109,7 @@ export function RmaForm({ products, suppliers }: { products: Option[]; suppliers
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="serialNumber">Nomor Seri (SN)</Label>
-            <Input id="serialNumber" name="serialNumber" placeholder="SN unit yang dikirim" />
+            <Input id="serialNumber" name="serialNumber" value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} placeholder="SN unit yang dikirim" />
           </div>
           <div className="flex flex-col gap-2 sm:col-span-2">
             <Label htmlFor="complaint">Kerusakan / Keluhan *</Label>

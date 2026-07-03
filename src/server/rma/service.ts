@@ -33,6 +33,9 @@ export function getRmaClaim(tenantId: string, id: string) {
         orderBy: { createdAt: "asc" },
         select: { id: true, dataUrl: true, caption: true, createdAt: true },
       },
+      warrantyUnit: {
+        select: { id: true, serialNumber: true, customerName: true, warrantyUntil: true },
+      },
     },
   });
 }
@@ -44,9 +47,24 @@ export async function createRmaClaim(
 ) {
   // Snapshot nama produk/supplier bila dipilih dari master data.
   let productName = input.productName;
-  if (input.productId) {
+  let serialNumber = input.serialNumber || null;
+  let productId = input.productId ?? null;
+  let warrantyUnitId: string | null = null;
+  if (input.warrantyUnitId) {
+    // Tautan ke garansi pelanggan: verifikasi milik tenant + snapshot data unit.
+    const wu = await db.warrantyUnit.findFirst({
+      where: { id: input.warrantyUnitId, tenantId },
+      select: { id: true, productName: true, serialNumber: true, productId: true },
+    });
+    if (!wu) throw new Error("Unit garansi tidak ditemukan.");
+    warrantyUnitId = wu.id;
+    productName = wu.productName;
+    serialNumber = wu.serialNumber;
+    if (wu.productId) productId = wu.productId;
+  }
+  if (productId && !input.warrantyUnitId) {
     const p = await db.product.findFirst({
-      where: { id: input.productId, tenantId },
+      where: { id: productId, tenantId },
       select: { name: true },
     });
     if (p) productName = p.name;
@@ -67,9 +85,10 @@ export async function createRmaClaim(
     data: {
       tenantId,
       number,
-      productId: input.productId ?? null,
+      productId,
+      warrantyUnitId,
       productName,
-      serialNumber: input.serialNumber || null,
+      serialNumber,
       complaint: input.complaint,
       supplierId: input.supplierId ?? null,
       supplierName,

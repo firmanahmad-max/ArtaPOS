@@ -33,6 +33,30 @@ export default async function RmaDetailPage({
   const infoRows: { label: string; value: React.ReactNode }[] = [
     { label: "Produk", value: <span className="font-medium">{claim.productName}</span> },
     { label: "Nomor Seri", value: claim.serialNumber || "—" },
+    ...(claim.warrantyUnit
+      ? [
+          {
+            label: "Garansi Pelanggan",
+            value: (
+              <span>
+                {claim.warrantyUnit.customerName || "Umum"} ·{" "}
+                <Link
+                  href={`/warranty?q=${encodeURIComponent(claim.warrantyUnit.serialNumber)}`}
+                  className="font-medium text-primary hover:underline"
+                >
+                  lihat unit garansi
+                </Link>
+                {claim.warrantyUnit.warrantyUntil && (
+                  <span className="text-muted-foreground">
+                    {" "}
+                    (garansi s/d {formatLocalDate(claim.warrantyUnit.warrantyUntil, { dateStyle: "medium" })})
+                  </span>
+                )}
+              </span>
+            ),
+          },
+        ]
+      : []),
     { label: "Kerusakan/Keluhan", value: claim.complaint },
     { label: "Distributor", value: claim.supplierName },
     { label: "No. Resi", value: claim.trackingNumber || "—" },

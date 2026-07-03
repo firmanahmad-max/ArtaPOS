@@ -2,6 +2,7 @@ import { z } from "zod";
 
 /** Validasi klaim RMA (kirim barang ke distributor untuk klaim garansi). */
 export const rmaClaimSchema = z.object({
+  warrantyUnitId: z.string().min(1).optional(),
   productId: z.string().min(1).optional(),
   productName: z.string().min(1, "Nama produk wajib diisi").max(200).trim(),
   serialNumber: z.string().max(100).trim().optional(),

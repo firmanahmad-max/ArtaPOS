@@ -69,6 +69,7 @@ export async function getArtaInsights(tenantId: string, role: UserRole): Promise
     lossItems,
     completed30,
     void30,
+    rmaStalled,
   ] = await Promise.all([
     canReports ? salesTrend(tenantId, 14) : Promise.resolve([]),
     canReports ? serviceTrend(tenantId, 14) : Promise.resolve([]),
@@ -92,6 +93,15 @@ export async function getArtaInsights(tenantId: string, role: UserRole): Promise
     canReports
       ? db.sale.count({ where: { tenantId, status: "VOID", createdAt: { gte: since30 } } })
       : Promise.resolve(0),
+    // Klaim RMA yang terlalu lama tertahan di distributor (>30 hari).
+    canInv
+      ? db.rmaClaim.findMany({
+          where: { tenantId, status: "SENT", sentAt: { lt: since30 } },
+          select: { number: true, productName: true, sentAt: true },
+          orderBy: { sentAt: "asc" },
+          take: 5,
+        })
+      : Promise.resolve([]),
   ]);
   const finance = canFin ? await getFinanceComparison(tenantId, "month") : null;
 
@@ -258,6 +268,21 @@ export async function getArtaInsights(tenantId: string, role: UserRole): Promise
         detail: `Tidak ada produk habis atau menipis. Nilai modal stok ${formatRupiah(invSum.stockValue)}.`,
       });
     }
+  }
+
+  // ── RMA: klaim terlalu lama di distributor ─────────────────────────────
+  if (canInv && rmaStalled.length > 0) {
+    const oldest = rmaStalled[0];
+    const days = Math.floor((Date.now() - oldest.sentAt.getTime()) / 86400000);
+    insights.push({
+      id: "rma-stalled",
+      domain: "inventaris",
+      tone: "warning",
+      title: `${rmaStalled.length} klaim RMA >30 hari di distributor`,
+      detail: `Terlama: ${oldest.number} (${oldest.productName}) sudah ${days} hari belum kembali. Tanyakan progresnya ke distributor.`,
+      href: "/rma",
+      actionLabel: "Lihat klaim RMA",
+    });
   }
 
   // ── Pembelian & Utang ──────────────────────────────────────────────────

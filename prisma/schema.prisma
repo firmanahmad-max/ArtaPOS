@@ -752,7 +752,8 @@ model WarrantyUnit {
   createdById    String?
   createdAt      DateTime       @default(now())
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  rmaClaims RmaClaim[]
 
   @@unique([tenantId, serialNumber])
   @@index([tenantId])
@@ -782,6 +783,7 @@ model RmaClaim {
   tenantId       String
   number         String // RMA-00001
   productId      String? // opsional: tautan ke produk katalog
+  warrantyUnitId String? // opsional: tautan ke garansi pelanggan (WarrantyUnit)
   productName    String // snapshot nama produk
   serialNumber   String?
   complaint      String // kerusakan/keluhan
@@ -798,8 +800,9 @@ model RmaClaim {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
-  tenant Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  photos RmaPhoto[]
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  warrantyUnit WarrantyUnit? @relation(fields: [warrantyUnitId], references: [id], onDelete: SetNull)
+  photos       RmaPhoto[]
 
   @@unique([tenantId, number])
   @@index([tenantId])

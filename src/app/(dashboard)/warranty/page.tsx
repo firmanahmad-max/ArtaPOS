@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
-import { ShieldCheck, Shield, ShieldX, Award } from "lucide-react";
+import Link from "next/link";
+import { ShieldCheck, Shield, ShieldX, Award, PackageOpen } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { listWarranties, listProductsForWarranty } from "@/server/warranty/service";
 import { listCustomers } from "@/server/customers/service";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
 import { RegisterWarrantyForm, WarrantySearch, ClaimButton } from "./warranty-client";
@@ -105,7 +107,16 @@ export default async function WarrantyPage({
                     </td>
                     <td className="p-3 text-center"><Badge variant={s.variant}>{s.label}</Badge></td>
                     <td className="p-3 text-right">
-                      {u.status !== "CLAIMED" && u.status !== "VOID" && <ClaimButton id={u.id} />}
+                      <span className="inline-flex items-center gap-1">
+                        <Link
+                          href={`/rma/new?wu=${u.id}`}
+                          className={buttonVariants({ variant: "outline", size: "sm" })}
+                          title="Kirim unit ini ke distributor (klaim RMA)"
+                        >
+                          <PackageOpen /> RMA
+                        </Link>
+                        {u.status !== "CLAIMED" && u.status !== "VOID" && <ClaimButton id={u.id} />}
+                      </span>
                     </td>
                   </tr>
                 );

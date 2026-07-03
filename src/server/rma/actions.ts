@@ -22,6 +22,7 @@ export async function createRmaAction(_prev: FormState, formData: FormData): Pro
   if (!u) return { message: NO_PERM };
 
   const parsed = rmaClaimSchema.safeParse({
+    warrantyUnitId: formData.get("warrantyUnitId") || undefined,
     productId: formData.get("productId") || undefined,
     productName: formData.get("productName"),
     serialNumber: formData.get("serialNumber") || undefined,
