@@ -4,7 +4,7 @@
  * - Navigasi halaman: network-first → fallback cache → fallback /offline.html.
  * - Hanya menangani GET same-origin. POST & /api/sync TIDAK di-cache (ditangani sync engine).
  */
-const VERSION = "v3";
+const VERSION = "v4";
 const CACHE = `toko-${VERSION}`;
 const PRECACHE = ["/offline.html", "/icon-192.png", "/manifest.webmanifest"];
 
@@ -27,6 +27,8 @@ function isStaticAsset(url) {
   return (
     url.pathname.startsWith("/_next/static/") ||
     url.pathname === "/manifest.webmanifest" ||
+    url.pathname === "/splash.png" ||
+    url.pathname === "/logo-wordmark.png" ||
     /^\/(icon|favicon|apple-touch-icon).*\.(png|svg)$/.test(url.pathname)
   );
 }

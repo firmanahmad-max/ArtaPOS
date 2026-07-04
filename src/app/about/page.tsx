@@ -16,6 +16,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
+import { LogoWordmark } from "@/components/brand/logo-wordmark";
 import {
   APP_NAME,
   APP_TAGLINE,
@@ -71,7 +72,13 @@ export default function AboutPage() {
       <main className="mx-auto max-w-3xl space-y-10 px-4 py-10 sm:px-6">
         {/* Hero */}
         <section className="space-y-4">
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Tentang {APP_NAME}</h1>
+          <h1 className="sr-only">Tentang {APP_NAME}</h1>
+          <div
+            className="flex items-center justify-center rounded-2xl px-6 py-7 sm:px-10"
+            style={{ background: "radial-gradient(120% 160% at 50% 0%, #241653 0%, #0d0a1f 72%)" }}
+          >
+            <LogoWordmark className="h-16 w-auto max-w-full sm:h-20" />
+          </div>
           <p className="text-lg text-muted-foreground">
             <span className="font-semibold text-foreground">{APP_NAME}</span> adalah aplikasi manajemen
             toko komputer yang dirancang khusus untuk kebutuhan bisnis teknologi di Indonesia.

@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { Loader2 } from "lucide-react";
 import { loginAction } from "@/server/auth/actions";
-import { Logo } from "@/components/brand/logo";
+import { LogoWordmark } from "@/components/brand/logo-wordmark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +12,6 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 
 export function LoginForm() {
@@ -20,10 +19,14 @@ export function LoginForm() {
 
   return (
     <Card className="elevate-lg">
-      <CardHeader className="items-center text-center">
-        <Logo size={52} className="mb-2" />
-        <CardTitle className="text-xl">Masuk ke ArtaPOS</CardTitle>
-        <CardDescription>Dibangun untuk Toko Komputer Indonesia</CardDescription>
+      <CardHeader className="items-center gap-3 text-center">
+        <div
+          className="flex w-full items-center justify-center rounded-xl px-6 py-4"
+          style={{ background: "radial-gradient(130% 150% at 50% 0%, #241653 0%, #0d0a1f 72%)" }}
+        >
+          <LogoWordmark className="h-11 w-auto max-w-full" />
+        </div>
+        <CardDescription>Masuk untuk melanjutkan</CardDescription>
       </CardHeader>
       <CardContent>
         <form action={action} className="flex flex-col gap-4">
