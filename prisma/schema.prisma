@@ -81,6 +81,7 @@ model Tenant {
   expenses       Expense[]
   warrantyUnits  WarrantyUnit[]
   rmaClaims      RmaClaim[]
+  promoRedemptions PromoRedemption[]
 
   @@map("tenants")
 }
@@ -94,6 +95,8 @@ model User {
   passwordHash String
   role         UserRole @default(KASIR)
   isActive     Boolean  @default(true)
+  /// Admin platform (operator SaaS) — akses lintas-tenant ke Dashboard Admin.
+  isSuperAdmin Boolean  @default(false)
   lastLoginAt  DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -123,6 +126,47 @@ model License {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("licenses")
+}
+
+/// Kode promo/aktivasi lisensi — dibuat operator platform, ditukar oleh toko
+/// untuk mengaktifkan/memperpanjang paket lisensinya.
+model PromoCode {
+  id              String      @id @default(cuid())
+  code            String      @unique
+  plan            LicensePlan // paket yang diberikan saat kode ditukar
+  /// Perpanjang masa berlaku sebanyak N hari (null = tanpa kedaluwarsa/lifetime).
+  durationDays    Int?
+  /// Batas transaksi (untuk plan DEMO_TRANSACTIONS).
+  maxTransactions Int?
+  /// Kuota total penukaran (null = tak terbatas).
+  maxRedemptions  Int?
+  redemptionsUsed Int         @default(0)
+  /// Kode kedaluwarsa (tak bisa ditukar setelah tanggal ini). null = tak kedaluwarsa.
+  expiresAt       DateTime?
+  isActive        Boolean     @default(true)
+  note            String?
+  createdById     String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  redemptions PromoRedemption[]
+
+  @@map("promo_codes")
+}
+
+/// Catatan penukaran kode promo oleh sebuah toko (audit + cegah tukar ganda).
+model PromoRedemption {
+  id          String   @id @default(cuid())
+  promoCodeId String
+  tenantId    String
+  redeemedAt  DateTime @default(now())
+
+  promoCode PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([promoCodeId, tenantId])
+  @@index([tenantId])
+  @@map("promo_redemptions")
 }
 
 /// Pembatasan laju login (anti brute-force) — tahan-lama lintas instance serverless.

@@ -1,4 +1,5 @@
 import { getCurrentUser } from "@/lib/auth/dal";
+import { isPlatformAdmin } from "@/lib/auth/super-admin";
 import { db } from "@/lib/db";
 import { AppShell } from "@/components/layout/app-shell";
 
@@ -25,6 +26,7 @@ export default async function DashboardLayout({
         email: user.email,
         role: user.role,
         storeName: user.tenant.name,
+        isSuperAdmin: isPlatformAdmin(user),
       }}
       badges={{ "/inventory": lowStock }}
     >

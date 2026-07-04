@@ -3,8 +3,9 @@
 import { useActionState, useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Save, ImagePlus, Trash2, Check } from "lucide-react";
+import { Loader2, Save, ImagePlus, Trash2, Check, KeyRound } from "lucide-react";
 import { updateSettingsAction, updateLicenseAction, updateStoreLogoAction, updateTrackPromoImageAction } from "@/server/admin/actions";
+import { redeemPromoCodeAction } from "@/server/license/actions";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -412,6 +413,50 @@ export function LicenseForm({
           <span className={state.ok ? "text-sm text-success" : "text-sm text-destructive"}>{state.message}</span>
         )}
       </div>
+    </form>
+  );
+}
+
+/** Tukar kode aktivasi lisensi (dari operator/distributor). Owner saja. */
+export function RedeemLicenseForm() {
+  const router = useRouter();
+  const [code, setCode] = useState("");
+  const [pending, start] = useTransition();
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!code.trim()) return;
+    setMsg(null);
+    start(async () => {
+      const r = await redeemPromoCodeAction(code.trim());
+      setMsg({ ok: r.ok, text: r.message ?? (r.ok ? "Berhasil." : "Gagal.") });
+      if (r.ok) {
+        setCode("");
+        router.refresh();
+      }
+    });
+  };
+
+  return (
+    <form onSubmit={submit} className="space-y-2 border-t pt-4">
+      <Label htmlFor="redeem">Punya kode aktivasi?</Label>
+      <div className="flex flex-wrap gap-2">
+        <Input
+          id="redeem"
+          value={code}
+          onChange={(e) => setCode(e.target.value.toUpperCase())}
+          placeholder="mis. ARTA-XXXXXX"
+          className="max-w-xs font-mono"
+        />
+        <Button type="submit" disabled={pending || !code.trim()}>
+          {pending ? <Loader2 className="animate-spin" /> : <KeyRound />} Tukar Kode
+        </Button>
+      </div>
+      {msg && <p className={msg.ok ? "text-sm text-success" : "text-sm text-destructive"}>{msg.text}</p>}
+      <p className="text-xs text-muted-foreground">
+        Masukkan kode dari admin/distributor untuk mengaktifkan atau memperpanjang lisensi toko.
+      </p>
     </form>
   );
 }

@@ -9,7 +9,7 @@ import { formatRupiah } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { StoreSettingsForm, StoreLogoForm, LicenseForm, ColorThemePicker, TrackPromoImageForm } from "./settings-client";
+import { StoreSettingsForm, StoreLogoForm, RedeemLicenseForm, ColorThemePicker, TrackPromoImageForm } from "./settings-client";
 import { formatLocalDate } from "@/lib/timezone";
 
 export const metadata: Metadata = { title: "Pengaturan" };
@@ -91,12 +91,7 @@ export default async function SettingsPage() {
           </CardHeader>
           {canLicense && (
             <CardContent>
-              <LicenseForm
-                plan={license.plan}
-                status={license.status}
-                maxTransactions={license.maxTransactions}
-                validUntil={license.validUntil ? new Date(license.validUntil).toISOString().slice(0, 10) : null}
-              />
+              <RedeemLicenseForm />
             </CardContent>
           )}
         </Card>

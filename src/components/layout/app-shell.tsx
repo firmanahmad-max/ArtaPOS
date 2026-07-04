@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, LogOut, WifiOff, Search } from "lucide-react";
+import { Menu, X, LogOut, WifiOff, Search, ShieldAlert } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { CommandPalette } from "@/components/layout/command-palette";
 import type { UserRole } from "@/generated/prisma/enums";
@@ -22,6 +22,7 @@ export interface ShellUser {
   email: string;
   role: UserRole;
   storeName: string;
+  isSuperAdmin?: boolean;
 }
 
 export function AppShell({
@@ -110,6 +111,16 @@ export function AppShell({
             {ROLE_LABELS[user.role]} · {user.email}
           </p>
         </div>
+        {user.isSuperAdmin && (
+          <Link
+            href="/admin"
+            onClick={() => setMobileOpen(false)}
+            className="mb-2 flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-700 transition-colors hover:bg-amber-500/20 dark:text-amber-400"
+          >
+            <ShieldAlert className="size-4" />
+            Dashboard Admin
+          </Link>
+        )}
         <form action={logoutAction}>
           <Button
             type="submit"

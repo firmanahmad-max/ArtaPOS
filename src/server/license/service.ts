@@ -36,6 +36,44 @@ export interface UpdateLicenseInput {
   validUntil?: string | null;
 }
 
+/** Tukar kode promo/aktivasi → terapkan paket lisensi ke toko (transaksional). */
+export async function redeemPromoCode(tenantId: string, rawCode: string) {
+  const code = rawCode.trim().toUpperCase();
+  if (!code) throw new Error("Masukkan kode aktivasi.");
+  return db.$transaction(async (tx) => {
+    const promo = await tx.promoCode.findUnique({ where: { code } });
+    if (!promo || !promo.isActive) throw new Error("Kode tidak valid atau sudah nonaktif.");
+    if (promo.expiresAt && promo.expiresAt.getTime() < Date.now()) throw new Error("Kode sudah kedaluwarsa.");
+    if (promo.maxRedemptions != null && promo.redemptionsUsed >= promo.maxRedemptions) {
+      throw new Error("Kuota penukaran kode ini sudah habis.");
+    }
+    const already = await tx.promoRedemption.findUnique({
+      where: { promoCodeId_tenantId: { promoCodeId: promo.id, tenantId } },
+    });
+    if (already) throw new Error("Kode ini sudah pernah Anda gunakan.");
+
+    // Masa berlaku baru: perpanjang dari max(sekarang, validUntil lama yg masih aktif).
+    let validUntil: Date | null = null;
+    if (promo.durationDays != null) {
+      const existing = await tx.license.findUnique({ where: { tenantId }, select: { validUntil: true } });
+      const base =
+        existing?.validUntil && existing.validUntil.getTime() > Date.now() ? existing.validUntil : new Date();
+      validUntil = new Date(base.getTime() + promo.durationDays * 86400000);
+    }
+    const data = {
+      plan: promo.plan,
+      status: "ACTIVE" as const,
+      maxTransactions: promo.maxTransactions ?? null,
+      transactionsUsed: 0,
+      validUntil,
+    };
+    await tx.license.upsert({ where: { tenantId }, update: data, create: { tenantId, ...data } });
+    await tx.promoRedemption.create({ data: { promoCodeId: promo.id, tenantId } });
+    await tx.promoCode.update({ where: { id: promo.id }, data: { redemptionsUsed: { increment: 1 } } });
+    return { plan: promo.plan, validUntil };
+  });
+}
+
 export async function updateLicense(tenantId: string, input: UpdateLicenseInput) {
   return db.license.upsert({
     where: { tenantId },

@@ -1,5 +1,7 @@
 import "server-only";
+import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/dal";
+import { isPlatformAdmin } from "@/lib/auth/super-admin";
 import { can, type Permission } from "@/lib/rbac";
 import type { UserRole } from "@/generated/prisma/enums";
 
@@ -37,4 +39,25 @@ export async function requirePermission(
     throw new ForbiddenError();
   }
   return ctx;
+}
+
+/**
+ * Pastikan user adalah admin platform (super-admin). Untuk halaman/aksi
+ * LINTAS-TENANT (Dashboard Admin). Bukan super-admin → alihkan ke dashboard toko.
+ */
+export async function requireSuperAdmin() {
+  const user = await getCurrentUser();
+  if (!isPlatformAdmin(user)) {
+    redirect("/dashboard");
+  }
+  return user;
+}
+
+/** Versi untuk Server Action: lempar Forbidden bila bukan super-admin. */
+export async function requireSuperAdminAction() {
+  const user = await getCurrentUser();
+  if (!isPlatformAdmin(user)) {
+    throw new ForbiddenError("Khusus admin platform.");
+  }
+  return user;
 }

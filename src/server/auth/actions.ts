@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { verifyPassword } from "@/lib/auth/password";
 import { createSession, deleteSession } from "@/lib/auth/session";
 import { isLoginLocked, recordLoginFailure, clearLoginAttempts } from "@/lib/auth/rate-limit";
+import { isEnvSuperAdmin } from "@/lib/auth/super-admin";
 import { getClientIp } from "@/lib/request-ip";
 import { loginSchema, type FormState } from "@/lib/validations/auth";
 
@@ -46,7 +47,7 @@ export async function loginAction(
 
   const user = await db.user.findFirst({
     where: { email, isActive: true, tenant: { isActive: true } },
-    select: { id: true, tenantId: true, role: true, passwordHash: true },
+    select: { id: true, tenantId: true, role: true, passwordHash: true, isSuperAdmin: true },
   });
 
   // Pesan generik (jangan bocorkan apakah email ada) — cegah user enumeration.
@@ -70,9 +71,11 @@ export async function loginAction(
   await clearLoginAttempts(emailKey);
   await clearLoginAttempts(ipKey);
 
+  // Bootstrap admin platform: email di SUPER_ADMIN_EMAILS → set flag super-admin.
+  const grantSuper = !user.isSuperAdmin && isEnvSuperAdmin(email);
   await db.user.update({
     where: { id: user.id },
-    data: { lastLoginAt: new Date() },
+    data: { lastLoginAt: new Date(), ...(grantSuper ? { isSuperAdmin: true } : {}) },
   });
 
   await createSession({

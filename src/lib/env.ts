@@ -9,6 +9,8 @@ const envSchema = z.object({
   DIRECT_URL: z.string().min(1).optional(),
   // Batas koneksi pool per-instance (node-postgres). Kecil untuk serverless.
   DB_POOL_MAX: z.coerce.number().int().positive().max(50).optional(),
+  // Email admin platform (dipisah koma) — di-bootstrap jadi super-admin saat login.
+  SUPER_ADMIN_EMAILS: z.string().optional(),
   AUTH_SECRET: z
     .string()
     .min(32, "AUTH_SECRET wajib diisi (min 32 char). Generate: openssl rand -base64 32"),

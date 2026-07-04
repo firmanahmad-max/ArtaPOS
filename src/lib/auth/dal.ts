@@ -39,6 +39,7 @@ export const getCurrentUser = cache(async () => {
       name: true,
       email: true,
       role: true,
+      isSuperAdmin: true,
       tenantId: true,
       tenant: { select: { id: true, name: true, slug: true, isActive: true } },
     },
