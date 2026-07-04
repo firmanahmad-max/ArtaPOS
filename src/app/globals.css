@@ -367,3 +367,45 @@
       0 14px 30px -10px hsl(var(--shadow-color) / 0.2);
   }
 }
+
+/* ── Splash screen (brand, tampil sekali per sesi saat aplikasi dibuka) ── */
+.app-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  background: radial-gradient(60% 50% at 50% 38%, #241653 0%, #0d0a1f 58%, #06040f 100%);
+  animation: splashHide 2.4s forwards;
+}
+/* Sudah pernah tampil di sesi ini → jangan tampilkan (dikelola skrip pra-paint). */
+html.splash-seen .app-splash {
+  display: none;
+}
+.app-splash-logo {
+  filter: drop-shadow(0 0 45px rgba(124, 58, 237, 0.55));
+  animation: splashPop 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.app-splash-dot {
+  background: #8b5cf6;
+  animation: splashDot 1s infinite ease-in-out;
+}
+@keyframes splashHide {
+  0%, 79% { opacity: 1; }
+  100% { opacity: 0; visibility: hidden; }
+}
+@keyframes splashPop {
+  from { transform: scale(0.82); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+@keyframes splashDot {
+  0%, 100% { opacity: 0.3; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-splash { animation: splashHide 2.4s forwards; }
+  .app-splash-logo, .app-splash-dot { animation: none; }
+}
