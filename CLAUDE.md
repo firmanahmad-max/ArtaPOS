@@ -29,6 +29,7 @@ kirim laporan ke WhatsApp, lisensi/demo.
 - `npm run db:generate` — generate Prisma Client
 - `npm run db:studio` — Prisma Studio
 - `npm run stock:reconcile` — audit konsistensi cache `product.stock` vs akumulasi `StockMovement` (dry-run; `--fix` menulis movement ADJUSTMENT agar ledger=cache, `--all` tampilkan semua). Untuk stok FISIK pakai Stok Opname, bukan ini.
+- `npm run seed:demo` — buat/refresh **akun demo lengkap** (`prisma/seed-demo.mjs`): tenant `Demo Komputer ArtaPOS` (slug `demo-artapos`), login `demo@artapos.id`/`demo1234`, data mockup di SEMUA modul (produk, penjualan/piutang, pembelian/utang, servis, rakit PC, biaya, garansi, RMA, shift, poin). Idempoten (hapus tenant demo lalu buat ulang); menjaga invarian stok=ledger. Untuk produksi: set `DATABASE_URL` ke Supabase dulu. Lisensi DEMO_MONTHLY (bisa diatur lewat Dashboard Admin).
 - Health check: `GET /api/health`
 
 ## Konvensi penting (JANGAN keliru)
