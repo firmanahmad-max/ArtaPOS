@@ -2,6 +2,7 @@ import { getCurrentUser } from "@/lib/auth/dal";
 import { isPlatformAdmin } from "@/lib/auth/super-admin";
 import { db } from "@/lib/db";
 import { AppShell } from "@/components/layout/app-shell";
+import { QuickStart } from "@/components/onboarding/quick-start";
 
 export default async function DashboardLayout({
   children,
@@ -31,6 +32,7 @@ export default async function DashboardLayout({
       badges={{ "/inventory": lowStock }}
     >
       {children}
+      <QuickStart />
     </AppShell>
   );
 }

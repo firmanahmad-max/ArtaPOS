@@ -28,6 +28,7 @@ import {
 } from "@/lib/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
+import { Manual } from "./manual";
 
 export const metadata: Metadata = {
   title: "Tentang",
@@ -112,6 +113,17 @@ export default function AboutPage() {
               );
             })}
           </div>
+        </section>
+
+        {/* Panduan Penggunaan */}
+        <section id="panduan" className="scroll-mt-20 space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold">Panduan Penggunaan</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Manual lengkap semua fitur beserta langkah & contoh pemakaian. Klik tiap bagian untuk membuka.
+            </p>
+          </div>
+          <Manual />
         </section>
 
         {/* Tagline */}

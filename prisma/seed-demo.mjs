@@ -188,7 +188,7 @@ async function main() {
 
     // ── Penjualan ───────────────────────────────────────────────────────────
     let invNo = 0;
-    let cashClosedShift = 0, cashOpenShift = 0;
+    let cashClosedShift = 0;
     let salesCount = 0;
     async function sale({ when, items, method = "CASH", cust: cu = null, discount = 0, status = "COMPLETED", shiftId = null, dpRatio = null, dueDays = 14 }) {
       invNo += 1;
@@ -227,7 +227,7 @@ async function main() {
       }
       if (status === "COMPLETED") {
         salesCount += 1;
-        if (method === "CASH") { if (shiftId === shiftClosed) cashClosedShift += total; if (shiftId === shiftOpen) cashOpenShift += total; }
+        if (method === "CASH" && shiftId === shiftClosed) cashClosedShift += total;
       }
       return saleId;
     }

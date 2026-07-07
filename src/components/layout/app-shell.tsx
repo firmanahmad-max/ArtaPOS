@@ -137,6 +137,10 @@ export function AppShell({
             Tentang {APP_NAME}
           </Link>
           <span>·</span>
+          <Link href="/about#panduan" onClick={() => setMobileOpen(false)} className="hover:text-foreground hover:underline">
+            Panduan
+          </Link>
+          <span>·</span>
           <Link href="/disclaimer" onClick={() => setMobileOpen(false)} className="hover:text-foreground hover:underline">
             Disclaimer
           </Link>
