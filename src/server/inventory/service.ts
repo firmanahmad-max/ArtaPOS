@@ -136,8 +136,14 @@ export async function inventorySummary(tenantId: string) {
   let lowStock = 0;
   let stockValue = 0;
   for (const p of products) {
-    if (p.stock <= 0) outOfStock++;
-    else if (p.minStock > 0 && p.stock <= p.minStock) lowStock++;
+    // Hanya produk yang DILACAK stoknya (punya ambang minStock > 0) yang
+    // dihitung habis/menipis. Produk minStock=0 (mis. jasa/instalasi/non-
+    // inventaris) permanen bernilai 0 dan BUKAN "kehabisan stok". Filter ini
+    // menyamakan hitungan dengan Saran Pembelian, badge sidebar, & KPI dashboard.
+    if (p.minStock > 0) {
+      if (p.stock <= 0) outOfStock++;
+      else if (p.stock <= p.minStock) lowStock++;
+    }
     stockValue += Math.max(0, p.stock) * p.costPrice;
   }
   return { productCount: products.length, outOfStock, lowStock, stockValue };
