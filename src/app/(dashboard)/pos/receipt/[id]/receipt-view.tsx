@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { Printer, Plus, Bluetooth, Loader2, MessageCircle } from "lucide-react";
+import { toast } from "sonner";
+import { Printer, Plus, Bluetooth, Loader2, MessageCircle, Image as ImageIcon } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { formatRupiah } from "@/lib/utils";
 import { buildSaleReceiptText, waLink } from "@/lib/whatsapp";
 import { buildReceiptEscpos } from "@/lib/escpos";
 import { imageToEscposRaster } from "@/lib/escpos-image";
 import { printViaBluetooth } from "@/lib/bluetooth-printer";
+import { shareNodeAsImage } from "@/lib/share-image";
 
 export interface ReceiptItem {
   productName: string;
@@ -39,8 +41,30 @@ export interface ReceiptData {
 const METHOD: Record<string, string> = { CASH: "Tunai", TRANSFER: "Transfer", QRIS: "QRIS", CREDIT: "Kredit" };
 
 export function ReceiptView({ data }: { data: ReceiptData }) {
+  const receiptRef = useRef<HTMLDivElement>(null);
   const [btStatus, setBtStatus] = useState<{ ok: boolean; text: string } | null>(null);
   const [printing, setPrinting] = useState(false);
+  const [sharing, setSharing] = useState(false);
+
+  async function shareImage() {
+    if (!receiptRef.current) return;
+    setSharing(true);
+    try {
+      const { mode } = await shareNodeAsImage(receiptRef.current, {
+        fileName: `Struk-${data.number}.png`,
+        title: `Struk ${data.number}`,
+        text: `Struk penjualan ${data.storeName} — ${data.number}`,
+      });
+      if (mode === "downloaded") {
+        toast.info("Gambar struk diunduh. Buka WhatsApp lalu lampirkan gambarnya.");
+        if (data.customerPhone) window.open(waLink("", data.customerPhone), "_blank", "noopener,noreferrer");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Gagal membuat gambar struk.");
+    } finally {
+      setSharing(false);
+    }
+  }
 
   async function printBluetooth() {
     setBtStatus(null);
@@ -118,6 +142,7 @@ export function ReceiptView({ data }: { data: ReceiptData }) {
 
       <div
         id="receipt"
+        ref={receiptRef}
         className="mx-auto w-[300px] rounded-lg border bg-white p-4 font-mono text-xs text-black"
       >
         <div className="text-center">
@@ -173,9 +198,13 @@ export function ReceiptView({ data }: { data: ReceiptData }) {
       <div className="no-print mx-auto w-[300px] space-y-2">
         <Button
           className="w-full bg-[#25D366] text-white hover:bg-[#1ebe5b]"
-          onClick={sendWhatsApp}
+          onClick={shareImage}
+          disabled={sharing}
         >
-          <MessageCircle /> Kirim Struk via WhatsApp
+          {sharing ? <Loader2 className="animate-spin" /> : <ImageIcon />} Kirim Struk (Gambar) via WhatsApp
+        </Button>
+        <Button variant="outline" className="w-full" onClick={sendWhatsApp}>
+          <MessageCircle /> Kirim sebagai Teks
         </Button>
         <div className="flex gap-2">
           <Button variant="outline" className="flex-1" onClick={printBluetooth} disabled={printing}>

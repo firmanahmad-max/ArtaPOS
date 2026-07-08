@@ -1,10 +1,13 @@
 "use client";
 
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { Printer, ArrowLeft, MessageCircle } from "lucide-react";
+import { toast } from "sonner";
+import { Printer, ArrowLeft, MessageCircle, Image as ImageIcon, Loader2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { formatRupiah } from "@/lib/utils";
 import { buildServiceNotaText, waLink } from "@/lib/whatsapp";
+import { shareNodeAsImage } from "@/lib/share-image";
 
 export interface NotaItem {
   name: string;
@@ -44,8 +47,30 @@ const METHOD_LABEL: Record<string, string> = {
 };
 
 export function ServiceNotaView({ data, backHref }: { data: ServiceNotaData; backHref: string }) {
+  const notaRef = useRef<HTMLDivElement>(null);
+  const [sharing, setSharing] = useState(false);
   const outstanding = Math.max(0, data.total - data.paid);
   const methodLabel = data.paymentMethod ? METHOD_LABEL[data.paymentMethod] ?? data.paymentMethod : null;
+
+  async function shareImage() {
+    if (!notaRef.current) return;
+    setSharing(true);
+    try {
+      const { mode } = await shareNodeAsImage(notaRef.current, {
+        fileName: `Nota-Servis-${data.number}.png`,
+        title: `Nota Servis ${data.number}`,
+        text: `Nota servis ${data.storeName} — ${data.number}`,
+      });
+      if (mode === "downloaded") {
+        toast.info("Gambar nota diunduh. Buka WhatsApp lalu lampirkan gambarnya.");
+        if (data.customerPhone) window.open(waLink("", data.customerPhone), "_blank", "noopener,noreferrer");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Gagal membuat gambar nota.");
+    } finally {
+      setSharing(false);
+    }
+  }
 
   function sendWhatsApp() {
     const trackUrl = `${window.location.origin}/lacak?no=${encodeURIComponent(data.number)}`;
@@ -77,6 +102,7 @@ export function ServiceNotaView({ data, backHref }: { data: ServiceNotaData; bac
 
       <div
         id="nota"
+        ref={notaRef}
         className="mx-auto w-[320px] rounded-lg border bg-white p-4 font-mono text-xs text-black"
       >
         <div className="text-center">
@@ -152,9 +178,13 @@ export function ServiceNotaView({ data, backHref }: { data: ServiceNotaData; bac
       <div className="no-print mx-auto w-[320px] space-y-2">
         <Button
           className="w-full bg-[#25D366] text-white hover:bg-[#1ebe5b]"
-          onClick={sendWhatsApp}
+          onClick={shareImage}
+          disabled={sharing}
         >
-          <MessageCircle /> Kirim Nota via WhatsApp
+          {sharing ? <Loader2 className="animate-spin" /> : <ImageIcon />} Kirim Nota (Gambar) via WhatsApp
+        </Button>
+        <Button variant="outline" className="w-full" onClick={sendWhatsApp}>
+          <MessageCircle /> Kirim sebagai Teks
         </Button>
         <div className="flex gap-2">
           <Link href={backHref} className={`${buttonVariants({ variant: "outline" })} flex-1`}>
