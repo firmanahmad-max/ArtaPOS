@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Users } from "lucide-react";
+import { Users, BookOpen } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { getLicense } from "@/server/license/service";
@@ -9,7 +9,7 @@ import { formatRupiah } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { StoreSettingsForm, StoreLogoForm, RedeemLicenseForm, ColorThemePicker, TrackPromoImageForm } from "./settings-client";
+import { StoreSettingsForm, StoreLogoForm, RedeemLicenseForm, ColorThemePicker, TrackPromoImageForm, ShowQuickStartButton } from "./settings-client";
 import { formatLocalDate } from "@/lib/timezone";
 
 export const metadata: Metadata = { title: "Pengaturan" };
@@ -96,6 +96,19 @@ export default async function SettingsPage() {
           )}
         </Card>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Bantuan & Panduan</CardTitle>
+          <CardDescription>Pelajari cara memakai ArtaPOS kapan pun.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          <ShowQuickStartButton />
+          <Link href="/about#panduan" className={buttonVariants({ variant: "outline" })}>
+            <BookOpen /> Panduan Lengkap
+          </Link>
+        </CardContent>
+      </Card>
 
       <p className="text-xs text-muted-foreground">
         Total nilai transaksi & laporan ada di menu Keuangan. Contoh format Rupiah: {formatRupiah(1500000)}.

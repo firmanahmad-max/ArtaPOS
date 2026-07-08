@@ -52,6 +52,16 @@ function dismiss() {
   listeners.forEach((l) => l());
 }
 
+/** Tampilkan ulang Quick Start (dipanggil dari Pengaturan). */
+export function reopenQuickStart() {
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    // abaikan
+  }
+  listeners.forEach((l) => l());
+}
+
 const STEPS = [
   {
     icon: Settings,

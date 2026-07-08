@@ -3,9 +3,10 @@
 import { useActionState, useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Save, ImagePlus, Trash2, Check, KeyRound } from "lucide-react";
+import { Loader2, Save, ImagePlus, Trash2, Check, KeyRound, Rocket } from "lucide-react";
 import { updateSettingsAction, updateLicenseAction, updateStoreLogoAction, updateTrackPromoImageAction } from "@/server/admin/actions";
 import { redeemPromoCodeAction } from "@/server/license/actions";
+import { reopenQuickStart } from "@/components/onboarding/quick-start";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -458,5 +459,14 @@ export function RedeemLicenseForm() {
         Masukkan kode dari admin/distributor untuk mengaktifkan atau memperpanjang lisensi toko.
       </p>
     </form>
+  );
+}
+
+/** Tombol memunculkan ulang panduan singkat (Quick Start). */
+export function ShowQuickStartButton() {
+  return (
+    <Button variant="outline" onClick={() => reopenQuickStart()}>
+      <Rocket /> Lihat Panduan Singkat
+    </Button>
   );
 }
