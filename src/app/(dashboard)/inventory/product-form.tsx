@@ -158,7 +158,21 @@ export function ProductForm({
   const [barcode, setBarcode] = useState(initial?.barcode ?? "");
 
   return (
-    <form action={formAction} className="space-y-6">
+    <form
+      action={formAction}
+      className="space-y-6"
+      onKeyDown={(e) => {
+        // Cegah tombol Enter dari input (mis. USB barcode scanner keyboard-wedge
+        // yang mengirim Enter setelah kode) meng-submit form & menyimpan produk
+        // tanpa konfirmasi. Enter pada tombol Simpan tetap berfungsi (target
+        // BUTTON, bukan INPUT). Input quick-create kategori/satuan tetap jalan
+        // karena menangani Enter sendiri.
+        const el = e.target as HTMLElement;
+        if (e.key === "Enter" && el.tagName === "INPUT") {
+          e.preventDefault();
+        }
+      }}
+    >
       <Card>
         <CardHeader>
           <CardTitle>Informasi Produk</CardTitle>
