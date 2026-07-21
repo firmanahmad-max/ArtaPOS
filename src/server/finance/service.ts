@@ -109,22 +109,13 @@ function recognizedOn(range: { gte: Date; lt: Date }) {
 }
 
 /**
- * Modal (HPP) dari baris yang mengambil stok. ServiceItem/PcBuildItem tidak
- * menyimpan snapshot modal seperti SaleItem, jadi dipakai costPrice produk saat
- * ini sebagai estimasi.
+ * Modal (HPP) dari baris yang mengambil stok. Memakai `costPrice` yang di-
+ * snapshot saat sparepart/komponen dipakai, jadi laba tiket lama tidak berubah
+ * ketika harga modal produk diperbarui. Baris jasa/non-stok (productId null)
+ * tidak punya modal.
  */
-async function stockCogs(
-  tenantId: string,
-  items: { productId: string | null; qty: number }[],
-): Promise<number> {
-  const ids = [...new Set(items.map((i) => i.productId).filter((x): x is string => !!x))];
-  if (ids.length === 0) return 0;
-  const products = await db.product.findMany({
-    where: { id: { in: ids }, tenantId },
-    select: { id: true, costPrice: true },
-  });
-  const cost = new Map(products.map((p) => [p.id, p.costPrice]));
-  return items.reduce((s, i) => s + (i.productId ? (cost.get(i.productId) ?? 0) * i.qty : 0), 0);
+function stockCogs(items: { productId: string | null; qty: number; costPrice: number }[]): number {
+  return items.reduce((s, i) => s + (i.productId ? i.costPrice * i.qty : 0), 0);
 }
 
 export async function getFinanceReport(
@@ -164,11 +155,17 @@ async function computeReport(
     }),
     db.serviceTicket.findMany({
       where: { tenantId, status: { in: ["DONE", "DELIVERED"] }, OR: recognizedOn(range) },
-      select: { total: true, items: { select: { productId: true, qty: true, subtotal: true } } },
+      select: {
+        total: true,
+        items: { select: { productId: true, qty: true, subtotal: true, costPrice: true } },
+      },
     }),
     db.pcBuild.findMany({
       where: { tenantId, status: { in: ["DONE", "DELIVERED"] }, OR: recognizedOn(range) },
-      select: { total: true, items: { select: { productId: true, qty: true, subtotal: true } } },
+      select: {
+        total: true,
+        items: { select: { productId: true, qty: true, subtotal: true, costPrice: true } },
+      },
     }),
     db.purchase.aggregate({ where: { tenantId, createdAt: range }, _sum: { total: true } }),
     db.expense.aggregate({ where: { tenantId, date: range }, _sum: { amount: true } }),
@@ -178,10 +175,8 @@ async function computeReport(
   const buildItems = builds.flatMap((b) => b.items);
   // Modal stok yang terpakai di servis & rakitan — sebelumnya tak pernah
   // dikurangkan, sehingga sparepart dari gudang terhitung 100% laba.
-  const [serviceCogs, buildCogs] = await Promise.all([
-    stockCogs(tenantId, serviceItems),
-    stockCogs(tenantId, buildItems),
-  ]);
+  const serviceCogs = stockCogs(serviceItems);
+  const buildCogs = stockCogs(buildItems);
 
   const salesRevenue = sales.reduce((s, x) => s + x.total, 0);
   const salesCogs = sales.reduce(

@@ -293,8 +293,8 @@ async function main() {
       const id = uid("sv");
       let partsCost = 0;
       const items = [];
-      for (const p of parts) { const pr = prod[p.k]; const sub = pr.sell * p.qty; partsCost += sub; items.push({ productId: pr.id, name: pr.name, qty: p.qty, price: pr.sell, subtotal: sub, isPart: true, pk: p.k }); }
-      for (const j of jasa) items.push({ productId: null, name: j.name, qty: 1, price: j.price, subtotal: j.price, isPart: false });
+      for (const p of parts) { const pr = prod[p.k]; const sub = pr.sell * p.qty; partsCost += sub; items.push({ productId: pr.id, name: pr.name, qty: p.qty, price: pr.sell, cost: pr.cost, subtotal: sub, isPart: true, pk: p.k }); }
+      for (const j of jasa) items.push({ productId: null, name: j.name, qty: 1, price: j.price, cost: 0, subtotal: j.price, isPart: false });
       const jasaTotal = jasa.reduce((s, j) => s + j.price, 0);
       const total = labor + partsCost + jasaTotal;
       const paymentStatus = paid <= 0 ? "UNPAID" : paid >= total ? "PAID" : "PARTIAL";
@@ -306,7 +306,7 @@ async function main() {
         createdAt: when, updatedAt: when, completedAt: completedAgo != null ? at(completedAgo) : null,
       });
       for (const it of items) {
-        await insert("service_items", { id: uid("svi"), ticketId: id, productId: it.productId, name: it.name, qty: it.qty, price: it.price, subtotal: it.subtotal, isPart: it.isPart });
+        await insert("service_items", { id: uid("svi"), ticketId: id, productId: it.productId, name: it.name, qty: it.qty, price: it.price, costPrice: it.cost, subtotal: it.subtotal, isPart: it.isPart });
         if (it.isPart) await movement(it.productId, "SERVICE_OUT", -it.qty, when, `Sparepart servis ${number}`);
       }
     }
@@ -330,7 +330,7 @@ async function main() {
       const paymentStatus = paid <= 0 ? "UNPAID" : paid >= total ? "PAID" : "PARTIAL";
       await insert("pc_builds", { id, tenantId: TENANT_ID, number, name, customerId: null, customerName: cu, status, buildFee: fee, componentsCost, total, paid, paymentStatus, note: null, createdById: TEKNISI_ID, createdAt: when, updatedAt: when, completedAt: completedAgo != null ? at(completedAgo) : null });
       for (const it of items) {
-        await insert("pc_build_items", { id: uid("rki"), buildId: id, productId: it.p.id, productName: it.p.name, qty: it.qty, price: it.price, subtotal: it.sub });
+        await insert("pc_build_items", { id: uid("rki"), buildId: id, productId: it.p.id, productName: it.p.name, qty: it.qty, price: it.price, costPrice: it.p.cost, subtotal: it.sub });
         if (status !== "DRAFT" && status !== "CANCELLED") await movement(it.p.id, "BUILD_OUT", -it.qty, when, `Komponen rakitan ${number}`);
       }
     }

@@ -143,7 +143,7 @@ export async function addPart(
   return db.$transaction(async (tx) => {
     const product = await tx.product.findFirst({
       where: { id: productId, tenantId },
-      select: { id: true, name: true, sellPrice: true, stock: true },
+      select: { id: true, name: true, sellPrice: true, costPrice: true, stock: true },
     });
     if (!product) throw new Error("Produk tidak ditemukan.");
     if (product.stock < qty) throw new Error(`Stok "${product.name}" tidak cukup (sisa ${product.stock}).`);
@@ -168,6 +168,9 @@ export async function addPart(
         name: product.name,
         qty,
         price: product.sellPrice,
+        // Snapshot modal saat sparepart dipakai — laba tiket lama tidak ikut
+        // berubah kalau harga modal produk diperbarui nanti.
+        costPrice: product.costPrice,
         subtotal: product.sellPrice * qty,
         isPart: true,
       },

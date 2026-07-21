@@ -84,7 +84,7 @@ export async function addComponent(
   return db.$transaction(async (tx) => {
     const product = await tx.product.findFirst({
       where: { id: productId, tenantId },
-      select: { id: true, name: true, sellPrice: true, stock: true },
+      select: { id: true, name: true, sellPrice: true, costPrice: true, stock: true },
     });
     if (!product) throw new Error("Produk tidak ditemukan.");
     if (product.stock < qty) throw new Error(`Stok "${product.name}" tidak cukup (sisa ${product.stock}).`);
@@ -102,7 +102,16 @@ export async function addComponent(
       },
     });
     await tx.pcBuildItem.create({
-      data: { buildId, productId: product.id, productName: product.name, qty, price: product.sellPrice, subtotal: product.sellPrice * qty },
+      // costPrice = snapshot modal saat komponen dipakai (lihat ServiceItem).
+      data: {
+        buildId,
+        productId: product.id,
+        productName: product.name,
+        qty,
+        price: product.sellPrice,
+        costPrice: product.costPrice,
+        subtotal: product.sellPrice * qty,
+      },
     });
     await recompute(tx, buildId);
   });

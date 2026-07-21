@@ -681,6 +681,7 @@ model ServiceItem {
   name        String // snapshot nama
   qty         Int     @default(1)
   price       Int // harga satuan
+  costPrice   Int     @default(0) // snapshot modal saat sparepart dipakai (untuk laba)
   subtotal    Int // qty * price
   isPart      Boolean @default(false) // true = sparepart (mengurangi stok)
 
@@ -738,6 +739,7 @@ model PcBuildItem {
   productName String
   qty         Int    @default(1)
   price       Int
+  costPrice   Int    @default(0) // snapshot modal saat komponen dipakai (untuk laba)
   subtotal    Int
 
   build PcBuild @relation(fields: [buildId], references: [id], onDelete: Cascade)
