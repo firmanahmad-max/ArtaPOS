@@ -122,8 +122,12 @@ async function recompute(tx: Prisma.TransactionClient, ticketId: string) {
 }
 
 async function ensureTicket(tenantId: string, ticketId: string) {
-  const t = await db.serviceTicket.findFirst({ where: { id: ticketId, tenantId }, select: { id: true } });
+  const t = await db.serviceTicket.findFirst({
+    where: { id: ticketId, tenantId },
+    select: { id: true, completedAt: true },
+  });
   if (!t) throw new Error("Tiket tidak ditemukan.");
+  return t;
 }
 
 /** Tambah sparepart dari inventory (kurangi stok + movement). */
@@ -234,14 +238,17 @@ export async function updateLabor(tenantId: string, ticketId: string, laborCost:
 }
 
 export async function updateStatus(tenantId: string, ticketId: string, status: ServiceStatus, diagnosis?: string) {
-  await ensureTicket(tenantId, ticketId);
+  const t = await ensureTicket(tenantId, ticketId);
   const done = status === "DONE" || status === "DELIVERED";
   return db.serviceTicket.update({
     where: { id: ticketId },
     data: {
       status,
       ...(diagnosis !== undefined ? { diagnosis: diagnosis || null } : {}),
-      ...(done ? { completedAt: new Date() } : {}),
+      // `completedAt` = tanggal pengakuan pendapatan. Diisi sekali saat pertama
+      // selesai (DONE → DELIVERED tidak menggesernya) dan dikosongkan lagi bila
+      // tiket dibuka kembali agar laporan tetap konsisten.
+      ...(done ? (t.completedAt ? {} : { completedAt: new Date() }) : { completedAt: null }),
     },
   });
 }

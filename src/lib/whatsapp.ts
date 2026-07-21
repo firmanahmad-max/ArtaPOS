@@ -22,7 +22,11 @@ export function buildReportText(storeName: string, r: FinanceReport): string {
     `   • HPP: ${formatRupiah(r.salesCogs)}`,
     `   • Laba kotor: ${formatRupiah(r.salesGrossProfit)}`,
     `🔧 Servis: ${formatRupiah(r.serviceRevenue)} (${r.serviceCount} tiket)`,
+    ...(r.serviceCogs > 0
+      ? [`   • Modal sparepart: ${formatRupiah(r.serviceCogs)}`]
+      : []),
     `🖥️ Rakit PC: ${formatRupiah(r.buildRevenue)} (${r.buildCount} rakitan)`,
+    ...(r.buildCogs > 0 ? [`   • Modal komponen: ${formatRupiah(r.buildCogs)}`] : []),
     `📦 Pembelian: ${formatRupiah(r.purchaseTotal)}`,
     `💸 Biaya operasional: ${formatRupiah(r.expenseTotal)}`,
     line,

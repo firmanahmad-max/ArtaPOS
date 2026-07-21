@@ -82,12 +82,49 @@ export interface FinanceReport {
   salesGrossProfit: number;
   salesCount: number;
   serviceRevenue: number;
+  /** Bagian pendapatan servis yang berasal dari sparepart (stok keluar). */
+  servicePartsRevenue: number;
+  /** Modal sparepart yang terpakai di servis. */
+  serviceCogs: number;
   serviceCount: number;
   buildRevenue: number;
+  /** Bagian pendapatan rakit PC dari komponen (stok keluar). */
+  buildPartsRevenue: number;
+  /** Modal komponen yang terpakai di rakitan. */
+  buildCogs: number;
   buildCount: number;
   purchaseTotal: number;
   expenseTotal: number;
   estimatedNet: number;
+}
+
+/**
+ * Klausa tanggal PENGAKUAN pendapatan tiket servis / rakitan.
+ * Pendapatan diakui saat pekerjaan SELESAI/DISERAHKAN (`completedAt`), bukan
+ * saat tiket dibuat — tiket yang dibuka 3 minggu lalu lalu diserahkan hari ini
+ * masuk ke hari ini. Baris lama tanpa `completedAt` jatuh ke `createdAt`.
+ */
+function recognizedOn(range: { gte: Date; lt: Date }) {
+  return [{ completedAt: range }, { completedAt: null, createdAt: range }];
+}
+
+/**
+ * Modal (HPP) dari baris yang mengambil stok. ServiceItem/PcBuildItem tidak
+ * menyimpan snapshot modal seperti SaleItem, jadi dipakai costPrice produk saat
+ * ini sebagai estimasi.
+ */
+async function stockCogs(
+  tenantId: string,
+  items: { productId: string | null; qty: number }[],
+): Promise<number> {
+  const ids = [...new Set(items.map((i) => i.productId).filter((x): x is string => !!x))];
+  if (ids.length === 0) return 0;
+  const products = await db.product.findMany({
+    where: { id: { in: ids }, tenantId },
+    select: { id: true, costPrice: true },
+  });
+  const cost = new Map(products.map((p) => [p.id, p.costPrice]));
+  return items.reduce((s, i) => s + (i.productId ? (cost.get(i.productId) ?? 0) * i.qty : 0), 0);
 }
 
 export async function getFinanceReport(
@@ -125,18 +162,25 @@ async function computeReport(
       where: { tenantId, status: "COMPLETED", createdAt: range },
       select: { total: true, items: { select: { costPrice: true, qty: true } } },
     }),
-    db.serviceTicket.aggregate({
-      where: { tenantId, status: { not: "CANCELLED" }, createdAt: range },
-      _sum: { total: true },
-      _count: true,
+    db.serviceTicket.findMany({
+      where: { tenantId, status: { in: ["DONE", "DELIVERED"] }, OR: recognizedOn(range) },
+      select: { total: true, items: { select: { productId: true, qty: true, subtotal: true } } },
     }),
-    db.pcBuild.aggregate({
-      where: { tenantId, status: { not: "CANCELLED" }, createdAt: range },
-      _sum: { total: true },
-      _count: true,
+    db.pcBuild.findMany({
+      where: { tenantId, status: { in: ["DONE", "DELIVERED"] }, OR: recognizedOn(range) },
+      select: { total: true, items: { select: { productId: true, qty: true, subtotal: true } } },
     }),
     db.purchase.aggregate({ where: { tenantId, createdAt: range }, _sum: { total: true } }),
     db.expense.aggregate({ where: { tenantId, date: range }, _sum: { amount: true } }),
+  ]);
+
+  const serviceItems = services.flatMap((t) => t.items);
+  const buildItems = builds.flatMap((b) => b.items);
+  // Modal stok yang terpakai di servis & rakitan — sebelumnya tak pernah
+  // dikurangkan, sehingga sparepart dari gudang terhitung 100% laba.
+  const [serviceCogs, buildCogs] = await Promise.all([
+    stockCogs(tenantId, serviceItems),
+    stockCogs(tenantId, buildItems),
   ]);
 
   const salesRevenue = sales.reduce((s, x) => s + x.total, 0);
@@ -145,11 +189,16 @@ async function computeReport(
     0,
   );
   const salesGrossProfit = salesRevenue - salesCogs;
-  const serviceRevenue = services._sum.total ?? 0;
-  const buildRevenue = builds._sum.total ?? 0;
+  const serviceRevenue = services.reduce((s, t) => s + t.total, 0);
+  const buildRevenue = builds.reduce((s, b) => s + b.total, 0);
+  const partsRevenue = (items: { productId: string | null; subtotal: number }[]) =>
+    items.reduce((s, i) => s + (i.productId ? i.subtotal : 0), 0);
+  const servicePartsRevenue = partsRevenue(serviceItems);
+  const buildPartsRevenue = partsRevenue(buildItems);
   const purchaseTotal = purchaseAgg._sum.total ?? 0;
   const expenseTotal = expenseAgg._sum.amount ?? 0;
-  const estimatedNet = salesGrossProfit + serviceRevenue + buildRevenue - expenseTotal;
+  const estimatedNet =
+    salesGrossProfit + serviceRevenue - serviceCogs + buildRevenue - buildCogs - expenseTotal;
 
   return {
     periodLabel: label,
@@ -158,9 +207,13 @@ async function computeReport(
     salesGrossProfit,
     salesCount: sales.length,
     serviceRevenue,
-    serviceCount: services._count,
+    servicePartsRevenue,
+    serviceCogs,
+    serviceCount: services.length,
     buildRevenue,
-    buildCount: builds._count,
+    buildPartsRevenue,
+    buildCogs,
+    buildCount: builds.length,
     purchaseTotal,
     expenseTotal,
     estimatedNet,

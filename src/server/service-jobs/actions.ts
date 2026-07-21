@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { revalidateReports } from "@/lib/revalidate";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { toFieldErrors, type FormState } from "@/lib/form";
@@ -59,6 +60,7 @@ export async function addPartAction(ticketId: string, productId: string, qty: nu
     await svc.addPart(user.tenantId, u.id, ticketId, productId, qty);
     revalidatePath(`/service/${ticketId}`);
     revalidatePath("/inventory");
+    revalidateReports();
     return { ok: true };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Gagal." };
@@ -86,6 +88,7 @@ export async function removeItemAction(ticketId: string, itemId: string): Promis
     await svc.removeItem(user.tenantId, u.id, ticketId, itemId);
     revalidatePath(`/service/${ticketId}`);
     revalidatePath("/inventory");
+    revalidateReports();
     return { ok: true };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Gagal." };
@@ -99,6 +102,7 @@ export async function updateLaborAction(ticketId: string, laborCost: number): Pr
   try {
     await svc.updateLabor(user.tenantId, ticketId, laborCost);
     revalidatePath(`/service/${ticketId}`);
+    revalidateReports();
     return { ok: true };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Gagal." };
@@ -117,6 +121,7 @@ export async function updateStatusAction(
     await svc.updateStatus(user.tenantId, ticketId, status, diagnosis);
     revalidatePath(`/service/${ticketId}`);
     revalidatePath("/service");
+    revalidateReports();
     return { ok: true };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Gagal." };
@@ -166,6 +171,7 @@ export async function recordServicePaymentAction(
   try {
     const r = await svc.recordPayment(user.tenantId, ticketId, amount, method as PaymentMethodVal);
     revalidatePath(`/service/${ticketId}`);
+    revalidateReports();
     return { ok: true, message: r.outstanding > 0 ? `Sisa: ${r.outstanding}` : "Lunas." };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Gagal." };

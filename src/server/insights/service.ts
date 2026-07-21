@@ -323,7 +323,11 @@ export async function getArtaInsights(tenantId: string, role: UserRole): Promise
   if (canFin && finance) {
     const { current, previous } = finance;
     const curRevenue = current.salesRevenue + current.serviceRevenue + current.buildRevenue;
-    const curGross = current.salesGrossProfit + current.serviceRevenue + current.buildRevenue;
+    // Laba kotor servis/rakitan = omzet dikurangi modal stok yang terpakai.
+    const curGross =
+      current.salesGrossProfit +
+      (current.serviceRevenue - current.serviceCogs) +
+      (current.buildRevenue - current.buildCogs);
 
     if (current.estimatedNet < 0) {
       insights.push({

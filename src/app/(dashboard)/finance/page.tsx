@@ -74,17 +74,42 @@ export default async function FinancePage({
     { label: "Penjualan (omzet)", value: report.salesRevenue, hint: `${report.salesCount} transaksi` },
     { label: "HPP (modal terjual)", value: -report.salesCogs },
     { label: "Laba kotor penjualan", value: report.salesGrossProfit, strong: true },
-    { label: "Pendapatan servis", value: report.serviceRevenue, hint: `${report.serviceCount} tiket` },
-    { label: "Pendapatan rakit PC", value: report.buildRevenue, hint: `${report.buildCount} rakitan` },
+    {
+      label: "Pendapatan servis",
+      value: report.serviceRevenue,
+      hint:
+        report.servicePartsRevenue > 0
+          ? `${report.serviceCount} tiket · termasuk sparepart ${formatRupiah(report.servicePartsRevenue)}`
+          : `${report.serviceCount} tiket`,
+    },
+    ...(report.serviceCogs > 0
+      ? [{ label: "Modal sparepart servis", value: -report.serviceCogs }]
+      : []),
+    {
+      label: "Pendapatan rakit PC",
+      value: report.buildRevenue,
+      hint:
+        report.buildPartsRevenue > 0
+          ? `${report.buildCount} rakitan · termasuk komponen ${formatRupiah(report.buildPartsRevenue)}`
+          : `${report.buildCount} rakitan`,
+    },
+    ...(report.buildCogs > 0 ? [{ label: "Modal komponen rakitan", value: -report.buildCogs }] : []),
     { label: "Biaya operasional", value: -report.expenseTotal },
   ];
 
-  // Ringkasan KPI (kartu atas) + turunan pembanding.
+  // Ringkasan KPI (kartu atas) + turunan pembanding. Laba kotor servis/rakitan
+  // dihitung setelah modal stok yang terpakai, bukan omzet mentahnya.
   const totalRevenue = report.salesRevenue + report.serviceRevenue + report.buildRevenue;
-  const grossProfit = report.salesGrossProfit + report.serviceRevenue + report.buildRevenue;
+  const grossProfit =
+    report.salesGrossProfit +
+    (report.serviceRevenue - report.serviceCogs) +
+    (report.buildRevenue - report.buildCogs);
   const grossMargin = totalRevenue > 0 ? Math.round((grossProfit / totalRevenue) * 100) : 0;
   const prevRevenue = previous.salesRevenue + previous.serviceRevenue + previous.buildRevenue;
-  const prevGross = previous.salesGrossProfit + previous.serviceRevenue + previous.buildRevenue;
+  const prevGross =
+    previous.salesGrossProfit +
+    (previous.serviceRevenue - previous.serviceCogs) +
+    (previous.buildRevenue - previous.buildCogs);
 
   const compareRows: { label: string; cur: number; prev: number; higherIsBetter?: boolean }[] = [
     { label: "Pendapatan", cur: totalRevenue, prev: prevRevenue },

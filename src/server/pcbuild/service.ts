@@ -64,8 +64,12 @@ async function recompute(tx: Prisma.TransactionClient, buildId: string) {
 }
 
 async function ensureBuild(tenantId: string, buildId: string) {
-  const b = await db.pcBuild.findFirst({ where: { id: buildId, tenantId }, select: { id: true } });
+  const b = await db.pcBuild.findFirst({
+    where: { id: buildId, tenantId },
+    select: { id: true, completedAt: true },
+  });
   if (!b) throw new Error("Rakitan tidak ditemukan.");
+  return b;
 }
 
 export async function addComponent(
@@ -132,11 +136,13 @@ export async function updateBuildFee(tenantId: string, buildId: string, buildFee
 }
 
 export async function updateStatus(tenantId: string, buildId: string, status: BuildStatus) {
-  await ensureBuild(tenantId, buildId);
+  const b = await ensureBuild(tenantId, buildId);
   const done = status === "DONE" || status === "DELIVERED";
   return db.pcBuild.update({
     where: { id: buildId },
-    data: { status, ...(done ? { completedAt: new Date() } : {}) },
+    // `completedAt` = tanggal pengakuan pendapatan: diisi sekali saat pertama
+    // selesai, dikosongkan bila rakitan dibuka kembali.
+    data: { status, ...(done ? (b.completedAt ? {} : { completedAt: new Date() }) : { completedAt: null }) },
   });
 }
 

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { revalidateReports } from "@/lib/revalidate";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { saleSchema, salePaymentSchema, type SaleInput } from "@/lib/validations/pos";
@@ -40,6 +41,7 @@ export async function createSaleAction(input: SaleInput): Promise<CheckoutResult
     );
     revalidatePath("/inventory");
     revalidatePath("/pos");
+    revalidateReports();
     return { ok: true, saleId: sale.id, number: sale.number, change: sale.change };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Checkout gagal." };
@@ -59,6 +61,7 @@ export async function voidSaleAction(
     revalidatePath("/sales");
     revalidatePath(`/sales/${saleId}`);
     revalidatePath("/inventory");
+    revalidateReports();
     return { ok: true, message: `Transaksi ${r.number} dibatalkan, stok dikembalikan.` };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Gagal membatalkan." };
@@ -78,6 +81,7 @@ export async function createReturnAction(
     const r = await createReturn(user.tenantId, user.id, saleId, lines);
     revalidatePath(`/sales/${saleId}`);
     revalidatePath("/inventory");
+    revalidateReports();
     return { ok: true, number: r.number, refund: r.refund };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Gagal memproses retur." };
