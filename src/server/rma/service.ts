@@ -1,4 +1,5 @@
 import "server-only";
+import { nextDocNumber } from "@/server/shared/numbering";
 import { db } from "@/lib/db";
 import type { RmaClaimInput, RmaReceiveInput } from "@/lib/validations/rma";
 
@@ -81,27 +82,34 @@ export async function createRmaClaim(
     if (sup) supplierName = sup.name;
   }
 
-  const seq = (await db.rmaClaim.count({ where: { tenantId } })) + 1;
-  const number = `RMA-${String(seq).padStart(5, "0")}`;
-
-  return db.rmaClaim.create({
-    data: {
-      tenantId,
-      number,
-      productId,
-      warrantyUnitId,
-      productName,
-      serialNumber,
-      complaint: input.complaint,
-      customerName,
-      customerPhone: input.customerPhone || null,
-      supplierId: input.supplierId ?? null,
-      supplierName,
-      trackingNumber: input.trackingNumber || null,
-      sentAt: input.sentAt ? new Date(input.sentAt) : new Date(),
-      note: input.note || null,
-      createdById: userId,
-    },
+  // Transaksi dibutuhkan agar advisory lock penomoran berlaku (lihat nextDocNumber).
+  return db.$transaction(async (tx) => {
+    const number = await nextDocNumber(tx, tenantId, "RMA", () =>
+      tx.rmaClaim.findFirst({
+        where: { tenantId },
+        orderBy: { number: "desc" },
+        select: { number: true },
+      }),
+    );
+    return tx.rmaClaim.create({
+      data: {
+        tenantId,
+        number,
+        productId,
+        warrantyUnitId,
+        productName,
+        serialNumber,
+        complaint: input.complaint,
+        customerName,
+        customerPhone: input.customerPhone || null,
+        supplierId: input.supplierId ?? null,
+        supplierName,
+        trackingNumber: input.trackingNumber || null,
+        sentAt: input.sentAt ? new Date(input.sentAt) : new Date(),
+        note: input.note || null,
+        createdById: userId,
+      },
+    });
   });
 }
 

@@ -1,4 +1,6 @@
 import "server-only";
+import { moveStock } from "@/server/shared/stock";
+import { nextDocNumber } from "@/server/shared/numbering";
 import { db } from "@/lib/db";
 import { assertPositiveInt, assertNonNegativeInt } from "@/lib/utils";
 import type { Prisma } from "@/generated/prisma/client";
@@ -37,20 +39,28 @@ export async function createBuild(
     const c = await db.customer.findFirst({ where: { id: input.customerId, tenantId }, select: { name: true } });
     if (c) customerName = c.name;
   }
-  const seq = (await db.pcBuild.count({ where: { tenantId } })) + 1;
-  const number = `RKT-${String(seq).padStart(5, "0")}`;
-  return db.pcBuild.create({
-    data: {
-      tenantId,
-      number,
-      name: input.name,
-      customerId: input.customerId ?? null,
-      customerName,
-      buildFee: input.buildFee,
-      total: input.buildFee,
-      note: input.note || null,
-      createdById: user.id,
-    },
+  // Transaksi dibutuhkan agar advisory lock penomoran berlaku (lihat nextDocNumber).
+  return db.$transaction(async (tx) => {
+    const number = await nextDocNumber(tx, tenantId, "RKT", () =>
+      tx.pcBuild.findFirst({
+        where: { tenantId },
+        orderBy: { number: "desc" },
+        select: { number: true },
+      }),
+    );
+    return tx.pcBuild.create({
+      data: {
+        tenantId,
+        number,
+        name: input.name,
+        customerId: input.customerId ?? null,
+        customerName,
+        buildFee: input.buildFee,
+        total: input.buildFee,
+        note: input.note || null,
+        createdById: user.id,
+      },
+    });
   });
 }
 
@@ -87,19 +97,14 @@ export async function addComponent(
       select: { id: true, name: true, sellPrice: true, costPrice: true, stock: true },
     });
     if (!product) throw new Error("Produk tidak ditemukan.");
-    if (product.stock < qty) throw new Error(`Stok "${product.name}" tidak cukup (sisa ${product.stock}).`);
-    const stockAfter = product.stock - qty;
-    await tx.product.update({ where: { id: product.id }, data: { stock: stockAfter } });
-    await tx.stockMovement.create({
-      data: {
-        tenantId,
-        productId: product.id,
-        type: "BUILD_OUT",
-        qty: -qty,
-        stockAfter,
-        note: "Rakit PC",
-        createdById: userId,
-      },
+    await moveStock(tx, {
+      tenantId,
+      productId: product.id,
+      productName: product.name,
+      delta: -qty,
+      type: "BUILD_OUT",
+      note: "Rakit PC",
+      userId,
     });
     await tx.pcBuildItem.create({
       // costPrice = snapshot modal saat komponen dipakai (lihat ServiceItem).
@@ -122,12 +127,15 @@ export async function removeComponent(tenantId: string, userId: string, buildId:
   return db.$transaction(async (tx) => {
     const item = await tx.pcBuildItem.findFirst({ where: { id: itemId, buildId } });
     if (!item) throw new Error("Komponen tidak ditemukan.");
-    const product = await tx.product.findFirst({ where: { id: item.productId, tenantId }, select: { id: true, stock: true } });
+    const product = await tx.product.findFirst({ where: { id: item.productId, tenantId }, select: { id: true } });
     if (product) {
-      const stockAfter = product.stock + item.qty;
-      await tx.product.update({ where: { id: product.id }, data: { stock: stockAfter } });
-      await tx.stockMovement.create({
-        data: { tenantId, productId: product.id, type: "RETURN_IN", qty: item.qty, stockAfter, note: "Batal komponen rakit", createdById: userId },
+      await moveStock(tx, {
+        tenantId,
+        productId: product.id,
+        delta: item.qty,
+        type: "RETURN_IN",
+        note: "Batal komponen rakit",
+        userId,
       });
     }
     await tx.pcBuildItem.delete({ where: { id: item.id } });

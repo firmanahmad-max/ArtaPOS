@@ -1,4 +1,6 @@
 import "server-only";
+import { moveStock } from "@/server/shared/stock";
+import { nextDocNumber } from "@/server/shared/numbering";
 import { db } from "@/lib/db";
 import { assertPositiveInt, assertNonNegativeInt } from "@/lib/utils";
 import type { Prisma } from "@/generated/prisma/client";
@@ -81,27 +83,34 @@ export async function createTicket(
     technicianName = t?.name ?? null;
   }
 
-  const seq = (await db.serviceTicket.count({ where: { tenantId } })) + 1;
-  const number = `SV-${String(seq).padStart(5, "0")}`;
-
-  return db.serviceTicket.create({
-    data: {
-      tenantId,
-      number,
-      customerId: input.customerId ?? null,
-      customerName,
-      customerPhone: input.customerPhone || null,
-      deviceType: input.deviceType,
-      deviceBrand: input.deviceBrand || null,
-      deviceInfo: input.deviceInfo || null,
-      complaint: input.complaint,
-      technicianId: input.technicianId ?? null,
-      technicianName,
-      laborCost: input.laborCost,
-      total: input.laborCost,
-      note: input.note || null,
-      createdById: user.id,
-    },
+  // Transaksi dibutuhkan agar advisory lock penomoran berlaku (lihat nextDocNumber).
+  return db.$transaction(async (tx) => {
+    const number = await nextDocNumber(tx, tenantId, "SV", () =>
+      tx.serviceTicket.findFirst({
+        where: { tenantId },
+        orderBy: { number: "desc" },
+        select: { number: true },
+      }),
+    );
+    return tx.serviceTicket.create({
+      data: {
+        tenantId,
+        number,
+        customerId: input.customerId ?? null,
+        customerName,
+        customerPhone: input.customerPhone || null,
+        deviceType: input.deviceType,
+        deviceBrand: input.deviceBrand || null,
+        deviceInfo: input.deviceInfo || null,
+        complaint: input.complaint,
+        technicianId: input.technicianId ?? null,
+        technicianName,
+        laborCost: input.laborCost,
+        total: input.laborCost,
+        note: input.note || null,
+        createdById: user.id,
+      },
+    });
   });
 }
 
@@ -146,20 +155,14 @@ export async function addPart(
       select: { id: true, name: true, sellPrice: true, costPrice: true, stock: true },
     });
     if (!product) throw new Error("Produk tidak ditemukan.");
-    if (product.stock < qty) throw new Error(`Stok "${product.name}" tidak cukup (sisa ${product.stock}).`);
-
-    const stockAfter = product.stock - qty;
-    await tx.product.update({ where: { id: product.id }, data: { stock: stockAfter } });
-    await tx.stockMovement.create({
-      data: {
-        tenantId,
-        productId: product.id,
-        type: "SERVICE_OUT",
-        qty: -qty,
-        stockAfter,
-        note: `Servis (tiket)`,
-        createdById: userId,
-      },
+    await moveStock(tx, {
+      tenantId,
+      productId: product.id,
+      productName: product.name,
+      delta: -qty,
+      type: "SERVICE_OUT",
+      note: `Servis (tiket)`,
+      userId,
     });
     await tx.serviceItem.create({
       data: {
@@ -208,21 +211,16 @@ export async function removeItem(tenantId: string, userId: string, ticketId: str
     if (item.isPart && item.productId) {
       const product = await tx.product.findFirst({
         where: { id: item.productId, tenantId },
-        select: { id: true, stock: true },
+        select: { id: true },
       });
       if (product) {
-        const stockAfter = product.stock + item.qty;
-        await tx.product.update({ where: { id: product.id }, data: { stock: stockAfter } });
-        await tx.stockMovement.create({
-          data: {
-            tenantId,
-            productId: product.id,
-            type: "RETURN_IN",
-            qty: item.qty,
-            stockAfter,
-            note: `Batal sparepart servis`,
-            createdById: userId,
-          },
+        await moveStock(tx, {
+          tenantId,
+          productId: product.id,
+          delta: item.qty,
+          type: "RETURN_IN",
+          note: `Batal sparepart servis`,
+          userId,
         });
       }
     }

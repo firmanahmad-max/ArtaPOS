@@ -1,4 +1,6 @@
 import "server-only";
+import { moveStock } from "@/server/shared/stock";
+import { nextDocNumber } from "@/server/shared/numbering";
 import { db } from "@/lib/db";
 import type { PurchaseInput } from "@/lib/validations/purchasing";
 import type { PaymentStatus } from "@/generated/prisma/enums";
@@ -62,7 +64,6 @@ export async function createPurchase(
 ) {
   return db.$transaction(async (tx) => {
     // Resolusi tiap item ke productId konkret — buat produk baru bila perlu.
-    const stockMap = new Map<string, number>(); // stok awal sebelum pembelian ini
     const itemsData: {
       productId: string;
       productName: string;
@@ -75,17 +76,15 @@ export async function createPurchase(
     for (const it of input.items) {
       let productId: string;
       let productName: string;
-      let currentStock: number;
 
       if (it.productId) {
         const p = await tx.product.findFirst({
           where: { id: it.productId, tenantId, isActive: true },
-          select: { id: true, name: true, stock: true },
+          select: { id: true, name: true },
         });
         if (!p) throw new Error("Produk tidak ditemukan.");
         productId = p.id;
         productName = p.name;
-        currentStock = p.stock;
       } else if (it.newProduct) {
         const sku = it.newProduct.sku.trim();
         const dup = await tx.product.findFirst({ where: { tenantId, sku }, select: { id: true } });
@@ -103,14 +102,12 @@ export async function createPurchase(
         });
         productId = created.id;
         productName = created.name;
-        currentStock = 0;
       } else {
         throw new Error("Item tidak valid.");
       }
 
       const sub = it.costPrice * it.qty;
       subtotal += sub;
-      stockMap.set(productId, currentStock);
       itemsData.push({ productId, productName, qty: it.qty, costPrice: it.costPrice, subtotal: sub });
     }
 
@@ -126,8 +123,13 @@ export async function createPurchase(
       supplierName = s?.name ?? null;
     }
 
-    const seq = (await tx.purchase.count({ where: { tenantId } })) + 1;
-    const number = `PB-${String(seq).padStart(5, "0")}`;
+    const number = await nextDocNumber(tx, tenantId, "PB", () =>
+      tx.purchase.findFirst({
+        where: { tenantId },
+        orderBy: { number: "desc" },
+        select: { number: true },
+      }),
+    );
 
     const purchase = await tx.purchase.create({
       data: {
@@ -150,23 +152,20 @@ export async function createPurchase(
       },
     });
 
-    // Tambah stok + movement PURCHASE + update harga modal.
+    // Tambah stok (atomik) + movement PURCHASE + update harga modal.
     for (const it of itemsData) {
-      const stockAfter = (stockMap.get(it.productId) ?? 0) + it.qty;
+      await moveStock(tx, {
+        tenantId,
+        productId: it.productId,
+        productName: it.productName,
+        delta: it.qty,
+        type: "PURCHASE",
+        note: `Pembelian ${number}`,
+        userId: user.id,
+      });
       await tx.product.update({
         where: { id: it.productId },
-        data: { stock: stockAfter, costPrice: it.costPrice },
-      });
-      await tx.stockMovement.create({
-        data: {
-          tenantId,
-          productId: it.productId,
-          type: "PURCHASE",
-          qty: it.qty,
-          stockAfter,
-          note: `Pembelian ${number}`,
-          createdById: user.id,
-        },
+        data: { costPrice: it.costPrice },
       });
     }
 

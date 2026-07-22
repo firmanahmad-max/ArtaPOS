@@ -1,6 +1,8 @@
 import "server-only";
+import { moveStock } from "@/server/shared/stock";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
+import { nextDocNumber } from "@/server/shared/numbering";
 import type { SaleInput } from "@/lib/validations/pos";
 
 /** Service POS — checkout transaksional, ter-scope tenantId. */
@@ -93,12 +95,15 @@ export async function createReturn(
       const remaining = item.qty - item.returnedQty;
       if (line.qty > remaining) throw new Error(`Qty retur "${item.productName}" melebihi sisa (${remaining}).`);
 
-      const product = await tx.product.findFirst({ where: { id: item.productId, tenantId }, select: { id: true, stock: true } });
+      const product = await tx.product.findFirst({ where: { id: item.productId, tenantId }, select: { id: true } });
       if (product) {
-        const stockAfter = product.stock + line.qty;
-        await tx.product.update({ where: { id: product.id }, data: { stock: stockAfter } });
-        await tx.stockMovement.create({
-          data: { tenantId, productId: product.id, type: "RETURN_IN", qty: line.qty, stockAfter, note: `Retur ${sale.number}`, createdById: userId },
+        await moveStock(tx, {
+          tenantId,
+          productId: product.id,
+          delta: line.qty,
+          type: "RETURN_IN",
+          note: `Retur ${sale.number}`,
+          userId,
         });
       }
       await tx.saleItem.update({ where: { id: item.id }, data: { returnedQty: { increment: line.qty } } });
@@ -109,8 +114,13 @@ export async function createReturn(
 
     if (retItems.length === 0) throw new Error("Tidak ada item yang diretur.");
 
-    const seq = (await tx.saleReturn.count({ where: { tenantId } })) + 1;
-    const number = `RTN-${String(seq).padStart(5, "0")}`;
+    const number = await nextDocNumber(tx, tenantId, "RTN", () =>
+      tx.saleReturn.findFirst({
+        where: { tenantId },
+        orderBy: { number: "desc" },
+        select: { number: true },
+      }),
+    );
     await tx.saleReturn.create({
       data: { tenantId, saleId, number, refundAmount: refund, createdById: userId, items: { create: retItems } },
     });
@@ -227,26 +237,28 @@ export async function voidSale(tenantId: string, userId: string, saleId: string)
       if (remaining <= 0) continue;
       const product = await tx.product.findFirst({
         where: { id: item.productId, tenantId },
-        select: { id: true, stock: true },
+        select: { id: true },
       });
       if (!product) continue; // produk sudah dihapus
-      const stockAfter = product.stock + remaining;
-      await tx.product.update({ where: { id: product.id }, data: { stock: stockAfter } });
-      await tx.stockMovement.create({
-        data: {
-          tenantId,
-          productId: product.id,
-          type: "RETURN_IN",
-          qty: remaining,
-          stockAfter,
-          note: `Void ${sale.number}`,
-          createdById: userId,
-        },
+      await moveStock(tx, {
+        tenantId,
+        productId: product.id,
+        delta: remaining,
+        type: "RETURN_IN",
+        note: `Void ${sale.number}`,
+        userId,
       });
     }
 
     // Tarik kembali poin loyalitas yang diberikan penjualan ini.
     await reversePoints(tx, tenantId, sale.id, sale.customerId, `Void ${sale.number}`);
+
+    // Kembalikan kuota transaksi lisensi — transaksi yang dibatalkan tidak
+    // seharusnya menghabiskan jatah paket demo. `gt: 0` mencegah nilai negatif.
+    await tx.license.updateMany({
+      where: { tenantId, transactionsUsed: { gt: 0 } },
+      data: { transactionsUsed: { decrement: 1 } },
+    });
 
     await tx.sale.update({ where: { id: sale.id }, data: { status: "VOID" } });
     return { number: sale.number };
@@ -336,9 +348,14 @@ export async function createSale(
     const paymentStatus = paid >= total ? "PAID" : paid > 0 ? "PARTIAL" : "UNPAID";
     const dueDate = isCredit && input.dueDate ? new Date(input.dueDate) : null;
 
-    // Nomor invoice berurutan per tenant.
-    const seq = (await tx.sale.count({ where: { tenantId } })) + 1;
-    const number = `INV-${String(seq).padStart(5, "0")}`;
+    // Nomor invoice berurutan per tenant (aman dari balapan antar-kasir).
+    const number = await nextDocNumber(tx, tenantId, "INV", () =>
+      tx.sale.findFirst({
+        where: { tenantId },
+        orderBy: { number: "desc" },
+        select: { number: true },
+      }),
+    );
 
     // Tautkan ke shift kasir yang sedang terbuka (bila ada).
     const openShift = await tx.cashierShift.findFirst({
@@ -371,24 +388,17 @@ export async function createSale(
       },
     });
 
-    // Potong stok + movement SALE.
+    // Potong stok + movement SALE. Atomik: cek "stok cukup" terjadi bersama
+    // pengurangannya, jadi dua kasir yang checkout bersamaan tak bisa oversell.
     for (const it of itemsData) {
-      const p = map.get(it.productId)!;
-      const stockAfter = p.stock - it.qty;
-      await tx.product.update({
-        where: { id: it.productId },
-        data: { stock: stockAfter },
-      });
-      await tx.stockMovement.create({
-        data: {
-          tenantId,
-          productId: it.productId,
-          type: "SALE",
-          qty: -it.qty,
-          stockAfter,
-          note: `Penjualan ${number}`,
-          createdById: cashier.id,
-        },
+      await moveStock(tx, {
+        tenantId,
+        productId: it.productId,
+        productName: it.productName,
+        delta: -it.qty,
+        type: "SALE",
+        note: `Penjualan ${number}`,
+        userId: cashier.id,
       });
     }
 
