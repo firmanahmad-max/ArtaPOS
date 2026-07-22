@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import type { Prisma } from "@/generated/prisma/client";
 import type { SaleInput } from "@/lib/validations/pos";
 
 /** Service POS — checkout transaksional, ter-scope tenantId. */
@@ -31,6 +32,40 @@ export function getSale(tenantId: string, id: string) {
       payments: { orderBy: { createdAt: "asc" } },
       returns: { include: { items: true }, orderBy: { createdAt: "desc" } },
     },
+  });
+}
+
+/**
+ * Tarik kembali poin loyalitas dari sebuah penjualan (void/retur).
+ * `max` membatasi jumlah yang ditarik (untuk retur sebagian); bila null, tarik
+ * seluruh poin EARN penjualan itu. Saldo tak pernah dibuat negatif — pelanggan
+ * mungkin sudah menukarkan poinnya.
+ */
+async function reversePoints(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  saleId: string,
+  customerId: string | null,
+  note: string,
+  max: number | null = null,
+) {
+  if (!customerId) return;
+  const agg = await tx.pointEntry.aggregate({
+    where: { tenantId, saleId },
+    _sum: { points: true },
+  });
+  const outstanding = agg._sum.points ?? 0; // EARN positif, penarikan negatif
+  if (outstanding <= 0) return;
+  const customer = await tx.customer.findFirst({
+    where: { id: customerId, tenantId },
+    select: { id: true, points: true },
+  });
+  if (!customer) return;
+  const take = Math.min(outstanding, max ?? outstanding, customer.points);
+  if (take <= 0) return;
+  await tx.customer.update({ where: { id: customer.id }, data: { points: { decrement: take } } });
+  await tx.pointEntry.create({
+    data: { tenantId, customerId: customer.id, points: -take, type: "ADJUST", note, saleId },
   });
 }
 
@@ -79,6 +114,10 @@ export async function createReturn(
     await tx.saleReturn.create({
       data: { tenantId, saleId, number, refundAmount: refund, createdById: userId, items: { create: retItems } },
     });
+
+    // Poin ikut ditarik sebanding nilai barang yang diretur (tarif earn sama).
+    await reversePoints(tx, tenantId, saleId, sale.customerId, `Retur ${number}`, Math.floor(refund / 1000));
+
     return { number, refund };
   });
 }
@@ -181,25 +220,33 @@ export async function voidSale(tenantId: string, userId: string, saleId: string)
     if (sale.status === "VOID") throw new Error("Transaksi sudah dibatalkan.");
 
     for (const item of sale.items) {
+      // HANYA sisa yang belum diretur. Qty yang sudah diretur sebelumnya sudah
+      // dikembalikan ke stok oleh createReturn — mengembalikan qty penuh di
+      // sini akan menggandakan stok.
+      const remaining = item.qty - item.returnedQty;
+      if (remaining <= 0) continue;
       const product = await tx.product.findFirst({
         where: { id: item.productId, tenantId },
         select: { id: true, stock: true },
       });
       if (!product) continue; // produk sudah dihapus
-      const stockAfter = product.stock + item.qty;
+      const stockAfter = product.stock + remaining;
       await tx.product.update({ where: { id: product.id }, data: { stock: stockAfter } });
       await tx.stockMovement.create({
         data: {
           tenantId,
           productId: product.id,
           type: "RETURN_IN",
-          qty: item.qty,
+          qty: remaining,
           stockAfter,
           note: `Void ${sale.number}`,
           createdById: userId,
         },
       });
     }
+
+    // Tarik kembali poin loyalitas yang diberikan penjualan ini.
+    await reversePoints(tx, tenantId, sale.id, sale.customerId, `Void ${sale.number}`);
 
     await tx.sale.update({ where: { id: sale.id }, data: { status: "VOID" } });
     return { number: sale.number };
@@ -265,7 +312,11 @@ export async function createSale(
         where: { id: input.customerId, tenantId },
         select: { name: true },
       });
-      customerName = c?.name ?? null;
+      // WAJIB tolak bila tak ditemukan. Kalau diteruskan, penjualan menyimpan
+      // customerId milik tenant lain dan penambahan poin di bawah akan menulis
+      // ke pelanggan tenant lain.
+      if (!c) throw new Error("Pelanggan tidak ditemukan.");
+      customerName = c.name;
     }
     if (isCredit && !customerName) {
       throw new Error("Penjualan kredit wajib memilih pelanggan terdaftar.");
@@ -351,8 +402,10 @@ export async function createSale(
     if (input.customerId) {
       const earned = Math.floor(total / 1000);
       if (earned > 0) {
-        await tx.customer.update({
-          where: { id: input.customerId },
+        // updateMany + tenantId = lapis kedua isolasi tenant (customerId sudah
+        // diverifikasi di atas, tapi jangan bergantung pada satu penjaga saja).
+        await tx.customer.updateMany({
+          where: { id: input.customerId, tenantId },
           data: { points: { increment: earned } },
         });
         await tx.pointEntry.create({
