@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, Search, Save, HandCoins } from "lucide-react";
+import { Trash2, Save, HandCoins } from "lucide-react";
 import type { BuildStatus } from "@/generated/prisma/enums";
 import {
   addComponentAction,
@@ -12,6 +12,7 @@ import {
   recordBuildPaymentAction,
 } from "@/server/pcbuild/actions";
 import { formatRupiah } from "@/lib/utils";
+import { PartPicker } from "@/components/inventory/part-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -34,16 +35,10 @@ export function BuildDetail({ build, products }: { build: BuildData; products: B
   const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
   const [fee, setFee] = useState(build.buildFee);
   const [payAmount, setPayAmount] = useState(0);
 
   const outstanding = build.total - build.paid;
-  const results = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return [];
-    return products.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 6);
-  }, [search, products]);
 
   function run(fn: () => Promise<{ ok: boolean; message?: string }>) {
     setMsg(null);
@@ -114,22 +109,12 @@ export function BuildDetail({ build, products }: { build: BuildData; products: B
             <p className="text-sm text-muted-foreground">Belum ada komponen.</p>
           )}
 
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari komponen dari inventory…" className="pl-9" />
-            {results.length > 0 && (
-              <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border bg-popover shadow-md">
-                {results.map((p) => (
-                  <button key={p.id} type="button" disabled={pending || p.stock <= 0}
-                    onClick={() => { run(() => addComponentAction(build.id, p.id, 1)); setSearch(""); }}
-                    className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-accent disabled:opacity-50">
-                    <span>{p.name}</span>
-                    <span className="text-xs text-muted-foreground">stok {p.stock} · {formatRupiah(p.sellPrice)}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <PartPicker
+            products={products}
+            disabled={pending}
+            placeholder="Cari komponen dari inventory…"
+            onAdd={(productId, qty) => run(() => addComponentAction(build.id, productId, qty))}
+          />
         </CardContent>
       </Card>
 

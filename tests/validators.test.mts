@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { assertPositiveInt, assertNonNegativeInt, slugify, formatRupiah } from "../src/lib/utils.ts";
+import { assertPositiveInt, assertNonNegativeInt, slugify, formatRupiah, clampQty } from "../src/lib/utils.ts";
 
 test("assertPositiveInt menerima bilangan bulat > 0", () => {
   assert.equal(assertPositiveInt(5), 5);
@@ -38,4 +38,20 @@ test("formatRupiah: Rp, pemisah ribuan, tanpa desimal", () => {
   assert.match(formatRupiah(1000000), /1\.000\.000/);
   assert.doesNotMatch(formatRupiah(1500), /,/); // tak ada bagian desimal
   assert.match(formatRupiah(0), /0/);
+});
+
+test("clampQty membatasi jumlah sparepart ke 1..stok", () => {
+  // normal
+  assert.equal(clampQty(3, 10), 3);
+  assert.equal(clampQty(1, 10), 1);
+  // melebihi stok → dipotong ke stok
+  assert.equal(clampQty(99, 5), 5);
+  // kosong / NaN / nol / negatif → minimal 1
+  assert.equal(clampQty(NaN, 10), 1);
+  assert.equal(clampQty(0, 10), 1);
+  assert.equal(clampQty(-4, 10), 1);
+  // desimal dibulatkan ke bawah
+  assert.equal(clampQty(2.9, 10), 2);
+  // stok 0/negatif tetap mengembalikan 1 (server yang menolak, bukan NaN/0)
+  assert.equal(clampQty(3, 0), 1);
 });

@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Search, Save, HandCoins, MessageCircle } from "lucide-react";
+import { Plus, Trash2, Save, HandCoins, MessageCircle } from "lucide-react";
 import type { ServiceStatus } from "@/generated/prisma/enums";
 import {
   addPartAction,
@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PartPicker } from "@/components/inventory/part-picker";
 import { SERVICE_STATUS_META, SERVICE_FLOW } from "./status-config";
 
 const METHOD_LABEL: Record<string, string> = {
@@ -73,7 +74,6 @@ export function TicketDetail({
   const [msg, setMsg] = useState<string | null>(null);
 
   // form state
-  const [search, setSearch] = useState("");
   const [labor, setLabor] = useState(ticket.laborCost);
   const [lineName, setLineName] = useState("");
   const [linePrice, setLinePrice] = useState(0);
@@ -81,11 +81,6 @@ export function TicketDetail({
   const [payMethod, setPayMethod] = useState("CASH");
 
   const outstanding = ticket.total - ticket.paid;
-  const results = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return [];
-    return products.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 6);
-  }, [search, products]);
 
   function run(fn: () => Promise<{ ok: boolean; message?: string }>) {
     setMsg(null);
@@ -198,22 +193,12 @@ export function TicketDetail({
               Tambah sparepart dari inventory{" "}
               <span className="font-normal text-success">— stok otomatis berkurang</span>
             </p>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari sparepart dari inventory…" className="pl-9" />
-            {results.length > 0 && (
-              <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border bg-popover shadow-md">
-                {results.map((p) => (
-                  <button key={p.id} type="button" disabled={pending || p.stock <= 0}
-                    onClick={() => { run(() => addPartAction(ticket.id, p.id, 1)); setSearch(""); }}
-                    className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-accent disabled:opacity-50">
-                    <span>{p.name}</span>
-                    <span className="text-xs text-muted-foreground">stok {p.stock} · {formatRupiah(p.sellPrice)}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-            </div>
+            <PartPicker
+              products={products}
+              disabled={pending}
+              placeholder="Cari sparepart dari inventory…"
+              onAdd={(productId, qty) => run(() => addPartAction(ticket.id, productId, qty))}
+            />
           </div>
 
           {/* Tambah jasa / biaya lain (TIDAK memotong stok) */}

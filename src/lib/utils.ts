@@ -36,3 +36,14 @@ export function assertNonNegativeInt(n: number, label = "Nilai"): number {
   if (!Number.isInteger(n) || n < 0) throw new Error(`${label} harus bilangan bulat tidak negatif.`);
   return n;
 }
+
+/**
+ * Rapikan input jumlah (qty) dari kolom angka: bilangan bulat, minimal 1,
+ * maksimal `max` (biasanya stok tersedia). Menangani kosong/NaN/desimal/negatif
+ * agar pengguna tak bisa mengirim jumlah yang pasti ditolak server.
+ */
+export function clampQty(value: number, max: number): number {
+  const n = Math.trunc(Number(value));
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(n, Math.max(1, max));
+}
