@@ -55,3 +55,13 @@ test("clampQty membatasi jumlah sparepart ke 1..stok", () => {
   // stok 0/negatif tetap mengembalikan 1 (server yang menolak, bukan NaN/0)
   assert.equal(clampQty(3, 0), 1);
 });
+
+test("clampQty tanpa max (baris jasa/non-stok) tak dibatasi ke atas", () => {
+  assert.equal(clampQty(50), 50);
+  assert.equal(clampQty(1), 1);
+  // pembersihan input tetap berlaku
+  assert.equal(clampQty(0), 1);
+  assert.equal(clampQty(-7), 1);
+  assert.equal(clampQty(NaN), 1);
+  assert.equal(clampQty(4.8), 4);
+});

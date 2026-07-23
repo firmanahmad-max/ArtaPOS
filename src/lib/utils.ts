@@ -38,12 +38,14 @@ export function assertNonNegativeInt(n: number, label = "Nilai"): number {
 }
 
 /**
- * Rapikan input jumlah (qty) dari kolom angka: bilangan bulat, minimal 1,
- * maksimal `max` (biasanya stok tersedia). Menangani kosong/NaN/desimal/negatif
- * agar pengguna tak bisa mengirim jumlah yang pasti ditolak server.
+ * Rapikan input jumlah (qty) dari kolom angka: bilangan bulat, minimal 1.
+ * `max` opsional — dipakai untuk barang berstok (dibatasi stok tersedia);
+ * untuk baris jasa/non-stok tak ada batas atas. Menangani kosong/NaN/desimal/
+ * negatif agar pengguna tak mengirim jumlah yang pasti ditolak server.
  */
-export function clampQty(value: number, max: number): number {
+export function clampQty(value: number, max?: number): number {
   const n = Math.trunc(Number(value));
   if (!Number.isFinite(n) || n < 1) return 1;
+  if (max === undefined) return n;
   return Math.min(n, Math.max(1, max));
 }

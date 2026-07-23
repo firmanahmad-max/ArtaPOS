@@ -12,7 +12,7 @@ import {
   updateStatusAction,
   recordServicePaymentAction,
 } from "@/server/service-jobs/actions";
-import { formatRupiah } from "@/lib/utils";
+import { clampQty, formatRupiah } from "@/lib/utils";
 import { buildServiceStatusText, waLink } from "@/lib/whatsapp";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,6 +77,7 @@ export function TicketDetail({
   const [labor, setLabor] = useState(ticket.laborCost);
   const [lineName, setLineName] = useState("");
   const [linePrice, setLinePrice] = useState(0);
+  const [lineQty, setLineQty] = useState(1);
   const [payAmount, setPayAmount] = useState(0);
   const [payMethod, setPayMethod] = useState("CASH");
 
@@ -210,11 +211,29 @@ export function TicketDetail({
             <div className="flex flex-col gap-2 sm:flex-row">
               <Input value={lineName} onChange={(e) => setLineName(e.target.value)} placeholder="Jasa lain (mis. Pasang OS)" className="flex-1" />
               <Input type="number" min="0" value={linePrice} onChange={(e) => setLinePrice(Math.max(0, Number(e.target.value)))} placeholder="Harga" className="sm:w-36" />
+              <Input
+                type="number"
+                min="1"
+                value={lineQty}
+                onChange={(e) => setLineQty(clampQty(Number(e.target.value)))}
+                placeholder="Qty"
+                aria-label="Jumlah jasa"
+                title="Jumlah"
+                className="sm:w-20"
+              />
               <Button variant="outline" disabled={pending || !lineName.trim()}
-                onClick={() => { run(() => addLineAction(ticket.id, lineName.trim(), linePrice, 1)); setLineName(""); setLinePrice(0); }}>
+                onClick={() => {
+                  run(() => addLineAction(ticket.id, lineName.trim(), linePrice, clampQty(lineQty)));
+                  setLineName(""); setLinePrice(0); setLineQty(1);
+                }}>
                 <Plus /> Tambah Jasa
               </Button>
             </div>
+            {lineQty > 1 && linePrice > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Subtotal {lineQty} × {formatRupiah(linePrice)} = {formatRupiah(linePrice * lineQty)}
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>
