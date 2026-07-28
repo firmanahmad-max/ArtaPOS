@@ -107,9 +107,16 @@ export async function createReturn(
         });
       }
       await tx.saleItem.update({ where: { id: item.id }, data: { returnedQty: { increment: line.qty } } });
-      const subtotal = item.price * line.qty;
-      refund += subtotal;
-      retItems.push({ productId: item.productId, productName: item.productName, qty: line.qty, price: item.price, subtotal });
+      // Refund PROPORSIONAL: diskon per-baris dialokasikan ke unit yang diretur,
+      // jadi yang dikembalikan = yang dibayar (bukan harga kotor). item.subtotal
+      // sudah net diskon. Selisih kumulatif memastikan total refund lintas
+      // beberapa retur PERSIS = subtotal bersih (tanpa drift pembulatan) dan
+      // retur penuh mengembalikan tepat subtotal.
+      const refundedBefore = Math.round((item.subtotal * item.returnedQty) / item.qty);
+      const refundedAfter = Math.round((item.subtotal * (item.returnedQty + line.qty)) / item.qty);
+      const lineRefund = refundedAfter - refundedBefore;
+      refund += lineRefund;
+      retItems.push({ productId: item.productId, productName: item.productName, qty: line.qty, price: item.price, subtotal: lineRefund });
     }
 
     if (retItems.length === 0) throw new Error("Tidak ada item yang diretur.");
