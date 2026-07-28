@@ -26,6 +26,13 @@ export const purchaseSchema = z.object({
 });
 export type PurchaseInput = z.infer<typeof purchaseSchema>;
 
+export const purchaseHeaderSchema = z.object({
+  supplierId: z.string().min(1).optional().nullable(),
+  dueDate: z.string().min(1).optional().nullable(),
+  note: z.string().max(255).optional().nullable(),
+});
+export type PurchaseHeaderInput = z.infer<typeof purchaseHeaderSchema>;
+
 export const purchasePaymentSchema = z.object({
   amount: z.coerce.number().int().positive("Jumlah harus > 0"),
   note: z.string().max(255).trim().optional().or(z.literal("")),

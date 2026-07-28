@@ -215,6 +215,120 @@ export async function reorderSuggestions(tenantId: string): Promise<ReorderSugge
     .sort((a, b) => a.stock - b.stock);
 }
 
+/**
+ * Perbarui HEADER pembelian (supplier, jatuh tempo, catatan) — tanpa menyentuh
+ * item, stok, total, atau pembayaran. Aman untuk memperbaiki salah pilih
+ * supplier / salah tanggal tempo.
+ */
+export async function updatePurchaseHeader(
+  tenantId: string,
+  purchaseId: string,
+  input: { supplierId?: string | null; dueDate?: string | null; note?: string | null },
+) {
+  const purchase = await db.purchase.findFirst({
+    where: { id: purchaseId, tenantId },
+    select: { id: true },
+  });
+  if (!purchase) throw new Error("Pembelian tidak ditemukan.");
+
+  let supplierName: string | null = null;
+  let supplierId: string | null = null;
+  if (input.supplierId) {
+    const s = await db.supplier.findFirst({
+      where: { id: input.supplierId, tenantId },
+      select: { id: true, name: true },
+    });
+    if (!s) throw new Error("Supplier tidak ditemukan.");
+    supplierId = s.id;
+    supplierName = s.name;
+  }
+
+  return db.purchase.update({
+    where: { id: purchase.id },
+    data: {
+      supplierId,
+      supplierName,
+      dueDate: input.dueDate ? new Date(input.dueDate) : null,
+      note: input.note?.trim() || null,
+    },
+  });
+}
+
+/**
+ * Hapus pembelian (koreksi salah input item/qty/harga). Mengembalikan stok yang
+ * dulu ditambahkan (movement RETURN_OUT), lalu menghapus dokumen beserta item &
+ * pembayarannya (cascade). Ditolak bila sebagian barang sudah terjual/terpakai
+ * sehingga stok akan minus. Harga modal produk TIDAK dipulihkan (tak ada
+ * riwayat) — sesuaikan manual di Inventory bila perlu.
+ */
+export async function deletePurchase(tenantId: string, userId: string, purchaseId: string) {
+  return db.$transaction(async (tx) => {
+    const purchase = await tx.purchase.findFirst({
+      where: { id: purchaseId, tenantId },
+      include: { items: true },
+    });
+    if (!purchase) throw new Error("Pembelian tidak ditemukan.");
+
+    // Pra-cek: pastikan stok cukup untuk dikembalikan sebelum menyentuh apa pun.
+    for (const it of purchase.items) {
+      const p = await tx.product.findFirst({
+        where: { id: it.productId, tenantId },
+        select: { name: true, stock: true },
+      });
+      if (p && p.stock < it.qty) {
+        throw new Error(
+          `Tidak bisa menghapus: stok "${p.name}" tinggal ${p.stock}, sebagian barang dari pembelian ini sudah terjual/terpakai. Sesuaikan lewat Stok Opname bila perlu.`,
+        );
+      }
+    }
+
+    for (const it of purchase.items) {
+      const p = await tx.product.findFirst({ where: { id: it.productId, tenantId }, select: { id: true } });
+      if (p) {
+        await moveStock(tx, {
+          tenantId,
+          productId: p.id,
+          delta: -it.qty,
+          type: "RETURN_OUT",
+          note: `Hapus pembelian ${purchase.number}`,
+          userId,
+        });
+      }
+    }
+
+    await tx.purchase.delete({ where: { id: purchase.id } });
+    return { number: purchase.number };
+  });
+}
+
+/** Hapus satu pembayaran utang (salah input), lalu hitung ulang sisa utang. */
+export async function deletePurchasePayment(tenantId: string, purchaseId: string, paymentId: string) {
+  return db.$transaction(async (tx) => {
+    const purchase = await tx.purchase.findFirst({
+      where: { id: purchaseId, tenantId },
+      select: { id: true, total: true },
+    });
+    if (!purchase) throw new Error("Pembelian tidak ditemukan.");
+    const payment = await tx.purchasePayment.findFirst({
+      where: { id: paymentId, purchaseId, tenantId },
+      select: { id: true },
+    });
+    if (!payment) throw new Error("Pembayaran tidak ditemukan.");
+
+    await tx.purchasePayment.delete({ where: { id: payment.id } });
+    const agg = await tx.purchasePayment.aggregate({
+      where: { purchaseId, tenantId },
+      _sum: { amount: true },
+    });
+    const paidAmount = agg._sum.amount ?? 0;
+    await tx.purchase.update({
+      where: { id: purchase.id },
+      data: { paidAmount, paymentStatus: statusFor(purchase.total, paidAmount) },
+    });
+    return { paidAmount, outstanding: purchase.total - paidAmount };
+  });
+}
+
 export async function recordPurchasePayment(
   tenantId: string,
   userId: string,

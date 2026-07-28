@@ -5,12 +5,18 @@ import { ArrowLeft } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { getPurchase } from "@/server/purchasing/service";
+import { listSuppliers } from "@/server/suppliers/service";
 import { formatRupiah } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RecordPaymentForm } from "../payment-form";
-import { formatLocalDate, formatLocalDateTime } from "@/lib/timezone";
+import {
+  PurchaseHeaderForm,
+  DeletePurchaseButton,
+  DeletePaymentButton,
+} from "../purchase-edit";
+import { formatLocalDate, formatLocalDateTime, dayKey } from "@/lib/timezone";
 
 export const metadata: Metadata = { title: "Detail Pembelian" };
 
@@ -30,7 +36,10 @@ export default async function PurchaseDetailPage({
   if (!can(user.role, "purchasing.manage")) {
     return <Card className="p-8 text-center text-sm text-muted-foreground">Tidak punya izin.</Card>;
   }
-  const purchase = await getPurchase(user.tenantId, id);
+  const [purchase, suppliers] = await Promise.all([
+    getPurchase(user.tenantId, id),
+    listSuppliers(user.tenantId),
+  ]);
   if (!purchase) notFound();
 
   const outstanding = purchase.total - purchase.paidAmount;
@@ -115,12 +124,15 @@ export default async function PurchaseDetailPage({
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             {purchase.payments.map((p) => (
-              <div key={p.id} className="flex justify-between border-b pb-1 last:border-0">
+              <div key={p.id} className="flex items-center justify-between gap-2 border-b pb-1 last:border-0">
                 <span className="text-muted-foreground">
                   {formatLocalDateTime(p.createdAt, { dateStyle: "short", timeStyle: "short" })}
                   {p.note ? ` · ${p.note}` : ""}
                 </span>
-                <span>{formatRupiah(p.amount)}</span>
+                <span className="flex items-center gap-1">
+                  {formatRupiah(p.amount)}
+                  <DeletePaymentButton purchaseId={purchase.id} paymentId={p.id} />
+                </span>
               </div>
             ))}
           </CardContent>
@@ -137,6 +149,42 @@ export default async function PurchaseDetailPage({
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Ubah Data Pembelian</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Perbaiki supplier, jatuh tempo, atau catatan. Untuk salah item/qty/harga, hapus pembelian ini lalu buat ulang.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <PurchaseHeaderForm
+            purchaseId={purchase.id}
+            suppliers={suppliers.map((sup) => ({ id: sup.id, name: sup.name }))}
+            initial={{
+              supplierId: purchase.supplierId,
+              dueDate: purchase.dueDate ? dayKey(purchase.dueDate) : null,
+              note: purchase.note,
+            }}
+          />
+        </CardContent>
+      </Card>
+
+      <Card className="border-destructive/40">
+        <CardHeader>
+          <CardTitle className="text-destructive">Hapus Pembelian</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Mengembalikan stok yang ditambahkan dan menghapus dokumen ini{purchase.payments.length > 0 ? " beserta pembayarannya" : ""}. Gunakan untuk mengoreksi salah input.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <DeletePurchaseButton
+            purchaseId={purchase.id}
+            number={purchase.number}
+            hasPayments={purchase.payments.length > 0}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

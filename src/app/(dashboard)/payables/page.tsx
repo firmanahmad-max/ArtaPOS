@@ -97,7 +97,7 @@ export default async function PayablesPage() {
                     <td className="p-3 text-right font-medium text-destructive">{formatRupiah(outstanding)}</td>
                     <td className="p-3 text-right">
                       <Link href={`/purchasing/${p.id}`} className={buttonVariants({ variant: "outline", size: "sm" })}>
-                        Bayar
+                        Bayar / Ubah
                       </Link>
                     </td>
                   </tr>

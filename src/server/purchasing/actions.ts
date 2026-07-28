@@ -6,10 +6,18 @@ import { can } from "@/lib/rbac";
 import { toFieldErrors, type FormState } from "@/lib/form";
 import {
   purchaseSchema,
+  purchaseHeaderSchema,
   purchasePaymentSchema,
   type PurchaseInput,
+  type PurchaseHeaderInput,
 } from "@/lib/validations/purchasing";
-import { createPurchase, recordPurchasePayment } from "@/server/purchasing/service";
+import {
+  createPurchase,
+  recordPurchasePayment,
+  updatePurchaseHeader,
+  deletePurchase,
+  deletePurchasePayment,
+} from "@/server/purchasing/service";
 
 const NO_PERM = "Anda tidak punya izin mengelola pembelian.";
 
@@ -37,6 +45,60 @@ export async function createPurchaseAction(input: PurchaseInput): Promise<Purcha
     return { ok: true, purchaseId: p.id, number: p.number };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Gagal menyimpan pembelian." };
+  }
+}
+
+type Result = { ok: boolean; message?: string };
+
+export async function updatePurchaseHeaderAction(
+  purchaseId: string,
+  input: PurchaseHeaderInput,
+): Promise<Result> {
+  const user = await getCurrentUser();
+  if (!can(user.role, "purchasing.manage")) return { ok: false, message: NO_PERM };
+  const parsed = purchaseHeaderSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Data tidak valid." };
+  try {
+    await updatePurchaseHeader(user.tenantId, purchaseId, parsed.data);
+    revalidatePath(`/purchasing/${purchaseId}`);
+    revalidatePath("/purchasing");
+    revalidatePath("/payables");
+    return { ok: true, message: "Perubahan disimpan." };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Gagal menyimpan perubahan." };
+  }
+}
+
+export async function deletePurchaseAction(purchaseId: string): Promise<Result> {
+  const user = await getCurrentUser();
+  if (!can(user.role, "purchasing.manage")) return { ok: false, message: NO_PERM };
+  try {
+    const r = await deletePurchase(user.tenantId, user.id, purchaseId);
+    revalidatePath("/purchasing");
+    revalidatePath("/payables");
+    revalidatePath("/inventory");
+    return { ok: true, message: `Pembelian ${r.number} dihapus, stok dikembalikan.` };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Gagal menghapus pembelian." };
+  }
+}
+
+export async function deletePurchasePaymentAction(
+  purchaseId: string,
+  paymentId: string,
+): Promise<Result> {
+  const user = await getCurrentUser();
+  if (!can(user.role, "purchasing.manage")) return { ok: false, message: NO_PERM };
+  try {
+    const r = await deletePurchasePayment(user.tenantId, purchaseId, paymentId);
+    revalidatePath(`/purchasing/${purchaseId}`);
+    revalidatePath("/payables");
+    return {
+      ok: true,
+      message: r.outstanding > 0 ? `Pembayaran dihapus. Sisa utang: ${r.outstanding}.` : "Pembayaran dihapus.",
+    };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Gagal menghapus pembayaran." };
   }
 }
 
