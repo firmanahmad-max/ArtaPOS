@@ -9,10 +9,17 @@ export async function salesTrend(tenantId: string, days = 14) {
   // Bucket harian pada zona laporan (WIB), bukan zona server (UTC di Vercel).
   const { y, m, d } = localParts();
   const start = startOfDay(y, m, d - (days - 1));
-  const sales = await db.sale.findMany({
-    where: { tenantId, status: "COMPLETED", createdAt: { gte: start } },
-    select: { total: true, createdAt: true },
-  });
+  const [sales, returns] = await Promise.all([
+    db.sale.findMany({
+      where: { tenantId, status: "COMPLETED", createdAt: { gte: start } },
+      select: { total: true, createdAt: true },
+    }),
+    // Retur mengurangi omzet pada hari retur (bukan hari penjualan asli).
+    db.saleReturn.findMany({
+      where: { tenantId, createdAt: { gte: start }, sale: { status: "COMPLETED" } },
+      select: { refundAmount: true, createdAt: true },
+    }),
+  ]);
 
   const buckets = new Map<string, number>();
   for (let i = 0; i < days; i++) {
@@ -21,6 +28,10 @@ export async function salesTrend(tenantId: string, days = 14) {
   for (const s of sales) {
     const k = dayKey(s.createdAt);
     if (buckets.has(k)) buckets.set(k, (buckets.get(k) ?? 0) + s.total);
+  }
+  for (const r of returns) {
+    const k = dayKey(r.createdAt);
+    if (buckets.has(k)) buckets.set(k, (buckets.get(k) ?? 0) - r.refundAmount);
   }
   return [...buckets.entries()].map(([key, total]) => {
     const [, m, day] = key.split("-");
@@ -71,7 +82,7 @@ export async function topProducts(tenantId: string, days = 30, limit = 5) {
     db.saleItem.groupBy({
       by: ["productName"],
       where: { sale: { tenantId, status: "COMPLETED", createdAt: { gte: since } } },
-      _sum: { qty: true, subtotal: true },
+      _sum: { qty: true, subtotal: true, returnedQty: true },
     }),
     db.serviceItem.groupBy({
       by: ["name"],
@@ -91,12 +102,22 @@ export async function topProducts(tenantId: string, days = 30, limit = 5) {
     const cur = agg.get(name) ?? { qty: 0, revenue: 0 };
     agg.set(name, { qty: cur.qty + qty, revenue: cur.revenue + revenue });
   };
-  for (const r of saleRows) add(r.productName, r._sum.qty ?? 0, r._sum.subtotal ?? 0);
+  for (const r of saleRows) {
+    // Kurangi unit yang diretur (dan omzetnya secara proporsional) agar produk
+    // yang banyak diretur tidak salah tampil sebagai terlaris.
+    const qty = r._sum.qty ?? 0;
+    const returned = r._sum.returnedQty ?? 0;
+    const netQty = Math.max(0, qty - returned);
+    const subtotal = r._sum.subtotal ?? 0;
+    const netRevenue = qty > 0 ? Math.round((subtotal * netQty) / qty) : 0;
+    add(r.productName, netQty, netRevenue);
+  }
   for (const r of serviceRows) add(r.name, r._sum.qty ?? 0, r._sum.subtotal ?? 0);
   for (const r of buildRows) add(r.productName, r._sum.qty ?? 0, r._sum.subtotal ?? 0);
 
   return [...agg.entries()]
     .map(([name, v]) => ({ name, qty: v.qty, revenue: v.revenue }))
+    .filter((t) => t.qty > 0)
     .sort((a, b) => b.qty - a.qty)
     .slice(0, limit);
 }

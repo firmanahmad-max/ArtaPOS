@@ -148,7 +148,7 @@ async function computeReport(
 ): Promise<FinanceReport> {
   const range = { gte: from, lt: to };
 
-  const [sales, services, builds, purchaseAgg, expenseAgg] = await Promise.all([
+  const [sales, services, builds, purchaseAgg, expenseAgg, returns] = await Promise.all([
     db.sale.findMany({
       where: { tenantId, status: "COMPLETED", createdAt: range },
       select: { total: true, items: { select: { costPrice: true, qty: true } } },
@@ -169,6 +169,18 @@ async function computeReport(
     }),
     db.purchase.aggregate({ where: { tenantId, createdAt: range }, _sum: { total: true } }),
     db.expense.aggregate({ where: { tenantId, date: range }, _sum: { amount: true } }),
+    // Retur penjualan yang TERJADI di periode ini (per tanggal retur). Diambil
+    // costPrice snapshot dari saleItem induk untuk mengurangi HPP secara benar.
+    // Hanya untuk penjualan yang masih COMPLETED — bila sudah di-void, seluruh
+    // penjualannya sudah dikecualikan sehingga tak boleh dikurangi dua kali.
+    db.saleReturn.findMany({
+      where: { tenantId, createdAt: range, sale: { status: "COMPLETED" } },
+      select: {
+        refundAmount: true,
+        items: { select: { productId: true, qty: true } },
+        sale: { select: { items: { select: { productId: true, costPrice: true } } } },
+      },
+    }),
   ]);
 
   const serviceItems = services.flatMap((t) => t.items);
@@ -178,11 +190,23 @@ async function computeReport(
   const serviceCogs = stockCogs(serviceItems);
   const buildCogs = stockCogs(buildItems);
 
-  const salesRevenue = sales.reduce((s, x) => s + x.total, 0);
-  const salesCogs = sales.reduce(
-    (s, x) => s + x.items.reduce((c, i) => c + i.costPrice * i.qty, 0),
-    0,
-  );
+  // Kurangi retur: uang yang dikembalikan menurunkan omzet, dan modal barang
+  // yang kembali ke gudang menurunkan HPP.
+  let refundTotal = 0;
+  let returnedCogs = 0;
+  for (const r of returns) {
+    refundTotal += r.refundAmount;
+    const costByProduct = new Map<string, number>();
+    for (const si of r.sale.items) {
+      if (!costByProduct.has(si.productId)) costByProduct.set(si.productId, si.costPrice);
+    }
+    for (const it of r.items) returnedCogs += (costByProduct.get(it.productId) ?? 0) * it.qty;
+  }
+
+  const salesRevenue =
+    sales.reduce((s, x) => s + x.total, 0) - refundTotal;
+  const salesCogs =
+    sales.reduce((s, x) => s + x.items.reduce((c, i) => c + i.costPrice * i.qty, 0), 0) - returnedCogs;
   const salesGrossProfit = salesRevenue - salesCogs;
   const serviceRevenue = services.reduce((s, t) => s + t.total, 0);
   const buildRevenue = builds.reduce((s, b) => s + b.total, 0);
