@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test \"tests/**/*.mts\"",
     "stock:reconcile": "node scripts/stock-reconcile.mjs",
+    "audit:refunds": "node scripts/refund-audit.mjs",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
