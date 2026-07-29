@@ -67,7 +67,35 @@ export default async function FinancePage({
   const period: ReportPeriod =
     rawPeriod === "today" || rawPeriod === "year" || rawPeriod === "last-month" ? rawPeriod : "month";
 
-  const { current: report, previous } = await getFinanceComparison(user.tenantId, period);
+  // Fail-safe: halaman ini berat (2 periode × 6 query). Bila gagal transien
+  // (mis. tekanan koneksi DB di serverless), tampilkan kartu "coba lagi" yang
+  // jujur — bukan crash ke error boundary, dan bukan pula angka nol yang
+  // menyesatkan seolah toko tak punya pemasukan.
+  let comparison: Awaited<ReturnType<typeof getFinanceComparison>> | null = null;
+  try {
+    comparison = await getFinanceComparison(user.tenantId, period);
+  } catch {
+    comparison = null;
+  }
+  if (!comparison) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Keuangan</h1>
+          <p className="text-muted-foreground">Ringkasan laba-rugi</p>
+        </div>
+        <Card className="p-8 text-center">
+          <p className="text-sm text-muted-foreground">
+            Gagal memuat laporan keuangan untuk sesaat. Silakan muat ulang halaman ini.
+          </p>
+          <Link href="/finance" className={cn(buttonVariants({ variant: "outline" }), "mt-4")}>
+            Coba lagi
+          </Link>
+        </Card>
+      </div>
+    );
+  }
+  const { current: report, previous } = comparison;
   const reportText = buildReportText(user.tenant.name, report);
 
   const rows = [

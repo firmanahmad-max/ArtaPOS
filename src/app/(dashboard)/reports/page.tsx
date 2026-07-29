@@ -19,11 +19,13 @@ export default async function ReportsPage() {
     return <Card className="p-8 text-center text-sm text-muted-foreground">Tidak punya izin melihat laporan.</Card>;
   }
 
+  // Fail-safe per-query (pola sama seperti Dashboard): kegagalan transien satu
+  // agregasi tak boleh meng-crash seluruh halaman ke error boundary.
   const [trend, top, dead, low] = await Promise.all([
-    salesTrend(user.tenantId, 14),
-    topProducts(user.tenantId, 30, 5),
-    deadStock(user.tenantId, 60, 10),
-    lowStock(user.tenantId, 10),
+    salesTrend(user.tenantId, 14).catch(() => []),
+    topProducts(user.tenantId, 30, 5).catch(() => []),
+    deadStock(user.tenantId, 60, 10).catch(() => []),
+    lowStock(user.tenantId, 10).catch(() => []),
   ]);
 
   const trendTotal = trend.reduce((s, d) => s + d.total, 0);

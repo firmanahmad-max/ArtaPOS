@@ -133,10 +133,13 @@ export async function getFinanceComparison(
 ): Promise<{ current: FinanceReport; previous: FinanceReport }> {
   const cur = periodRange(period);
   const prev = previousRange(period);
-  const [current, previous] = await Promise.all([
-    computeReport(tenantId, cur.from, cur.to, cur.label),
-    computeReport(tenantId, prev.from, prev.to, prev.label),
-  ]);
+  // SENGAJA berurutan (bukan Promise.all): tiap computeReport menembakkan 6
+  // query. Menjalankan kedua periode bersamaan = 12 koneksi serentak per
+  // request — di serverless dengan pool kecil (lihat DB_POOL_MAX) ini menaikkan
+  // tekanan koneksi ke Supabase dan bisa memicu error transien. Berurutan
+  // memangkas puncak koneksi per-request jadi setengahnya.
+  const current = await computeReport(tenantId, cur.from, cur.to, cur.label);
+  const previous = await computeReport(tenantId, prev.from, prev.to, prev.label);
   return { current, previous };
 }
 
