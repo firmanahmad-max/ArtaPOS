@@ -96,6 +96,20 @@ export async function removeItemAction(ticketId: string, itemId: string): Promis
   }
 }
 
+export async function updateAccessoriesAction(ticketId: string, accessories: string): Promise<Result> {
+  const u = await guard();
+  if (!u) return { ok: false, message: NO_PERM };
+  if (accessories.length > 300) return { ok: false, message: "Kelengkapan maksimal 300 karakter." };
+  const user = await getCurrentUser();
+  try {
+    await svc.updateAccessories(user.tenantId, ticketId, accessories);
+    revalidatePath(`/service/${ticketId}`);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Gagal." };
+  }
+}
+
 export async function updateLaborAction(ticketId: string, laborCost: number): Promise<Result> {
   const u = await guard();
   if (!u) return { ok: false, message: NO_PERM };

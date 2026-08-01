@@ -9,6 +9,7 @@ import {
   addLineAction,
   removeItemAction,
   updateLaborAction,
+  updateAccessoriesAction,
   updateStatusAction,
   recordServicePaymentAction,
 } from "@/server/service-jobs/actions";
@@ -17,6 +18,7 @@ import { buildServiceStatusText, waLink } from "@/lib/whatsapp";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PartPicker } from "@/components/inventory/part-picker";
@@ -40,6 +42,7 @@ export interface TicketItem {
 export interface TicketData {
   id: string;
   status: ServiceStatus;
+  accessories: string | null;
   laborCost: number;
   partsCost: number;
   total: number;
@@ -74,6 +77,7 @@ export function TicketDetail({
   const [msg, setMsg] = useState<string | null>(null);
 
   // form state
+  const [accessories, setAccessories] = useState(ticket.accessories ?? "");
   const [labor, setLabor] = useState(ticket.laborCost);
   const [lineName, setLineName] = useState("");
   const [linePrice, setLinePrice] = useState(0);
@@ -234,6 +238,31 @@ export function TicketDetail({
                 Subtotal {lineQty} × {formatRupiah(linePrice)} = {formatRupiah(linePrice * lineQty)}
               </p>
             )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Kelengkapan unit diterima (bisa diedit) */}
+      <Card>
+        <CardHeader><CardTitle>Kelengkapan Unit Diterima</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          <Textarea
+            value={accessories}
+            onChange={(e) => setAccessories(e.target.value)}
+            placeholder="mis. Charger, tas, baterai, kabel, dus"
+            maxLength={300}
+            rows={2}
+          />
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={pending || accessories === (ticket.accessories ?? "")}
+              onClick={() => run(() => updateAccessoriesAction(ticket.id, accessories))}
+            >
+              <Save className="size-3" /> Simpan Kelengkapan
+            </Button>
+            <span className="text-xs text-muted-foreground">Tercatat sebagai bukti serah terima; muncul di nota.</span>
           </div>
         </CardContent>
       </Card>

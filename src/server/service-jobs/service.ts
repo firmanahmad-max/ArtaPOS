@@ -230,6 +230,14 @@ export async function removeItem(tenantId: string, userId: string, ticketId: str
   });
 }
 
+export async function updateAccessories(tenantId: string, ticketId: string, accessories: string) {
+  await ensureTicket(tenantId, ticketId);
+  return db.serviceTicket.update({
+    where: { id: ticketId },
+    data: { accessories: accessories.trim() || null },
+  });
+}
+
 export async function updateLabor(tenantId: string, ticketId: string, laborCost: number) {
   assertNonNegativeInt(laborCost, "Biaya jasa");
   await ensureTicket(tenantId, ticketId);
