@@ -82,6 +82,12 @@ export function TicketForm({
             <Input id="deviceInfo" name="deviceInfo" placeholder="opsional" />
           </div>
           <div className="flex flex-col gap-2 sm:col-span-2">
+            <Label htmlFor="accessories">Kelengkapan Unit Diterima</Label>
+            <Textarea id="accessories" name="accessories" placeholder="mis. Charger, tas, baterai, kabel, dus — untuk dicatat saat serah terima" />
+            <p className="text-xs text-muted-foreground">Catat aksesori/kelengkapan yang ikut diserahkan pelanggan. Muncul di nota sebagai bukti serah terima.</p>
+            <Err msg={state?.errors?.accessories} />
+          </div>
+          <div className="flex flex-col gap-2 sm:col-span-2">
             <Label htmlFor="complaint">Keluhan *</Label>
             <Textarea id="complaint" name="complaint" placeholder="Jelaskan kerusakan…" required />
             <Err msg={state?.errors?.complaint} />

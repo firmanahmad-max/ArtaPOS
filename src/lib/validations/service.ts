@@ -7,6 +7,7 @@ export const serviceTicketSchema = z.object({
   deviceType: z.string().min(1, "Jenis perangkat wajib").max(60).trim(),
   deviceBrand: z.string().max(60).trim().optional().or(z.literal("")),
   deviceInfo: z.string().max(120).trim().optional().or(z.literal("")),
+  accessories: z.string().max(300).trim().optional().or(z.literal("")),
   complaint: z.string().min(1, "Keluhan wajib diisi").max(500).trim(),
   technicianId: z.string().min(1).optional().nullable(),
   laborCost: z.coerce.number().int().min(0).default(0),

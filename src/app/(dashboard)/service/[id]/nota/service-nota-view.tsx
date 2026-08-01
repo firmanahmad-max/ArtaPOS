@@ -30,6 +30,7 @@ export interface ServiceNotaData {
   customerPhone: string | null;
   device: string;
   technicianName: string | null;
+  accessories?: string | null;
   complaint: string;
   diagnosis: string | null;
   items: NotaItem[];
@@ -137,6 +138,7 @@ export function ServiceNotaView({ data, backHref }: { data: ServiceNotaData; bac
         <div className="space-y-0.5 text-[10px] leading-tight">
           <div><span className="font-semibold">Keluhan:</span> {data.complaint}</div>
           {data.diagnosis && <div><span className="font-semibold">Diagnosa:</span> {data.diagnosis}</div>}
+          {data.accessories && <div><span className="font-semibold">Kelengkapan:</span> {data.accessories}</div>}
         </div>
 
         <div className="my-2 border-t border-dashed" />

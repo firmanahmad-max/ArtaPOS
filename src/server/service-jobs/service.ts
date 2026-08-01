@@ -102,6 +102,7 @@ export async function createTicket(
         deviceType: input.deviceType,
         deviceBrand: input.deviceBrand || null,
         deviceInfo: input.deviceInfo || null,
+        accessories: input.accessories || null,
         complaint: input.complaint,
         technicianId: input.technicianId ?? null,
         technicianName,

@@ -631,6 +631,7 @@ model ServiceTicket {
   deviceType     String // mis. Laptop, PC, Printer
   deviceBrand    String?
   deviceInfo     String? // model / no seri
+  accessories    String? // kelengkapan unit yang diterima (charger, tas, dll)
   complaint      String // keluhan
   diagnosis      String?
   status         ServiceStatus @default(RECEIVED)

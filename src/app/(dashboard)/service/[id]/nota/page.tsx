@@ -47,6 +47,7 @@ export default async function ServiceNotaPage({
           customerPhone: ticket.customerPhone,
           device: [ticket.deviceType, ticket.deviceBrand, ticket.deviceInfo].filter(Boolean).join(" · "),
           technicianName: ticket.technicianName,
+          accessories: ticket.accessories,
           complaint: ticket.complaint,
           diagnosis: ticket.diagnosis,
           items: ticket.items.map((i) => ({

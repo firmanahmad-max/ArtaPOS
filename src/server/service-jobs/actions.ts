@@ -33,6 +33,7 @@ export async function createTicketAction(
     deviceType: formData.get("deviceType"),
     deviceBrand: formData.get("deviceBrand") || undefined,
     deviceInfo: formData.get("deviceInfo") || undefined,
+    accessories: formData.get("accessories") || undefined,
     complaint: formData.get("complaint"),
     technicianId: formData.get("technicianId") || undefined,
     laborCost: formData.get("laborCost") ?? 0,
