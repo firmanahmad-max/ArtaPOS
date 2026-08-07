@@ -249,16 +249,24 @@ export async function updateLabor(tenantId: string, ticketId: string, laborCost:
 
 export async function updateStatus(tenantId: string, ticketId: string, status: ServiceStatus, diagnosis?: string) {
   const t = await ensureTicket(tenantId, ticketId);
-  const done = status === "DONE" || status === "DELIVERED";
+  // `completedAt` = tanggal PENGAKUAN PENDAPATAN servis (dipakai laporan).
+  // - DISERAHKAN: transaksi dengan pelanggan benar-benar tutup di sini (unit
+  //   diambil & umumnya dibayar) → catat/perbarui ke saat penyerahan. Ini
+  //   memastikan pendapatan muncul pada periode saat diserahkan, walau tiket
+  //   ditandai "Selesai" jauh sebelumnya (mis. lintas bulan).
+  // - SELESAI (DONE): isi bila belum pernah selesai; jangan geser bila sudah
+  //   punya tanggal (mis. sudah pernah diserahkan lalu dikembalikan ke Selesai).
+  // - Status lain (dibuka kembali): kosongkan.
+  let completedAt: Date | null;
+  if (status === "DELIVERED") completedAt = new Date();
+  else if (status === "DONE") completedAt = t.completedAt ?? new Date();
+  else completedAt = null;
   return db.serviceTicket.update({
     where: { id: ticketId },
     data: {
       status,
       ...(diagnosis !== undefined ? { diagnosis: diagnosis || null } : {}),
-      // `completedAt` = tanggal pengakuan pendapatan. Diisi sekali saat pertama
-      // selesai (DONE → DELIVERED tidak menggesernya) dan dikosongkan lagi bila
-      // tiket dibuka kembali agar laporan tetap konsisten.
-      ...(done ? (t.completedAt ? {} : { completedAt: new Date() }) : { completedAt: null }),
+      completedAt,
     },
   });
 }
