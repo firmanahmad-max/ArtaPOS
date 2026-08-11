@@ -421,6 +421,9 @@ model Sale {
   cashierName   String?
   shiftId       String?
   note          String?
+  // Idempotensi sinkronisasi offline: id operasi dari perangkat kasir (UUID).
+  // Penjualan yang dibuat offline membawa id ini agar sinkron ulang tak dobel.
+  clientOpId    String?
   createdAt     DateTime      @default(now())
 
   tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -430,6 +433,7 @@ model Sale {
   shift    CashierShift? @relation(fields: [shiftId], references: [id], onDelete: SetNull)
 
   @@unique([tenantId, number])
+  @@unique([tenantId, clientOpId])
   @@index([tenantId])
   @@index([tenantId, createdAt])
   @@index([tenantId, paymentStatus])

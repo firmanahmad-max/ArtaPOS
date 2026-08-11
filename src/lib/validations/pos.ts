@@ -14,6 +14,11 @@ export const saleSchema = z.object({
   paid: z.number().int().min(0).default(0),
   dueDate: z.string().min(1).optional().nullable(),
   note: z.string().max(255).optional(),
+  // Sinkronisasi offline (opsional): id operasi unik per perangkat (idempotensi)
+  // & waktu transaksi asli di perangkat (agar penjualan bertanggal saat terjadi,
+  // bukan saat tersinkron).
+  clientOpId: z.string().min(8).max(64).optional(),
+  clientCreatedAt: z.string().datetime().optional(),
 });
 export type SaleInput = z.infer<typeof saleSchema>;
 

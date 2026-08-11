@@ -42,3 +42,36 @@ Pull/push tak pernah lintas tenant.
 2. RxDB + koleksi read-only (produk/pelanggan) + replication pull → POS bisa cari produk offline.
 3. Outbox + push untuk transaksi penjualan (delta stok + nomor sementara).
 4. Rekonsiliasi server (nomor final, needs-review) + indikator status sinkron di UI.
+
+## Status implementasi
+
+### ✅ Fondasi SERVER (selesai & terverifikasi)
+Endpoint sinkron + idempotensi sudah dibangun dan diuji end-to-end:
+- **`GET /api/sync/pull?since=<ISO>`** — katalog produk & pelanggan (delta via
+  `updatedAt`, atau penuh bila tanpa `since`) + `checkpoint`. Ter-scope tenant.
+- **`POST /api/sync/push`** — batch operasi PENJUALAN offline. Tiap op wajib
+  `clientOpId` (+ opsional `clientCreatedAt` = waktu transaksi asli di perangkat).
+  Server: proses berurutan, tiap op transaksi sendiri; balas per-op
+  `{synced|duplicate|needs_review|error}`.
+- **Idempotensi**: `Sale.clientOpId` (`@@unique([tenantId, clientOpId])`);
+  `createSale` cek-dulu + tangani balapan P2002 → kirim ulang TIDAK dobel
+  (stok terpotong sekali). Terverifikasi: kirim 2× → 1 penjualan, stok 12→10.
+- **Konflik stok**: stok tak cukup (terjual di device lain) → op `needs_review`,
+  TIDAK menjatuhkan batch. Nomor invoice final ditetapkan server (berurutan).
+- **Tanggal offline**: `clientCreatedAt` → penjualan bertanggal saat TERJADI,
+  bukan saat tersinkron (penting untuk laporan).
+- Auth via session (401 bila tak login), izin `pos.use`, tenant dari session.
+
+### 🔜 Sisa (sisi KLIEN — langkah berikutnya)
+- Cache katalog ke IndexedDB (dari `/pull`) → pencarian produk POS saat offline.
+- **Outbox IndexedDB**: checkout saat offline → tulis ke antrian dengan
+  `clientOpId` (UUID) + `clientCreatedAt`; struk sementara ("menunggu sinkron").
+- **Sync loop**: saat online kembali (+ berkala) POST outbox ke `/push`,
+  tandai hasil, tampilkan nomor final.
+- **Indikator status sinkron** + daftar `needs_review` di UI.
+
+### Catatan penyimpangan dari blueprint
+Sisi klien direncanakan pakai **outbox IndexedDB ringan** (bukan RxDB penuh):
+prinsip sama (server otoritatif, `clientOpId` idempoten, delta stok, nomor
+final, ter-scope tenant), tanpa dependensi berat. RxDB bisa diadopsi nanti bila
+butuh replikasi dua arah yang lebih kaya.

@@ -287,8 +287,18 @@ export async function createSale(
   tenantId: string,
   cashier: Cashier,
   input: SaleInput,
-) {
-  return db.$transaction(async (tx) => {
+): Promise<{ id: string; number: string; total: number; change: number; duplicate: boolean }> {
+  // Idempotensi sinkron offline: bila operasi ini sudah pernah tersimpan
+  // (perangkat mengirim ulang), kembalikan penjualan yang ada tanpa dobel.
+  if (input.clientOpId) {
+    const existing = await db.sale.findFirst({
+      where: { tenantId, clientOpId: input.clientOpId },
+      select: { id: true, number: true, total: true, change: true },
+    });
+    if (existing) return { ...existing, duplicate: true };
+  }
+  try {
+    return await db.$transaction(async (tx) => {
     // Ambil produk terkait (scoped tenant).
     const ids = input.items.map((i) => i.productId);
     const products = await tx.product.findMany({
@@ -388,6 +398,9 @@ export async function createSale(
         cashierName: cashier.name,
         shiftId: openShift?.id ?? null,
         note: input.note || null,
+        clientOpId: input.clientOpId ?? null,
+        // Penjualan offline bertanggal saat TERJADI di perangkat, bukan saat sinkron.
+        ...(input.clientCreatedAt ? { createdAt: new Date(input.clientCreatedAt) } : {}),
         items: { create: itemsData },
         ...(isCredit && paid > 0
           ? { payments: { create: { tenantId, amount: paid, note: "Uang muka", createdById: cashier.id } } }
@@ -431,6 +444,18 @@ export async function createSale(
       }
     }
 
-    return { id: sale.id, number: sale.number, total, change };
-  });
+      return { id: sale.id, number: sale.number, total, change, duplicate: false };
+    });
+  } catch (e) {
+    // Balapan: dua sinkron paralel dengan clientOpId sama → salah satu kena
+    // unique constraint. Ambil penjualan yang sudah tersimpan, jangan gagal.
+    if (input.clientOpId && (e as { code?: string })?.code === "P2002") {
+      const existing = await db.sale.findFirst({
+        where: { tenantId, clientOpId: input.clientOpId },
+        select: { id: true, number: true, total: true, change: true },
+      });
+      if (existing) return { ...existing, duplicate: true };
+    }
+    throw e;
+  }
 }
