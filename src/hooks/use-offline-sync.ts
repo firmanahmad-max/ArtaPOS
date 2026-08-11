@@ -1,7 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { listOutbox, type OutboxSale } from "@/lib/offline/db";
+import {
+  listOutbox,
+  getCachedProducts,
+  getCachedCustomers,
+  type OutboxSale,
+  type CachedProduct,
+  type CachedCustomer,
+} from "@/lib/offline/db";
 import { pullCatalog, pushOutbox, summarizeOutbox } from "@/lib/offline/sync";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 
@@ -18,6 +25,9 @@ export interface OfflineSyncState {
   pending: number;
   needsReview: number;
   items: OutboxSale[];
+  /** Katalog dari cache lokal (IndexedDB) — kosong sebelum pull pertama selesai. */
+  cachedProducts: CachedProduct[];
+  cachedCustomers: CachedCustomer[];
   syncNow: () => void;
 }
 
@@ -29,12 +39,21 @@ export interface OfflineSyncState {
  */
 export function useOfflineSync(pollMs = 30_000): OfflineSyncState {
   const [items, setItems] = useState<OutboxSale[]>([]);
+  const [cachedProducts, setCachedProducts] = useState<CachedProduct[]>([]);
+  const [cachedCustomers, setCachedCustomers] = useState<CachedCustomer[]>([]);
   const [syncing, setSyncing] = useState(false);
   const online = useOnlineStatus();
   const busy = useRef(false);
 
   const refresh = useCallback(async () => {
-    setItems(await listOutbox());
+    const [outbox, prods, custs] = await Promise.all([
+      listOutbox(),
+      getCachedProducts(),
+      getCachedCustomers(),
+    ]);
+    setItems(outbox);
+    setCachedProducts(prods);
+    setCachedCustomers(custs);
   }, []);
 
   const runSync = useCallback(async () => {
@@ -49,7 +68,7 @@ export function useOfflineSync(pollMs = 30_000): OfflineSyncState {
     } finally {
       busy.current = false;
       setSyncing(false);
-      await refresh();
+      await refresh(); // muat ulang outbox + katalog cache terbaru
     }
   }, [refresh]);
 
@@ -85,5 +104,9 @@ export function useOfflineSync(pollMs = 30_000): OfflineSyncState {
   }, [refresh, runSync, pollMs]);
 
   const { pending, needsReview } = summarizeOutbox(items);
-  return { online, syncing, pending, needsReview, items, syncNow: () => void runSync() };
+  return {
+    online, syncing, pending, needsReview, items,
+    cachedProducts, cachedCustomers,
+    syncNow: () => void runSync(),
+  };
 }

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { createSaleAction } from "@/server/pos/actions";
 import { cn, formatRupiah } from "@/lib/utils";
 import { enqueueOutbox } from "@/lib/offline/db";
+import { effectiveCatalog } from "@/lib/offline/catalog";
 import { useOfflineSync, notifyOutboxChanged } from "@/hooks/use-offline-sync";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -85,10 +86,17 @@ export function PosTerminal({
   const checkoutRef = useRef<() => void>(() => {});
   const sync = useOfflineSync();
 
+  // Katalog efektif: cache IndexedDB (bila terisi) di atas props SSR, dikurangi
+  // reservasi outbox. Lihat effectiveCatalog() untuk detail & pengujiannya.
+  const catalog = useMemo<PosProduct[]>(
+    () => effectiveCatalog(products, sync.cachedProducts, sync.items),
+    [sync.cachedProducts, sync.items, products],
+  );
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return products.slice(0, 60);
-    return products
+    if (!q) return catalog.slice(0, 60);
+    return catalog
       .filter(
         (p) =>
           p.name.toLowerCase().includes(q) ||
@@ -96,7 +104,7 @@ export function PosTerminal({
           (p.barcode ?? "").toLowerCase().includes(q),
       )
       .slice(0, 60);
-  }, [search, products]);
+  }, [search, catalog]);
 
   const lines = [...cart.values()];
   const lineNet = (l: CartLine) => Math.max(0, l.product.sellPrice * l.qty - l.discount);
@@ -141,7 +149,7 @@ export function PosTerminal({
   }
 
   function onScan(code: string) {
-    const p = products.find((x) => x.barcode === code || x.sku === code);
+    const p = catalog.find((x) => x.barcode === code || x.sku === code);
     if (p) addToCart(p);
     else setError(`Barcode ${code} tidak ditemukan.`);
   }
@@ -176,7 +184,7 @@ export function PosTerminal({
   function restoreSale(h: HeldSale) {
     const next = new Map<string, CartLine>();
     for (const ln of h.lines) {
-      const p = products.find((x) => x.id === ln.productId);
+      const p = catalog.find((x) => x.id === ln.productId);
       if (p) next.set(p.id, { product: p, qty: Math.min(ln.qty, p.stock), discount: ln.discount ?? 0 });
     }
     setCart(next);
