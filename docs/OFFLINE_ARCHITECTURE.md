@@ -62,13 +62,33 @@ Endpoint sinkron + idempotensi sudah dibangun dan diuji end-to-end:
   bukan saat tersinkron (penting untuk laporan).
 - Auth via session (401 bila tak login), izin `pos.use`, tenant dari session.
 
-### 🔜 Sisa (sisi KLIEN — langkah berikutnya)
-- Cache katalog ke IndexedDB (dari `/pull`) → pencarian produk POS saat offline.
-- **Outbox IndexedDB**: checkout saat offline → tulis ke antrian dengan
-  `clientOpId` (UUID) + `clientCreatedAt`; struk sementara ("menunggu sinkron").
-- **Sync loop**: saat online kembali (+ berkala) POST outbox ke `/push`,
-  tandai hasil, tampilkan nomor final.
-- **Indikator status sinkron** + daftar `needs_review` di UI.
+### ✅ Sisi KLIEN (data layer — selesai)
+- **IndexedDB** (`src/lib/offline/db.ts`): store `products`, `customers`,
+  `outbox`, `meta`. IndexedDB langsung (bukan RxDB) — ringan, tanpa dependensi.
+- **Outbox**: `POS checkout saat offline` → tulis ke antrian dgn `clientOpId`
+  (UUID) + `clientCreatedAt` (waktu asli). Checkout online juga membawa
+  `clientOpId` → double-submit/retry aman.
+- **Sync** (`src/lib/offline/sync.ts`): `pullCatalog()` (isi cache dari `/pull`)
+  & `pushOutbox()` (kirim antrian ke `/push`; synced/duplicate → hapus,
+  needs_review → tahan utk ditinjau, error → retry).
+- **Hook** (`src/hooks/use-offline-sync.ts`): pull+push saat mount, event
+  `online`, tab kembali terlihat, berkala 30s, dan manual. Ekspor
+  `{online, syncing, pending, needsReview, syncNow}`.
+- **UI**: indikator status sinkron di POS (Mode Offline / menyinkronkan /
+  N menunggu / N perlu ditinjau + tombol Sinkronkan).
+
+Terverifikasi: alur outbox→push→hasil dengan skema IndexedDB & endpoint nyata
+(enqueue → 1 antrian → push → synced INV-xxxxx → antrian kosong → stok −1).
+
+### 🔜 Sisa (perlu uji perangkat/keputusan)
+- **Buka-ulang saat offline**: SW sengaja TIDAK meng-cache HTML ter-autentikasi
+  (privasi). Jadi offline hanya jalan bila tab POS TETAP TERBUKA saat koneksi
+  putus (skenario kasir tersering). Untuk buka-ulang penuh saat offline perlu
+  keputusan cache app-shell (tradeoff privasi di perangkat bersama).
+- Pencarian produk POS saat offline kini mengandalkan HTML/props ter-cache;
+  wiring ke katalog IndexedDB (stok lebih segar) menyusul.
+- Daftar `needs_review` yang bisa ditindak (retry/edit) di UI.
+- Offline untuk servis & pembelian.
 
 ### Catatan penyimpangan dari blueprint
 Sisi klien direncanakan pakai **outbox IndexedDB ringan** (bukan RxDB penuh):

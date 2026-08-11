@@ -2,16 +2,24 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Plus, Minus, Trash2, ShoppingCart, Loader2, X, Pause, RotateCcw } from "lucide-react";
+import { Search, Plus, Minus, Trash2, ShoppingCart, Loader2, X, Pause, RotateCcw, Cloud, CloudOff, RefreshCw, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { createSaleAction } from "@/server/pos/actions";
 import { cn, formatRupiah } from "@/lib/utils";
+import { enqueueOutbox } from "@/lib/offline/db";
+import { useOfflineSync, notifyOutboxChanged } from "@/hooks/use-offline-sync";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Select } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { BarcodeScanner } from "@/components/barcode/barcode-scanner";
+
+/** UUID untuk clientOpId (idempotensi sinkron). */
+function newOpId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
+  return `op-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 export interface PosProduct {
   id: string;
@@ -75,6 +83,7 @@ export function PosTerminal({
   const [held, setHeld] = useState<HeldSale[]>(() => loadHeld());
   const searchRef = useRef<HTMLInputElement>(null);
   const checkoutRef = useRef<() => void>(() => {});
+  const sync = useOfflineSync();
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -183,6 +192,28 @@ export function PosTerminal({
 
   const isCredit = paymentMethod === "CREDIT";
 
+  /** Simpan penjualan ke antrian offline (IndexedDB) — disinkron otomatis nanti. */
+  async function queueOffline(clientOpId: string, payload: Record<string, unknown>) {
+    try {
+      await enqueueOutbox({
+        clientOpId,
+        payload,
+        clientCreatedAt: new Date().toISOString(),
+        summary: { itemCount: lines.length, total, label: `${lines.length} item · ${formatRupiah(total)}` },
+        status: "pending",
+        attempts: 0,
+        enqueuedAt: new Date().toISOString(),
+      });
+      notifyOutboxChanged();
+      toast.success("Tersimpan offline", { description: "Akan otomatis disinkronkan saat internet kembali." });
+      resetCart();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Gagal menyimpan offline.";
+      setError(msg);
+      toast.error("Gagal menyimpan offline", { description: msg });
+    }
+  }
+
   function checkout() {
     setError(null);
     if (lines.length === 0) {
@@ -198,22 +229,37 @@ export function PosTerminal({
       setError("Jumlah bayar kurang dari total.");
       return;
     }
+    const clientOpId = newOpId();
+    const payload = {
+      items: lines.map((l) => ({ productId: l.product.id, qty: l.qty, discount: l.discount })),
+      discount,
+      paymentMethod,
+      paid: effectivePaid,
+      customerId: customerId || undefined,
+      dueDate: isCredit && dueDate ? dueDate : undefined,
+    };
+
+    // Offline → langsung antre (tanpa memanggil server).
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      void queueOffline(clientOpId, payload);
+      return;
+    }
+
     startCheckout(async () => {
-      const res = await createSaleAction({
-        items: lines.map((l) => ({ productId: l.product.id, qty: l.qty, discount: l.discount })),
-        discount,
-        paymentMethod,
-        paid: effectivePaid,
-        customerId: customerId || undefined,
-        dueDate: isCredit && dueDate ? dueDate : undefined,
-      });
-      if (res.ok && res.saleId) {
-        toast.success("Penjualan berhasil disimpan");
-        router.push(`/pos/receipt/${res.saleId}`);
-      } else {
-        const msg = res.message ?? "Checkout gagal.";
-        setError(msg);
-        toast.error("Checkout gagal", { description: msg });
+      try {
+        // clientOpId dikirim juga saat online → double-submit/retry aman (idempoten).
+        const res = await createSaleAction({ ...payload, clientOpId });
+        if (res.ok && res.saleId) {
+          toast.success("Penjualan berhasil disimpan");
+          router.push(`/pos/receipt/${res.saleId}`);
+        } else {
+          const msg = res.message ?? "Checkout gagal.";
+          setError(msg);
+          toast.error("Checkout gagal", { description: msg });
+        }
+      } catch {
+        // Server tak terjangkau (jaringan putus di tengah) → simpan offline.
+        await queueOffline(clientOpId, payload);
       }
     });
   }
@@ -245,6 +291,45 @@ export function PosTerminal({
     <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
       {/* Katalog produk */}
       <div className="space-y-3">
+        {/* Status sinkronisasi offline — tampil hanya saat relevan */}
+        {(!sync.online || sync.pending > 0 || sync.needsReview > 0 || sync.syncing) && (
+          <div
+            className={cn(
+              "flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-3 py-2 text-xs",
+              !sync.online
+                ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                : "border-primary/30 bg-primary/5",
+            )}
+          >
+            {!sync.online ? (
+              <span className="flex items-center gap-1.5 font-medium">
+                <CloudOff className="size-4" /> Mode Offline — penjualan disimpan di perangkat
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5 font-medium">
+                {sync.syncing ? <RefreshCw className="size-4 animate-spin" /> : <Cloud className="size-4" />}
+                {sync.syncing ? "Menyinkronkan…" : "Online"}
+              </span>
+            )}
+            {sync.pending > 0 && <span>{sync.pending} menunggu sinkron</span>}
+            {sync.needsReview > 0 && (
+              <span className="flex items-center gap-1 text-destructive">
+                <AlertTriangle className="size-3.5" /> {sync.needsReview} perlu ditinjau
+              </span>
+            )}
+            {sync.online && (sync.pending > 0 || sync.needsReview > 0) && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="ml-auto h-7"
+                onClick={sync.syncNow}
+                disabled={sync.syncing}
+              >
+                <RefreshCw className={cn("size-3", sync.syncing && "animate-spin")} /> Sinkronkan
+              </Button>
+            )}
+          </div>
+        )}
         {held.length > 0 && (
           <Card className="p-3">
             <p className="mb-2 text-xs font-medium text-muted-foreground">Transaksi Tertahan ({held.length})</p>
