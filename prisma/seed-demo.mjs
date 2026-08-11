@@ -309,6 +309,11 @@ async function main() {
         await insert("service_items", { id: uid("svi"), ticketId: id, productId: it.productId, name: it.name, qty: it.qty, price: it.price, costPrice: it.cost, subtotal: it.subtotal, isPart: it.isPart });
         if (it.isPart) await movement(it.productId, "SERVICE_OUT", -it.qty, when, `Sparepart servis ${number}`);
       }
+      // Pendapatan servis diakui basis kas → catat pembayaran ber-tanggal.
+      if (paid > 0) {
+        const payWhen = completedAgo != null ? at(completedAgo) : when;
+        await insert("service_payments", { id: uid("svp"), tenantId: TENANT_ID, ticketId: id, amount: paid, method, note: null, createdById: KASIR_ID, createdAt: payWhen });
+      }
     }
     await ticket({ when: at(16), cu: "Ahmad Rizki", phone: "081298760001", device: "Laptop", brand: "Asus ROG", info: "Strix G15", complaint: "Laptop overheat, mati sendiri", diagnosis: "Pasta processor kering, kipas kotor", status: "DELIVERED", labor: 150000, jasa: [{ name: "Bersih & ganti pasta", price: 100000 }], paid: 250000, method: "CASH", completedAgo: 12 });
     await ticket({ when: at(10), cu: "Siti Nurhaliza", phone: "081298760002", device: "Laptop", brand: "Lenovo", info: "IdeaPad 3", complaint: "Laptop lemot/hang", diagnosis: "Upgrade SSD + RAM", status: "DELIVERED", labor: 100000, parts: [{ k: "ssd1tb", qty: 1 }], paid: 1250000, method: "TRANSFER", completedAgo: 6 });

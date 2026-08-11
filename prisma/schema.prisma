@@ -649,14 +649,35 @@ model ServiceTicket {
   updatedAt      DateTime       @updatedAt
   completedAt    DateTime?
 
-  tenant Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  items  ServiceItem[]
-  photos ServicePhoto[]
+  tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items    ServiceItem[]
+  photos   ServicePhoto[]
+  payments ServicePayment[]
 
   @@unique([tenantId, number])
   @@index([tenantId])
   @@index([tenantId, status])
   @@map("service_tickets")
+}
+
+/// Pembayaran jasa servis (dukung cicilan/DP). Pendapatan servis diakui per
+/// pembayaran (basis kas), jadi tanggal & jumlah tiap pembayaran dicatat.
+model ServicePayment {
+  id          String         @id @default(cuid())
+  tenantId    String
+  ticketId    String
+  amount      Int
+  method      PaymentMethod?
+  note        String?
+  createdById String?
+  createdAt   DateTime       @default(now())
+
+  ticket ServiceTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, createdAt])
+  @@index([ticketId])
+  @@map("service_payments")
 }
 
 /// Foto kondisi perangkat servis (disimpan sebagai data URL terkompres).

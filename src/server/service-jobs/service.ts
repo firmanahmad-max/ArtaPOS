@@ -273,6 +273,7 @@ export async function updateStatus(tenantId: string, ticketId: string, status: S
 
 export async function recordPayment(
   tenantId: string,
+  userId: string,
   ticketId: string,
   amount: number,
   method: PaymentMethod,
@@ -291,6 +292,10 @@ export async function recordPayment(
     await tx.serviceTicket.update({
       where: { id: t.id },
       data: { paid: newPaid, paymentStatus: newPaid >= t.total ? "PAID" : "PARTIAL", paymentMethod: method },
+    });
+    // Catat pembayaran ber-tanggal → pendapatan servis diakui pada tanggal ini.
+    await tx.servicePayment.create({
+      data: { tenantId, ticketId: t.id, amount, method, createdById: userId },
     });
     return { paid: newPaid, outstanding: t.total - newPaid };
   });

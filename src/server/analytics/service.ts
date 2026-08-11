@@ -41,28 +41,24 @@ export async function salesTrend(tenantId: string, days = 14) {
 
 /**
  * Tren pendapatan jasa servis harian `days` hari terakhir, termasuk hari nol.
- * Pendapatan diakui saat tiket SELESAI/DISERAHKAN (`completedAt`), bukan saat
- * tiket dibuat — tiket lama yang baru diserahkan hari ini muncul hari ini.
+ * BASIS KAS: pendapatan diakui saat UANG DITERIMA (tanggal pembayaran), bukan
+ * saat tiket selesai/diserahkan — jadi angka harian = penerimaan kas servis.
  */
 export async function serviceTrend(tenantId: string, days = 14) {
   const { y, m, d } = localParts();
   const start = startOfDay(y, m, d - (days - 1));
-  const tickets = await db.serviceTicket.findMany({
-    where: {
-      tenantId,
-      status: { in: ["DONE", "DELIVERED"] },
-      OR: [{ completedAt: { gte: start } }, { completedAt: null, createdAt: { gte: start } }],
-    },
-    select: { total: true, completedAt: true, createdAt: true },
+  const payments = await db.servicePayment.findMany({
+    where: { tenantId, createdAt: { gte: start } },
+    select: { amount: true, createdAt: true },
   });
 
   const buckets = new Map<string, number>();
   for (let i = 0; i < days; i++) {
     buckets.set(dayKey(startOfDay(y, m, d - (days - 1) + i)), 0);
   }
-  for (const t of tickets) {
-    const k = dayKey(t.completedAt ?? t.createdAt);
-    if (buckets.has(k)) buckets.set(k, (buckets.get(k) ?? 0) + t.total);
+  for (const p of payments) {
+    const k = dayKey(p.createdAt);
+    if (buckets.has(k)) buckets.set(k, (buckets.get(k) ?? 0) + p.amount);
   }
   return [...buckets.entries()].map(([key, total]) => {
     const [, m, day] = key.split("-");

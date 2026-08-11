@@ -184,7 +184,7 @@ export async function recordServicePaymentAction(
   }
   const user = await getCurrentUser();
   try {
-    const r = await svc.recordPayment(user.tenantId, ticketId, amount, method as PaymentMethodVal);
+    const r = await svc.recordPayment(user.tenantId, user.id, ticketId, amount, method as PaymentMethodVal);
     revalidatePath(`/service/${ticketId}`);
     revalidateReports();
     return { ok: true, message: r.outstanding > 0 ? `Sisa: ${r.outstanding}` : "Lunas." };
