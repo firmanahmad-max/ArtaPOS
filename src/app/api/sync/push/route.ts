@@ -4,30 +4,44 @@ import { getSession } from "@/lib/auth/dal";
 import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
 import { saleSchema } from "@/lib/validations/pos";
+import { purchaseSchema } from "@/lib/validations/purchasing";
+import { serviceTicketSchema } from "@/lib/validations/service";
 import { createSale } from "@/server/pos/service";
+import { createPurchase } from "@/server/purchasing/service";
+import { createTicket } from "@/server/service-jobs/service";
 
 /**
- * Endpoint SINKRONISASI (push) — menerima transaksi yang dibuat OFFLINE di
- * perangkat kasir lalu memprosesnya di server (sumber kebenaran).
+ * Endpoint SINKRONISASI (push) — memproses operasi yang dibuat OFFLINE:
+ * PENJUALAN, PEMBELIAN, dan TIKET SERVIS. Semua idempoten via `clientOpId`
+ * (kirim ulang tak dobel), stok = delta transaksional, nomor final ditetapkan
+ * server, ter-scope tenant dari session.
  *
- * Prinsip (lihat docs/OFFLINE_ARCHITECTURE.md):
- * - Idempoten: tiap operasi membawa `clientOpId` unik. Kirim ulang aman — server
- *   mengembalikan penjualan yang sudah ada, tak dobel (dijamin createSale).
- * - Stok = delta transaksional di server; bila stok tak cukup (terjual di device
- *   lain), operasi ditandai `needs_review` — TIDAK menggagalkan seluruh batch.
- * - Nomor invoke final ditetapkan server (berurutan per tenant).
- * - Ter-scope tenant dari session; tak pernah lintas tenant.
- *
- * Fase ini: baru operasi PENJUALAN. Servis/pembelian menyusul.
+ * Format op: `{ type: "sale"|"purchase"|"service", data: {...input, clientOpId, clientCreatedAt} }`.
  */
 
-const opSchema = saleSchema.extend({
-  // Wajib untuk sinkron (idempotensi). Online biasa boleh tanpa ini.
-  clientOpId: z.string().min(8).max(64),
+const withOpId = <T extends z.ZodTypeAny>(s: T) =>
+  z.object({ clientOpId: z.string().min(8).max(64) }).and(s);
+
+const PARSERS = {
+  sale: withOpId(saleSchema),
+  purchase: withOpId(purchaseSchema),
+  service: withOpId(serviceTicketSchema),
+} as const;
+
+type OpType = keyof typeof PARSERS;
+
+const envelopeSchema = z.object({
+  ops: z
+    .array(z.object({ type: z.enum(["sale", "purchase", "service"]), data: z.unknown() }))
+    .min(1)
+    .max(200),
 });
-const pushSchema = z.object({
-  ops: z.array(opSchema).min(1).max(200),
-});
+
+const PERM: Record<OpType, "pos.use" | "purchasing.manage" | "service.manage"> = {
+  sale: "pos.use",
+  purchase: "purchasing.manage",
+  service: "service.manage",
+};
 
 export async function POST(req: Request) {
   const session = await getSession();
@@ -37,7 +51,6 @@ export async function POST(req: Request) {
     select: { id: true, name: true, role: true, tenant: { select: { isActive: true } } },
   });
   if (!user || !user.tenant.isActive) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  if (!can(user.role, "pos.use")) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   let body: unknown;
   try {
@@ -45,43 +58,57 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
-  const parsed = pushSchema.safeParse(body);
+  const parsed = envelopeSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "invalid body", detail: parsed.error.issues[0]?.message }, { status: 400 });
   }
 
+  const actor = { id: user.id, name: user.name };
   const results: {
-    clientOpId: string;
+    clientOpId?: string;
+    type: OpType;
     ok: boolean;
     status: "synced" | "duplicate" | "needs_review" | "error";
-    saleId?: string;
+    id?: string;
     number?: string;
     message?: string;
   }[] = [];
 
-  // Diproses BERURUTAN: tiap createSale transaksi sendiri (nomor final terurut,
-  // tekanan koneksi terkendali). Satu op gagal tak menjatuhkan yang lain.
-  for (const sale of parsed.data.ops) {
+  // Berurutan: tiap op transaksi sendiri; satu gagal tak menjatuhkan yang lain.
+  for (const op of parsed.data.ops) {
+    const type = op.type as OpType;
+    if (!can(user.role, PERM[type])) {
+      results.push({ type, ok: false, status: "error", message: "Tidak punya izin." });
+      continue;
+    }
+    const dataParsed = PARSERS[type].safeParse(op.data);
+    if (!dataParsed.success) {
+      const opId = (op.data as { clientOpId?: string })?.clientOpId;
+      results.push({ clientOpId: opId, type, ok: false, status: "error", message: "Data tidak valid." });
+      continue;
+    }
+    const data = dataParsed.data;
+    const clientOpId = data.clientOpId;
     try {
-      const r = await createSale(session.tenantId, { id: user.id, name: user.name }, sale);
+      const r =
+        type === "sale"
+          ? await createSale(session.tenantId, actor, data as z.infer<typeof saleSchema>)
+          : type === "purchase"
+            ? await createPurchase(session.tenantId, actor, data as z.infer<typeof purchaseSchema>)
+            : await createTicket(session.tenantId, actor, data as z.infer<typeof serviceTicketSchema>);
       results.push({
-        clientOpId: sale.clientOpId,
+        clientOpId,
+        type,
         ok: true,
         status: r.duplicate ? "duplicate" : "synced",
-        saleId: r.id,
+        id: r.id,
         number: r.number,
       });
     } catch (e) {
       const message = e instanceof Error ? e.message : "Gagal memproses.";
-      // Stok tak cukup / produk hilang = konflik yang perlu ditinjau kasir,
-      // bukan error teknis — jangan hapus dari outbox membabi buta.
-      const needsReview = /tidak cukup|tidak ditemukan/i.test(message);
-      results.push({
-        clientOpId: sale.clientOpId,
-        ok: false,
-        status: needsReview ? "needs_review" : "error",
-        message,
-      });
+      // Konflik yang perlu ditinjau kasir (bukan error teknis).
+      const needsReview = /tidak cukup|tidak ditemukan|sudah dipakai/i.test(message);
+      results.push({ clientOpId, type, ok: false, status: needsReview ? "needs_review" : "error", message });
     }
   }
 

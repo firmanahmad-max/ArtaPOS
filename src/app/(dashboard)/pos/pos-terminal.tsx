@@ -8,6 +8,7 @@ import { createSaleAction } from "@/server/pos/actions";
 import { cn, formatRupiah } from "@/lib/utils";
 import { enqueueOutbox } from "@/lib/offline/db";
 import { effectiveCatalog } from "@/lib/offline/catalog";
+import { newOpId } from "@/lib/offline/enqueue";
 import { useOfflineSync, notifyOutboxChanged } from "@/hooks/use-offline-sync";
 import { SyncReviewDialog } from "./sync-review-dialog";
 import { Button } from "@/components/ui/button";
@@ -16,12 +17,6 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { Select } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { BarcodeScanner } from "@/components/barcode/barcode-scanner";
-
-/** UUID untuk clientOpId (idempotensi sinkron). */
-function newOpId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
-  return `op-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
 
 export interface PosProduct {
   id: string;
@@ -207,6 +202,7 @@ export function PosTerminal({
     try {
       await enqueueOutbox({
         clientOpId,
+        type: "sale",
         payload,
         clientCreatedAt: new Date().toISOString(),
         summary: { itemCount: lines.length, total, label: `${lines.length} item · ${formatRupiah(total)}` },

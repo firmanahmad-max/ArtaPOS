@@ -14,6 +14,12 @@ const STATUS: Record<OutboxSale["status"], { label: string; variant: "muted" | "
   error: { label: "Gagal", variant: "destructive" },
 };
 
+const TYPE_LABEL: Record<OutboxSale["type"], string> = {
+  sale: "Penjualan",
+  purchase: "Pembelian",
+  service: "Tiket Servis",
+};
+
 /**
  * Daftar antrian penjualan offline yang bisa ditindak. `needs_review` muncul
  * saat server menolak (mis. stok habis di perangkat lain): kasir bisa Coba Lagi
@@ -87,9 +93,11 @@ export function SyncReviewDialog({
                 <div key={o.clientOpId} className="rounded-lg border p-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium">{formatRupiah(o.summary.total)}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {o.summary.itemCount} item · {when}
+                      <p className="text-sm font-medium">
+                        {TYPE_LABEL[o.type] ?? "Operasi"} · {formatRupiah(o.summary.total)}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {o.summary.label} · {when}
                       </p>
                     </div>
                     <Badge variant={s.variant}>{s.label}</Badge>

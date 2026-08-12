@@ -65,7 +65,15 @@ export async function createTicket(
   tenantId: string,
   user: { id: string; name: string },
   input: ServiceTicketInput,
-) {
+): Promise<{ id: string; number: string; duplicate: boolean }> {
+  // Idempotensi sinkron offline: bila tiket ini sudah tersimpan, kembalikan.
+  if (input.clientOpId) {
+    const existing = await db.serviceTicket.findFirst({
+      where: { tenantId, clientOpId: input.clientOpId },
+      select: { id: true, number: true },
+    });
+    if (existing) return { ...existing, duplicate: true };
+  }
   let customerName = input.customerName;
   if (input.customerId) {
     const c = await db.customer.findFirst({
@@ -84,35 +92,50 @@ export async function createTicket(
   }
 
   // Transaksi dibutuhkan agar advisory lock penomoran berlaku (lihat nextDocNumber).
-  return db.$transaction(async (tx) => {
-    const number = await nextDocNumber(tx, tenantId, "SV", () =>
-      tx.serviceTicket.findFirst({
-        where: { tenantId },
-        orderBy: { number: "desc" },
-        select: { number: true },
-      }),
-    );
-    return tx.serviceTicket.create({
-      data: {
-        tenantId,
-        number,
-        customerId: input.customerId ?? null,
-        customerName,
-        customerPhone: input.customerPhone || null,
-        deviceType: input.deviceType,
-        deviceBrand: input.deviceBrand || null,
-        deviceInfo: input.deviceInfo || null,
-        accessories: input.accessories || null,
-        complaint: input.complaint,
-        technicianId: input.technicianId ?? null,
-        technicianName,
-        laborCost: input.laborCost,
-        total: input.laborCost,
-        note: input.note || null,
-        createdById: user.id,
-      },
+  try {
+    return await db.$transaction(async (tx) => {
+      const number = await nextDocNumber(tx, tenantId, "SV", () =>
+        tx.serviceTicket.findFirst({
+          where: { tenantId },
+          orderBy: { number: "desc" },
+          select: { number: true },
+        }),
+      );
+      const t = await tx.serviceTicket.create({
+        data: {
+          tenantId,
+          number,
+          customerId: input.customerId ?? null,
+          customerName,
+          customerPhone: input.customerPhone || null,
+          deviceType: input.deviceType,
+          deviceBrand: input.deviceBrand || null,
+          deviceInfo: input.deviceInfo || null,
+          accessories: input.accessories || null,
+          complaint: input.complaint,
+          technicianId: input.technicianId ?? null,
+          technicianName,
+          laborCost: input.laborCost,
+          total: input.laborCost,
+          note: input.note || null,
+          createdById: user.id,
+          clientOpId: input.clientOpId ?? null,
+          ...(input.clientCreatedAt ? { createdAt: new Date(input.clientCreatedAt) } : {}),
+        },
+        select: { id: true, number: true },
+      });
+      return { ...t, duplicate: false };
     });
-  });
+  } catch (e) {
+    if (input.clientOpId && (e as { code?: string })?.code === "P2002") {
+      const existing = await db.serviceTicket.findFirst({
+        where: { tenantId, clientOpId: input.clientOpId },
+        select: { id: true, number: true },
+      });
+      if (existing) return { ...existing, duplicate: true };
+    }
+    throw e;
+  }
 }
 
 /** Hitung ulang partsCost/total/paymentStatus dari item & laborCost. */

@@ -2,8 +2,11 @@
 
 import { useActionState, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { createTicketAction } from "@/server/service-jobs/actions";
+import { queueOfflineOp } from "@/lib/offline/enqueue";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,9 +29,51 @@ export function TicketForm({
   technicians: Option[];
 }) {
   const [state, action, pending] = useActionState(createTicketAction, undefined);
+  const router = useRouter();
   const [customerId, setCustomerId] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [offlineErr, setOfflineErr] = useState<string | null>(null);
+
+  // Saat OFFLINE, cegah submit ke server → antre ke outbox (disinkron nanti).
+  // Validasi wajib (nama/perangkat/keluhan) sudah dijaga atribut `required`.
+  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    if (typeof navigator === "undefined" || navigator.onLine) return; // online: biarkan action jalan
+    e.preventDefault();
+    setOfflineErr(null);
+    const fd = new FormData(e.currentTarget);
+    const str = (k: string) => {
+      const v = fd.get(k);
+      return typeof v === "string" && v.trim() ? v.trim() : undefined;
+    };
+    const laborCost = Number(fd.get("laborCost") ?? 0) || 0;
+    const deviceType = str("deviceType") ?? "";
+    const payload = {
+      customerId: str("customerId"),
+      customerName: str("customerName") ?? "",
+      customerPhone: str("customerPhone"),
+      deviceType,
+      deviceBrand: str("deviceBrand"),
+      deviceInfo: str("deviceInfo"),
+      accessories: str("accessories"),
+      complaint: str("complaint") ?? "",
+      technicianId: str("technicianId"),
+      laborCost,
+      note: str("note"),
+    };
+    void queueOfflineOp("service", payload, {
+      itemCount: 1,
+      total: laborCost,
+      label: `Servis ${deviceType} · ${payload.customerName}`,
+    })
+      .then(() => {
+        toast.success("Tiket servis tersimpan offline", {
+          description: "Akan disinkronkan otomatis saat online (nomor tiket final menyusul).",
+        });
+        router.push("/service");
+      })
+      .catch((err) => setOfflineErr(err instanceof Error ? err.message : "Gagal menyimpan offline."));
+  }
 
   // Tautkan pelanggan terdaftar → isi otomatis nama & HP (tetap bisa diedit).
   function onLink(id: string) {
@@ -41,7 +86,7 @@ export function TicketForm({
   }
 
   return (
-    <form action={action} className="space-y-6">
+    <form action={action} onSubmit={onSubmit} className="space-y-6">
       <Card>
         <CardHeader><CardTitle>Pelanggan</CardTitle></CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
@@ -112,8 +157,8 @@ export function TicketForm({
         </CardContent>
       </Card>
 
-      {state?.message && (
-        <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{state.message}</p>
+      {(state?.message || offlineErr) && (
+        <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{offlineErr ?? state?.message}</p>
       )}
 
       <div className="flex gap-3">

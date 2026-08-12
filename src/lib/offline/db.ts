@@ -42,10 +42,14 @@ export interface CachedCustomer {
 }
 
 export type OutboxStatus = "pending" | "needs_review" | "error";
+export type OutboxType = "sale" | "purchase" | "service";
 
+/** Satu operasi offline (penjualan/pembelian/tiket servis) menunggu sinkron. */
 export interface OutboxSale {
   clientOpId: string;
-  /** Input penjualan (tanpa clientOpId/clientCreatedAt — disuntik saat kirim). */
+  /** Jenis operasi → menentukan endpoint/servis pemroses saat sinkron. */
+  type: OutboxType;
+  /** Input operasi (tanpa clientOpId/clientCreatedAt — disuntik saat kirim). */
   payload: unknown;
   /** Waktu transaksi asli di perangkat (ISO). */
   clientCreatedAt: string;
@@ -54,7 +58,7 @@ export interface OutboxSale {
   status: OutboxStatus;
   attempts: number;
   lastError?: string;
-  /** Nomor invoice final setelah tersinkron (opsional, untuk info). */
+  /** Nomor final setelah tersinkron (opsional, untuk info). */
   finalNumber?: string;
   enqueuedAt: string;
 }

@@ -23,6 +23,9 @@ export const purchaseSchema = z.object({
   paidAmount: z.number().int().min(0).default(0),
   dueDate: z.string().min(1).optional().nullable(),
   note: z.string().max(255).optional(),
+  // Sinkronisasi offline (opsional): idempotensi + waktu asli di perangkat.
+  clientOpId: z.string().min(8).max(64).optional(),
+  clientCreatedAt: z.string().datetime().optional(),
 });
 export type PurchaseInput = z.infer<typeof purchaseSchema>;
 

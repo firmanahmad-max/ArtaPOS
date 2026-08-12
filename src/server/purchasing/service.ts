@@ -61,8 +61,17 @@ export async function createPurchase(
   tenantId: string,
   user: { id: string; name: string },
   input: PurchaseInput,
-) {
-  return db.$transaction(async (tx) => {
+): Promise<{ id: string; number: string; duplicate: boolean }> {
+  // Idempotensi sinkron offline: bila operasi ini sudah tersimpan, kembalikan.
+  if (input.clientOpId) {
+    const existing = await db.purchase.findFirst({
+      where: { tenantId, clientOpId: input.clientOpId },
+      select: { id: true, number: true },
+    });
+    if (existing) return { ...existing, duplicate: true };
+  }
+  try {
+    return await db.$transaction(async (tx) => {
     // Resolusi tiap item ke productId konkret — buat produk baru bila perlu.
     const itemsData: {
       productId: string;
@@ -145,6 +154,8 @@ export async function createPurchase(
         note: input.note || null,
         createdById: user.id,
         createdByName: user.name,
+        clientOpId: input.clientOpId ?? null,
+        ...(input.clientCreatedAt ? { createdAt: new Date(input.clientCreatedAt) } : {}),
         items: { create: itemsData },
         ...(paid > 0
           ? { payments: { create: { tenantId, amount: paid, note: "Pembayaran awal", createdById: user.id } } }
@@ -169,8 +180,19 @@ export async function createPurchase(
       });
     }
 
-    return { id: purchase.id, number };
-  });
+      return { id: purchase.id, number, duplicate: false };
+    });
+  } catch (e) {
+    // Balapan sinkron paralel dengan clientOpId sama → ambil yang sudah ada.
+    if (input.clientOpId && (e as { code?: string })?.code === "P2002") {
+      const existing = await db.purchase.findFirst({
+        where: { tenantId, clientOpId: input.clientOpId },
+        select: { id: true, number: true },
+      });
+      if (existing) return { ...existing, duplicate: true };
+    }
+    throw e;
+  }
 }
 
 export interface ReorderSuggestion {

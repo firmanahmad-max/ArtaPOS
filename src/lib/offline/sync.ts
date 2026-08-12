@@ -42,10 +42,10 @@ export async function pullCatalog(): Promise<{ products: number; customers: numb
 }
 
 interface PushResult {
-  clientOpId: string;
+  clientOpId?: string;
   ok: boolean;
   status: "synced" | "duplicate" | "needs_review" | "error";
-  saleId?: string;
+  id?: string;
   number?: string;
   message?: string;
 }
@@ -70,9 +70,12 @@ export async function pushOutbox(): Promise<{
   if (queue.length === 0) return { sent: 0, synced: 0, needsReview: 0, errored: 0 };
 
   const ops = queue.map((o) => ({
-    ...(o.payload as Record<string, unknown>),
-    clientOpId: o.clientOpId,
-    clientCreatedAt: o.clientCreatedAt,
+    type: o.type ?? "sale",
+    data: {
+      ...(o.payload as Record<string, unknown>),
+      clientOpId: o.clientOpId,
+      clientCreatedAt: o.clientCreatedAt,
+    },
   }));
 
   let res: Response;

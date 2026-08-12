@@ -567,6 +567,7 @@ model Purchase {
   note          String?
   createdById   String?
   createdByName String?
+  clientOpId    String? // idempotensi sinkron offline (lihat Sale.clientOpId)
   createdAt     DateTime      @default(now())
 
   tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -574,6 +575,7 @@ model Purchase {
   payments PurchasePayment[]
 
   @@unique([tenantId, number])
+  @@unique([tenantId, clientOpId])
   @@index([tenantId])
   @@index([tenantId, paymentStatus])
   @@map("purchases")
@@ -649,6 +651,7 @@ model ServiceTicket {
   paymentMethod  PaymentMethod? // metode bayar terakhir (tunai/transfer/QRIS/kredit)
   note           String?
   createdById    String?
+  clientOpId     String? // idempotensi sinkron offline (lihat Sale.clientOpId)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   completedAt    DateTime?
@@ -659,6 +662,7 @@ model ServiceTicket {
   payments ServicePayment[]
 
   @@unique([tenantId, number])
+  @@unique([tenantId, clientOpId])
   @@index([tenantId])
   @@index([tenantId, status])
   @@map("service_tickets")

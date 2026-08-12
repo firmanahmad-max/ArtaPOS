@@ -90,12 +90,32 @@ Terverifikasi: alur outbox→push→hasil dengan skema IndexedDB & endpoint nyat
   `needs_review` TIDAK dikirim ulang otomatis — menunggu tindakan kasir.
   Terverifikasi: needs_review dilewati auto-sync; setelah retry → tersinkron & hilang.
 
+### ✅ Offline untuk PEMBELIAN & TIKET SERVIS (selesai)
+- Endpoint `/api/sync/push` kini multi-jenis: `ops:[{type:"sale"|"purchase"|
+  "service", data}]`. Izin dicek per jenis (pos.use / purchasing.manage /
+  service.manage).
+- `Purchase.clientOpId` & `ServiceTicket.clientOpId` (+ `@@unique([tenantId,
+  clientOpId])`); `createPurchase`/`createTicket` idempoten + dukung
+  `clientCreatedAt` (dokumen bertanggal saat TERJADI di perangkat).
+- **Form pembelian** & **form buat tiket servis**: saat offline → antre ke
+  outbox (tipe purchase/service), toast "tersimpan offline", kembali ke daftar;
+  online juga membawa clientOpId (double-submit aman). Tiket/PB muncul di daftar
+  setelah tersinkron (nomor final dari server).
+- Dialog tinjau antrian menampilkan jenis (Penjualan/Pembelian/Tiket Servis).
+- Terverifikasi: satu batch campuran (purchase+service+sale) tersinkron; kirim
+  ulang → semua `duplicate` (stok tak berubah); pembelian menaikkan stok delta;
+  PB & SV bertanggal saat offline.
+
+Catatan: pembelian offline dgn PRODUK BARU (newProduct) didukung — server
+membuat produknya saat sinkron; bila SKU sudah dipakai (dibuat op lain) →
+`needs_review`. Alur LANJUTAN tiket (tambah sparepart/bayar/status) tetap perlu
+online karena mereferensikan id tiket server.
+
 ### 🔜 Sisa (perlu uji perangkat/keputusan)
 - **Buka-ulang saat offline**: SW sengaja TIDAK meng-cache HTML ter-autentikasi
-  (privasi). Jadi offline hanya jalan bila tab POS TETAP TERBUKA saat koneksi
-  putus (skenario kasir tersering). Untuk buka-ulang penuh saat offline perlu
-  keputusan cache app-shell (tradeoff privasi di perangkat bersama).
-- Offline untuk servis & pembelian.
+  (privasi). Jadi offline hanya jalan bila tab TETAP TERBUKA saat koneksi putus
+  (skenario tersering). Buka-ulang penuh saat offline perlu keputusan cache
+  app-shell (tradeoff privasi di perangkat bersama).
 
 ### Catatan penyimpangan dari blueprint
 Sisi klien direncanakan pakai **outbox IndexedDB ringan** (bukan RxDB penuh):

@@ -3,7 +3,9 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Trash2, Loader2, Plus, X, PackagePlus } from "lucide-react";
+import { toast } from "sonner";
 import { createPurchaseAction } from "@/server/purchasing/actions";
+import { queueOfflineOp, newOpId } from "@/lib/offline/enqueue";
 import { formatRupiah } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -123,19 +125,40 @@ export function PurchaseForm({
       setError("Tambahkan minimal 1 item.");
       return;
     }
-    start(async () => {
-      const res = await createPurchaseAction({
-        supplierId: supplierId || undefined,
-        items: list.map((l) =>
-          l.productId
-            ? { productId: l.productId, qty: l.qty, costPrice: l.costPrice }
-            : { newProduct: l.newProduct, qty: l.qty, costPrice: l.costPrice },
-        ),
-        paidAmount,
-        dueDate: dueDate || undefined,
+    const payload = {
+      supplierId: supplierId || undefined,
+      items: list.map((l) =>
+        l.productId
+          ? { productId: l.productId, qty: l.qty, costPrice: l.costPrice }
+          : { newProduct: l.newProduct, qty: l.qty, costPrice: l.costPrice },
+      ),
+      paidAmount,
+      dueDate: dueDate || undefined,
+    };
+    const totalCost = list.reduce((s, l) => s + l.qty * l.costPrice, 0);
+    const summary = { itemCount: list.length, total: totalCost, label: `${list.length} item · ${formatRupiah(totalCost)}` };
+
+    async function queue() {
+      await queueOfflineOp("purchase", payload, summary);
+      toast.success("Pembelian tersimpan offline", { description: "Akan disinkronkan otomatis saat online." });
+      router.push("/purchasing");
+    }
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      start(() => {
+        void queue().catch((e) => setError(e instanceof Error ? e.message : "Gagal menyimpan offline."));
       });
-      if (res.ok && res.purchaseId) router.push(`/purchasing/${res.purchaseId}`);
-      else setError(res.message ?? "Gagal menyimpan.");
+      return;
+    }
+    start(async () => {
+      try {
+        const res = await createPurchaseAction({ ...payload, clientOpId: newOpId() });
+        if (res.ok && res.purchaseId) router.push(`/purchasing/${res.purchaseId}`);
+        else setError(res.message ?? "Gagal menyimpan.");
+      } catch {
+        // Server tak terjangkau di tengah → simpan offline.
+        await queue().catch((e) => setError(e instanceof Error ? e.message : "Gagal menyimpan offline."));
+      }
     });
   }
 
