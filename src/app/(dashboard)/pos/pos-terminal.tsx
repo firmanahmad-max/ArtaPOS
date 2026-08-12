@@ -9,6 +9,7 @@ import { cn, formatRupiah } from "@/lib/utils";
 import { enqueueOutbox } from "@/lib/offline/db";
 import { effectiveCatalog } from "@/lib/offline/catalog";
 import { useOfflineSync, notifyOutboxChanged } from "@/hooks/use-offline-sync";
+import { SyncReviewDialog } from "./sync-review-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -85,6 +86,7 @@ export function PosTerminal({
   const searchRef = useRef<HTMLInputElement>(null);
   const checkoutRef = useRef<() => void>(() => {});
   const sync = useOfflineSync();
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   // Katalog efektif: cache IndexedDB (bila terisi) di atas props SSR, dikurangi
   // reservasi outbox. Lihat effectiveCatalog() untuk detail & pengujiannya.
@@ -321,19 +323,17 @@ export function PosTerminal({
             )}
             {sync.pending > 0 && <span>{sync.pending} menunggu sinkron</span>}
             {sync.needsReview > 0 && (
-              <span className="flex items-center gap-1 text-destructive">
-                <AlertTriangle className="size-3.5" /> {sync.needsReview} perlu ditinjau
-              </span>
-            )}
-            {sync.online && (sync.pending > 0 || sync.needsReview > 0) && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="ml-auto h-7"
-                onClick={sync.syncNow}
-                disabled={sync.syncing}
+              <button
+                type="button"
+                onClick={() => setReviewOpen(true)}
+                className="flex items-center gap-1 font-medium text-destructive underline-offset-2 hover:underline"
               >
-                <RefreshCw className={cn("size-3", sync.syncing && "animate-spin")} /> Sinkronkan
+                <AlertTriangle className="size-3.5" /> {sync.needsReview} perlu ditinjau
+              </button>
+            )}
+            {(sync.pending > 0 || sync.needsReview > 0) && (
+              <Button variant="outline" size="sm" className="ml-auto h-7" onClick={() => setReviewOpen(true)}>
+                Tinjau Antrian
               </Button>
             )}
           </div>
@@ -559,6 +559,17 @@ export function PosTerminal({
           </p>
         </div>
       </Card>
+
+      <SyncReviewDialog
+        open={reviewOpen}
+        onOpenChange={setReviewOpen}
+        items={sync.items}
+        online={sync.online}
+        syncing={sync.syncing}
+        onRetry={sync.retryItem}
+        onDiscard={sync.discardItem}
+        onSyncAll={sync.syncNow}
+      />
     </div>
   );
 }

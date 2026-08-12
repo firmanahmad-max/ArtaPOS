@@ -5,6 +5,8 @@ import {
   listOutbox,
   getCachedProducts,
   getCachedCustomers,
+  updateOutbox,
+  removeOutbox,
   type OutboxSale,
   type CachedProduct,
   type CachedCustomer,
@@ -29,6 +31,10 @@ export interface OfflineSyncState {
   cachedProducts: CachedProduct[];
   cachedCustomers: CachedCustomer[];
   syncNow: () => void;
+  /** Kirim ulang satu antrian yang gagal (needs_review/error). */
+  retryItem: (clientOpId: string) => void;
+  /** Buang satu antrian (batalkan penjualan offline yang bermasalah). */
+  discardItem: (clientOpId: string) => void;
 }
 
 /**
@@ -103,10 +109,32 @@ export function useOfflineSync(pollMs = 30_000): OfflineSyncState {
     };
   }, [refresh, runSync, pollMs]);
 
+  const retryItem = useCallback(
+    (clientOpId: string) => {
+      const item = items.find((o) => o.clientOpId === clientOpId);
+      if (!item) return;
+      // Kembalikan ke antrian → dorongan sinkron berikutnya mencoba lagi.
+      void updateOutbox({ ...item, status: "pending", lastError: undefined }).then(() => {
+        void refresh();
+        void runSync();
+      });
+    },
+    [items, refresh, runSync],
+  );
+
+  const discardItem = useCallback(
+    (clientOpId: string) => {
+      void removeOutbox(clientOpId).then(() => void refresh());
+    },
+    [refresh],
+  );
+
   const { pending, needsReview } = summarizeOutbox(items);
   return {
     online, syncing, pending, needsReview, items,
     cachedProducts, cachedCustomers,
     syncNow: () => void runSync(),
+    retryItem,
+    discardItem,
   };
 }
