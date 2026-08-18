@@ -86,8 +86,8 @@ export function PosTerminal({
   // Katalog efektif: cache IndexedDB (bila terisi) di atas props SSR, dikurangi
   // reservasi outbox. Lihat effectiveCatalog() untuk detail & pengujiannya.
   const catalog = useMemo<PosProduct[]>(
-    () => effectiveCatalog(products, sync.cachedProducts, sync.items),
-    [sync.cachedProducts, sync.items, products],
+    () => effectiveCatalog(products, sync.cachedProducts, sync.items, sync.online),
+    [sync.cachedProducts, sync.items, products, sync.online],
   );
 
   const filtered = useMemo(() => {

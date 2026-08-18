@@ -12,27 +12,32 @@ const cached = [
 ];
 const ob = (items: { productId: string; qty: number }[]) => ({ payload: { items } });
 
-test("effectiveCatalog: pakai props SSR bila cache kosong", () => {
-  const r = effectiveCatalog(ssr, [], []);
-  assert.equal(r, ssr); // referensi sama (tanpa reservasi)
-  assert.equal(r.find((p) => p.id === "p1")!.stock, 5);
+test("effectiveCatalog: ONLINE pakai props SSR (item baru langsung tampil, cache diabaikan)", () => {
+  // Cache 'ketinggalan' (mis. belum memuat item baru) — saat online HARUS pakai SSR.
+  const r = effectiveCatalog(ssr, cached, [], true);
+  assert.equal(r, ssr); // referensi SSR, cache diabaikan
+  assert.equal(r.find((p) => p.id === "p1")!.stock, 5); // dari SSR, bukan 8 dari cache
 });
 
-test("effectiveCatalog: prioritaskan cache IndexedDB bila terisi (stok lebih segar)", () => {
-  const r = effectiveCatalog(ssr, cached, []);
-  assert.equal(r.find((p) => p.id === "p1")!.stock, 8); // dari cache, bukan 5 dari SSR
-  // Bentuk unit dipetakan ke { symbol }
+test("effectiveCatalog: OFFLINE pakai cache IndexedDB (stok dari sinkron terakhir)", () => {
+  const r = effectiveCatalog(ssr, cached, [], false);
+  assert.equal(r.find((p) => p.id === "p1")!.stock, 8); // dari cache
   assert.deepEqual(r.find((p) => p.id === "p1")!.unit, { symbol: "pcs" });
 });
 
-test("effectiveCatalog: kurangi stok dgn reservasi outbox (offline realistis)", () => {
-  const r = effectiveCatalog(ssr, cached, [ob([{ productId: "p1", qty: 3 }]), ob([{ productId: "p1", qty: 2 }, { productId: "p2", qty: 1 }])]);
-  assert.equal(r.find((p) => p.id === "p1")!.stock, 8 - 5); // 3 → cache 8 - reservasi 5 = 3
+test("effectiveCatalog: OFFLINE cache kosong → jatuh ke props SSR", () => {
+  const r = effectiveCatalog(ssr, [], [], false);
+  assert.equal(r, ssr);
+});
+
+test("effectiveCatalog: OFFLINE kurangi stok dgn reservasi outbox (realistis)", () => {
+  const r = effectiveCatalog(ssr, cached, [ob([{ productId: "p1", qty: 3 }]), ob([{ productId: "p1", qty: 2 }, { productId: "p2", qty: 1 }])], false);
+  assert.equal(r.find((p) => p.id === "p1")!.stock, 8 - 5); // cache 8 - reservasi 5 = 3
   assert.equal(r.find((p) => p.id === "p2")!.stock, 4 - 1); // 3
 });
 
 test("effectiveCatalog: stok tak pernah negatif", () => {
-  const r = effectiveCatalog(ssr, cached, [ob([{ productId: "p2", qty: 99 }])]);
+  const r = effectiveCatalog(ssr, cached, [ob([{ productId: "p2", qty: 99 }])], false);
   assert.equal(r.find((p) => p.id === "p2")!.stock, 0);
 });
 

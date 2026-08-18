@@ -8,6 +8,7 @@ import {
   STORE_PRODUCTS,
   STORE_CUSTOMERS,
   replaceAll,
+  upsertMany,
   listOutbox,
   removeOutbox,
   updateOutbox,
@@ -32,12 +33,19 @@ export async function pullCatalog(): Promise<{ products: number; customers: numb
     products: CachedProduct[];
     customers: CachedCustomer[];
   };
-  // Fase ini: tanpa `since` → ganti penuh. (Delta upsert bisa ditambah nanti.)
   if (!since) {
+    // Pull pertama → ganti penuh.
     await replaceAll(STORE_PRODUCTS, data.products);
     await replaceAll(STORE_CUSTOMERS, data.customers);
-    await setMeta(CHECKPOINT_KEY, data.checkpoint);
+  } else {
+    // Pull berikutnya → upsert HANYA yang berubah sejak checkpoint (mis. produk
+    // baru / stok/harga berubah). Wajib diterapkan, kalau tidak katalog cache
+    // tak pernah memuat item baru.
+    await upsertMany(STORE_PRODUCTS, data.products);
+    await upsertMany(STORE_CUSTOMERS, data.customers);
   }
+  // Selalu majukan checkpoint agar delta berikutnya tak mengulang.
+  await setMeta(CHECKPOINT_KEY, data.checkpoint);
   return { products: data.products.length, customers: data.customers.length };
 }
 

@@ -32,19 +32,24 @@ export function reservationsFromOutbox(items: OutboxLike[]): Map<string, number>
 
 /**
  * Katalog efektif untuk pencarian POS:
- * - Sumber = cache IndexedDB bila SUDAH terisi (di-refresh saat sinkron & satu-
- *   satunya sumber saat offline); jatuh ke props SSR sebelum pull pertama.
- * - Stok dikurangi reservasi outbox → sisa stok offline realistis, barang yang
- *   sama tak terjual-lebih berulang. Server tetap penentu final (needs_review).
+ * - **Online** → pakai props SSR (di-render server saat navigasi, jadi selalu
+ *   memuat produk terbaru yang baru ditambahkan). Cache TIDAK dipakai saat
+ *   online agar item baru langsung tampil.
+ * - **Offline** → pakai cache IndexedDB (di-refresh sinkron; satu-satunya sumber
+ *   saat offline); jatuh ke props SSR bila cache belum terisi.
+ * - Stok dikurangi reservasi outbox → sisa stok realistis saat ada penjualan
+ *   offline yang belum tersinkron. Server tetap penentu final (needs_review).
  */
 export function effectiveCatalog(
   ssr: CatalogProduct[],
   cached: CachedProduct[],
   outbox: OutboxLike[],
+  online: boolean,
 ): CatalogProduct[] {
   const base: CatalogProduct[] =
-    cached.length > 0
-      ? cached.map((c) => ({
+    online || cached.length === 0
+      ? ssr
+      : cached.map((c) => ({
           id: c.id,
           name: c.name,
           sku: c.sku,
@@ -53,8 +58,7 @@ export function effectiveCatalog(
           stock: c.stock,
           minStock: c.minStock,
           unit: { symbol: c.unit },
-        }))
-      : ssr;
+        }));
   const reserved = reservationsFromOutbox(outbox);
   if (reserved.size === 0) return base;
   return base.map((p) =>
