@@ -77,14 +77,17 @@ export async function POST(req: Request) {
   // Berurutan: tiap op transaksi sendiri; satu gagal tak menjatuhkan yang lain.
   for (const op of parsed.data.ops) {
     const type = op.type as OpType;
+    // Ambil clientOpId lebih awal agar SEMUA hasil (termasuk penolakan izin/
+    // validasi) bisa dicocokkan klien. Tanpa ini, item tak pernah ditandai →
+    // tetap "pending" & dikirim ulang tiap sinkron (loop diam).
+    const preOpId = (op.data as { clientOpId?: string })?.clientOpId;
     if (!can(user.role, PERM[type])) {
-      results.push({ type, ok: false, status: "error", message: "Tidak punya izin." });
+      results.push({ clientOpId: preOpId, type, ok: false, status: "error", message: "Tidak punya izin." });
       continue;
     }
     const dataParsed = PARSERS[type].safeParse(op.data);
     if (!dataParsed.success) {
-      const opId = (op.data as { clientOpId?: string })?.clientOpId;
-      results.push({ clientOpId: opId, type, ok: false, status: "error", message: "Data tidak valid." });
+      results.push({ clientOpId: preOpId, type, ok: false, status: "error", message: "Data tidak valid." });
       continue;
     }
     const data = dataParsed.data;

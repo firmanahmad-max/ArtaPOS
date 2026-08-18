@@ -25,7 +25,11 @@ export async function GET(req: Request) {
   const sinceRaw = new URL(req.url).searchParams.get("since");
   const since = sinceRaw ? new Date(sinceRaw) : null;
   const changedSince = since && !Number.isNaN(since.getTime()) ? { updatedAt: { gt: since } } : {};
-  const checkpoint = new Date().toISOString();
+  // Checkpoint dimundurkan sedikit (overlap) agar tulisan yang commit tepat di
+  // celah antara snapshot query & pembuatan checkpoint tak terlewat pada delta
+  // berikutnya. Pull ulang yang tumpang-tindih aman: upsert bersifat idempoten.
+  const CHECKPOINT_OVERLAP_MS = 2000;
+  const checkpoint = new Date(Date.now() - CHECKPOINT_OVERLAP_MS).toISOString();
 
   const [products, customers] = await Promise.all([
     db.product.findMany({
