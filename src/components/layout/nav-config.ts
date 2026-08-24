@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   Sparkles,
   PackageOpen,
+  ClipboardList,
 } from "lucide-react";
 import type { Permission } from "@/lib/rbac";
 
@@ -75,6 +76,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/service", label: "Jasa Servis", icon: Wrench, permission: "service.manage", enabled: true },
       { href: "/pc-build", label: "Rakit PC", icon: Cpu, permission: "pcbuild.manage", enabled: true },
+      { href: "/simulations", label: "Simulasi Rakitan", icon: ClipboardList, permission: "pcbuild.manage", enabled: true },
     ],
   },
   {

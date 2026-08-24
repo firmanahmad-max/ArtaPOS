@@ -78,6 +78,7 @@ model Tenant {
   purchases      Purchase[]
   serviceTickets ServiceTicket[]
   pcBuilds       PcBuild[]
+  buildSimulations BuildSimulation[]
   expenses       Expense[]
   warrantyUnits  WarrantyUnit[]
   rmaClaims      RmaClaim[]
@@ -733,6 +734,15 @@ enum BuildStatus {
   CANCELLED
 }
 
+/// Status simulasi/penawaran rakitan (quotation) sebelum jadi rakitan nyata.
+enum SimStatus {
+  DRAFT // masih disusun
+  SENT // sudah dikirim ke pelanggan (mis. via WA)
+  APPROVED // disetujui pelanggan
+  IMPORTED // sudah diimpor jadi Rakit PC
+  REJECTED // ditolak pelanggan
+}
+
 /// Rakitan PC. total = componentsCost + buildFee. Komponen memotong stok.
 model PcBuild {
   id             String        @id @default(cuid())
@@ -763,19 +773,71 @@ model PcBuild {
 }
 
 model PcBuildItem {
-  id          String @id @default(cuid())
+  id          String  @id @default(cuid())
   buildId     String
-  productId   String
+  productId   String? // null = komponen bebas (bukan dari inventory / stok belum ada)
   productName String
-  qty         Int    @default(1)
+  qty         Int     @default(1)
   price       Int
-  costPrice   Int    @default(0) // snapshot modal saat komponen dipakai (untuk laba)
+  costPrice   Int     @default(0) // snapshot modal saat komponen dipakai (untuk laba)
   subtotal    Int
+  /// true = stok inventory sudah dipotong untuk komponen ini (dialokasikan).
+  /// false = komponen bebas / stok belum dipotong (mis. hasil impor simulasi
+  /// yang stoknya kurang). removeComponent hanya me-restock bila true.
+  stockApplied Boolean @default(true)
 
   build PcBuild @relation(fields: [buildId], references: [id], onDelete: Cascade)
 
   @@index([buildId])
   @@map("pc_build_items")
+}
+
+/// Simulasi/penawaran rakitan (quotation). BEDA dari PcBuild: TIDAK memotong
+/// stok — murni dokumen perencanaan agar bisa menyusun spesifikasi sesuai bujet
+/// pelanggan. Komponen boleh dari inventory atau bebas (ketik manual). Bila
+/// disetujui, diimpor menjadi PcBuild (barulah stok dialokasikan).
+model BuildSimulation {
+  id              String    @id @default(cuid())
+  tenantId        String
+  number          String // SIM-00001
+  name            String // nama rakitan, mis. "PC Gaming Budi"
+  customerId      String?
+  customerName    String?
+  customerPhone   String? // untuk kirim penawaran via WhatsApp
+  budget          Int       @default(0) // bujet pelanggan (0 = tanpa batas)
+  buildFee        Int       @default(0) // jasa rakit (masuk total jual)
+  status          SimStatus @default(DRAFT)
+  note            String?
+  /// Tautan ke PcBuild bila simulasi ini sudah diimpor (cegah impor ganda).
+  importedBuildId String?
+  createdById     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  tenant Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items  BuildSimulationItem[]
+
+  @@unique([tenantId, number])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@map("build_simulations")
+}
+
+model BuildSimulationItem {
+  id           String  @id @default(cuid())
+  simulationId String
+  productId    String? // null = komponen bebas (bukan dari inventory)
+  name         String // nama komponen (dari produk atau ketik bebas)
+  qty          Int     @default(1)
+  costPrice    Int     @default(0) // harga beli/modal per unit (untuk margin)
+  sellPrice    Int     @default(0) // harga jual per unit
+  subtotal     Int     @default(0) // sellPrice * qty
+  sortOrder    Int     @default(0)
+
+  simulation BuildSimulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+
+  @@index([simulationId])
+  @@map("build_simulation_items")
 }
 
 // ──────────────────────────────────────────────────────────────────────────

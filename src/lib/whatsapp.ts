@@ -154,6 +154,44 @@ export function buildSaleReceiptText(r: {
   return rows.join("\n");
 }
 
+/** Penawaran (quotation) simulasi rakitan sebagai teks WhatsApp. */
+export function buildSimulationText(n: {
+  storeName: string;
+  number: string;
+  dateText: string;
+  name: string;
+  customerName: string | null;
+  items: { name: string; qty: number; sellPrice: number; subtotal: number }[];
+  buildFee: number;
+  grandTotal: number;
+  note?: string | null;
+}): string {
+  const line = "────────────────";
+  const rows = [
+    `*${n.storeName}*`,
+    "PENAWARAN RAKITAN PC",
+    `No: ${n.number}`,
+    `Tgl: ${n.dateText}`,
+    `Rakitan: *${n.name}*`,
+  ];
+  if (n.customerName) rows.push(`Pelanggan: ${n.customerName}`);
+  rows.push(line);
+  n.items.forEach((it, i) => {
+    rows.push(`${i + 1}. ${it.name}`);
+    rows.push(`   ${it.qty} x ${formatRupiah(it.sellPrice)} = ${formatRupiah(it.subtotal)}`);
+  });
+  rows.push(line);
+  if (n.buildFee > 0) rows.push(`Jasa Rakit: ${formatRupiah(n.buildFee)}`);
+  rows.push(`*TOTAL: ${formatRupiah(n.grandTotal)}*`);
+  if (n.note) {
+    rows.push(line);
+    rows.push(n.note);
+  }
+  rows.push(line);
+  rows.push("Silakan konfirmasi bila spesifikasi & harga sudah sesuai 🙏");
+  return rows.join("\n");
+}
+
 /** Normalisasi no. HP Indonesia ke format internasional (62…) untuk wa.me. */
 export function normalizePhoneId(phone: string): string {
   let p = phone.replace(/[^0-9]/g, "");

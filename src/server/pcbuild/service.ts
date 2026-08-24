@@ -127,7 +127,12 @@ export async function removeComponent(tenantId: string, userId: string, buildId:
   return db.$transaction(async (tx) => {
     const item = await tx.pcBuildItem.findFirst({ where: { id: itemId, buildId } });
     if (!item) throw new Error("Komponen tidak ditemukan.");
-    const product = await tx.product.findFirst({ where: { id: item.productId, tenantId }, select: { id: true } });
+    // Hanya kembalikan stok bila komponen ini memang memotong stok (stockApplied).
+    // Komponen bebas / hasil impor yang stoknya kurang tak pernah dipotong.
+    const product =
+      item.stockApplied && item.productId
+        ? await tx.product.findFirst({ where: { id: item.productId, tenantId }, select: { id: true } })
+        : null;
     if (product) {
       await moveStock(tx, {
         tenantId,
