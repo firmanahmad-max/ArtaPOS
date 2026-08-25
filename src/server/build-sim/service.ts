@@ -47,12 +47,20 @@ export function getSimulation(tenantId: string, id: string) {
   });
 }
 
+// Kolom uang = Postgres Int (INT4, maks 2_147_483_647). Batasi nilai TERHITUNG
+// (subtotal & total) agar tak overflow kolom — validasi per-field saja tak cukup
+// karega qty × harga bisa meledak (mis. 3jt × 999).
+const SAFE_MAX = 2_000_000_000;
+
 /** Petakan input item → data baris (subtotal dihitung server, jangan percaya klien). */
 function itemsData(input: BuildSimInput) {
   return input.items.map((it, i) => {
     const qty = it.qty;
     const sellPrice = it.sellPrice ?? 0;
     const costPrice = it.costPrice ?? 0;
+    if (sellPrice * qty > SAFE_MAX || costPrice * qty > SAFE_MAX) {
+      throw new Error(`Nilai komponen "${it.name || `#${i + 1}`}" terlalu besar.`);
+    }
     return {
       productId: it.productId ?? null,
       name: it.name,
@@ -65,6 +73,14 @@ function itemsData(input: BuildSimInput) {
   });
 }
 
+/** Cegah total (jasa + komponen) melebihi kapasitas kolom Int. */
+function assertTotalFits(input: BuildSimInput) {
+  const components = input.items.reduce((s, it) => s + (it.sellPrice ?? 0) * it.qty, 0);
+  if (input.buildFee + components > SAFE_MAX) {
+    throw new Error("Total penawaran terlalu besar.");
+  }
+}
+
 function parseCreatedAt(raw: string | null | undefined): Date | undefined {
   if (!raw) return undefined;
   const d = new Date(raw);
@@ -72,19 +88,24 @@ function parseCreatedAt(raw: string | null | undefined): Date | undefined {
 }
 
 async function resolveCustomer(tenantId: string, input: BuildSimInput) {
+  let customerId = input.customerId ?? null;
   let customerName = input.customerName || null;
   let customerPhone = input.customerPhone || null;
-  if (input.customerId) {
+  if (customerId) {
     const c = await db.customer.findFirst({
-      where: { id: input.customerId, tenantId },
+      where: { id: customerId, tenantId },
       select: { name: true, phone: true },
     });
     if (c) {
       customerName = c.name;
       if (!customerPhone) customerPhone = c.phone;
+    } else {
+      // customerId tak valid untuk tenant ini → jangan simpan ref menggantung /
+      // lintas-tenant (ikut pola ketat createSale). Nama tetap dari input.
+      customerId = null;
     }
   }
-  return { customerName, customerPhone };
+  return { customerId, customerName, customerPhone };
 }
 
 export async function createSimulation(
@@ -92,7 +113,8 @@ export async function createSimulation(
   user: { id: string; name: string },
   input: BuildSimInput,
 ) {
-  const { customerName, customerPhone } = await resolveCustomer(tenantId, input);
+  assertTotalFits(input);
+  const { customerId, customerName, customerPhone } = await resolveCustomer(tenantId, input);
   const created = parseCreatedAt(input.createdAt);
   return db.$transaction(async (tx) => {
     const number = await nextDocNumber(tx, tenantId, "SIM", () =>
@@ -103,7 +125,7 @@ export async function createSimulation(
         tenantId,
         number,
         name: input.name,
-        customerId: input.customerId ?? null,
+        customerId,
         customerName,
         customerPhone,
         budget: input.budget,
@@ -126,7 +148,8 @@ export async function updateSimulation(tenantId: string, id: string, input: Buil
   });
   if (!existing) throw new Error("Simulasi tidak ditemukan.");
   if (existing.status === "IMPORTED") throw new Error("Simulasi sudah diimpor, tidak bisa diubah.");
-  const { customerName, customerPhone } = await resolveCustomer(tenantId, input);
+  assertTotalFits(input);
+  const { customerId, customerName, customerPhone } = await resolveCustomer(tenantId, input);
   const created = parseCreatedAt(input.createdAt);
   return db.$transaction(async (tx) => {
     await tx.buildSimulationItem.deleteMany({ where: { simulationId: id } });
@@ -134,7 +157,7 @@ export async function updateSimulation(tenantId: string, id: string, input: Buil
       where: { id },
       data: {
         name: input.name,
-        customerId: input.customerId ?? null,
+        customerId,
         customerName,
         customerPhone,
         budget: input.budget,
