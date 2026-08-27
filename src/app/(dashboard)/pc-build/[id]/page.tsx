@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Printer } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { getBuild, listProductsForBuild } from "@/server/pcbuild/service";
@@ -36,6 +36,12 @@ export default async function BuildDetailPage({ params }: { params: Promise<{ id
             {build.customerName ? ` · ${build.customerName}` : ""}
           </p>
         </div>
+        <Link
+          href={`/pc-build/${build.id}/nota`}
+          className={`${buttonVariants({ variant: "outline", size: "sm" })} ml-auto`}
+        >
+          <Printer /> Cetak Nota
+        </Link>
       </div>
 
       <Card>

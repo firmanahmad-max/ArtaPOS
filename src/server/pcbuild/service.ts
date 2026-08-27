@@ -29,6 +29,24 @@ export function getBuild(tenantId: string, id: string) {
   });
 }
 
+/** Rakitan + no. HP pelanggan (untuk nota WhatsApp). Ter-scope tenant. */
+export async function getBuildForNota(tenantId: string, id: string) {
+  const build = await db.pcBuild.findFirst({
+    where: { id, tenantId },
+    include: { items: { orderBy: { id: "asc" } } },
+  });
+  if (!build) return null;
+  let customerPhone: string | null = null;
+  if (build.customerId) {
+    const c = await db.customer.findFirst({
+      where: { id: build.customerId, tenantId },
+      select: { phone: true },
+    });
+    customerPhone = c?.phone ?? null;
+  }
+  return { build, customerPhone };
+}
+
 export async function createBuild(
   tenantId: string,
   user: { id: string; name: string },

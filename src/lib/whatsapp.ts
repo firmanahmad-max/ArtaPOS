@@ -154,6 +154,40 @@ export function buildSaleReceiptText(r: {
   return rows.join("\n");
 }
 
+/**
+ * Nota Rakit PC sebagai teks WhatsApp — rincian komponen TANPA harga per item,
+ * hanya total nilai rakitan (komponen + jasa rakit).
+ */
+export function buildPcBuildNotaText(n: {
+  storeName: string;
+  number: string;
+  dateText: string;
+  statusLabel: string;
+  name: string;
+  customerName: string | null;
+  items: { name: string; qty: number }[];
+  total: number;
+  footer?: string | null;
+}): string {
+  const line = "────────────────";
+  const rows = [
+    `*${n.storeName}*`,
+    "NOTA RAKIT PC",
+    `No: ${n.number}`,
+    `Tgl: ${n.dateText}`,
+    `Rakitan: *${n.name}*`,
+    `Status: *${n.statusLabel}*`,
+  ];
+  if (n.customerName) rows.push(`Pelanggan: ${n.customerName}`);
+  rows.push(line);
+  rows.push("Spesifikasi Komponen:");
+  n.items.forEach((it, i) => rows.push(`${i + 1}. ${it.name}${it.qty > 1 ? ` (${it.qty}x)` : ""}`));
+  rows.push(line);
+  rows.push(`*TOTAL RAKITAN: ${formatRupiah(n.total)}*`);
+  rows.push(n.footer || "Terima kasih 🙏");
+  return rows.join("\n");
+}
+
 /** Penawaran (quotation) simulasi rakitan sebagai teks WhatsApp. */
 export function buildSimulationText(n: {
   storeName: string;
