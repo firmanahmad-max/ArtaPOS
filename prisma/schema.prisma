@@ -627,7 +627,7 @@ enum ServiceStatus {
   CANCELLED // batal
 }
 
-/// Tiket servis. total = laborCost + partsCost. Outstanding = total - paid.
+/// Tiket servis. total = laborCost + partsCost - discount. Outstanding = total - paid.
 model ServiceTicket {
   id             String        @id @default(cuid())
   tenantId       String
@@ -646,7 +646,8 @@ model ServiceTicket {
   technicianName String?
   laborCost      Int           @default(0) // biaya jasa
   partsCost      Int           @default(0) // akumulasi sparepart
-  total          Int           @default(0) // laborCost + partsCost
+  discount       Int           @default(0) // potongan harga (rupiah), maks laborCost+partsCost
+  total          Int           @default(0) // laborCost + partsCost - discount
   paid           Int            @default(0)
   paymentStatus  PaymentStatus  @default(UNPAID)
   paymentMethod  PaymentMethod? // metode bayar terakhir (tunai/transfer/QRIS/kredit)

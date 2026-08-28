@@ -84,6 +84,7 @@ export function buildServiceNotaText(n: {
   device: string;
   items: { name: string; qty: number; price: number; subtotal: number; isPart: boolean }[];
   laborCost: number;
+  discount?: number;
   total: number;
   paid: number;
   paymentMethodLabel?: string;
@@ -107,6 +108,7 @@ export function buildServiceNotaText(n: {
     }
   }
   if (n.laborCost > 0) rows.push(`Biaya Jasa: ${formatRupiah(n.laborCost)}`);
+  if (n.discount && n.discount > 0) rows.push(`Diskon: -${formatRupiah(n.discount)}`);
   rows.push(line);
   rows.push(`*TOTAL: ${formatRupiah(n.total)}*`);
   rows.push(`Dibayar${n.paymentMethodLabel ? ` (${n.paymentMethodLabel})` : ""}: ${formatRupiah(n.paid)}`);

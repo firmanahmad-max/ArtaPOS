@@ -58,6 +58,7 @@ export default async function ServiceNotaPage({
             isPart: i.isPart,
           })),
           laborCost: ticket.laborCost,
+          discount: ticket.discount,
           total: ticket.total,
           paid: ticket.paid,
           paymentMethod: ticket.paymentMethod,

@@ -124,6 +124,20 @@ export async function updateLaborAction(ticketId: string, laborCost: number): Pr
   }
 }
 
+export async function updateServiceDiscountAction(ticketId: string, discount: number): Promise<Result> {
+  const u = await guard();
+  if (!u) return { ok: false, message: NO_PERM };
+  const user = await getCurrentUser();
+  try {
+    await svc.updateDiscount(user.tenantId, ticketId, discount);
+    revalidatePath(`/service/${ticketId}`);
+    revalidateReports();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Gagal." };
+  }
+}
+
 export async function updateStatusAction(
   ticketId: string,
   status: ServiceStatus,

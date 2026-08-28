@@ -63,6 +63,7 @@ export default async function TicketDetailPage({
           accessories: ticket.accessories,
           laborCost: ticket.laborCost,
           partsCost: ticket.partsCost,
+          discount: ticket.discount,
           total: ticket.total,
           paid: ticket.paid,
           paymentMethod: ticket.paymentMethod,

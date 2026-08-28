@@ -9,6 +9,7 @@ import {
   addLineAction,
   removeItemAction,
   updateLaborAction,
+  updateServiceDiscountAction,
   updateAccessoriesAction,
   updateStatusAction,
   recordServicePaymentAction,
@@ -45,6 +46,7 @@ export interface TicketData {
   accessories: string | null;
   laborCost: number;
   partsCost: number;
+  discount: number;
   total: number;
   paid: number;
   paymentMethod: string | null;
@@ -79,6 +81,7 @@ export function TicketDetail({
   // form state
   const [accessories, setAccessories] = useState(ticket.accessories ?? "");
   const [labor, setLabor] = useState(ticket.laborCost);
+  const [discount, setDiscount] = useState(ticket.discount);
   const [lineName, setLineName] = useState("");
   const [linePrice, setLinePrice] = useState(0);
   const [lineQty, setLineQty] = useState(1);
@@ -86,6 +89,7 @@ export function TicketDetail({
   const [payMethod, setPayMethod] = useState("CASH");
 
   const outstanding = ticket.total - ticket.paid;
+  const grossBeforeDiscount = ticket.laborCost + ticket.partsCost;
 
   function run(fn: () => Promise<{ ok: boolean; message?: string }>) {
     setMsg(null);
@@ -282,6 +286,23 @@ export function TicketDetail({
             </div>
           </div>
           <div className="flex justify-between"><span className="text-muted-foreground">Sparepart & jasa lain</span><span>{formatRupiah(ticket.partsCost)}</span></div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-muted-foreground">Diskon</span>
+            <div className="flex items-center gap-2">
+              <Input type="number" min="0" max={grossBeforeDiscount} value={discount}
+                onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))}
+                className="h-8 w-36 text-right" />
+              <Button variant="outline" size="sm" disabled={pending || discount === ticket.discount}
+                onClick={() => run(() => updateServiceDiscountAction(ticket.id, discount))}>
+                <Save className="size-3" />
+              </Button>
+            </div>
+          </div>
+          {ticket.discount > 0 && (
+            <div className="flex justify-between text-success">
+              <span>Potongan diskon</span><span>-{formatRupiah(ticket.discount)}</span>
+            </div>
+          )}
           <div className="flex justify-between border-t pt-2 text-base font-bold"><span>Total</span><span>{formatRupiah(ticket.total)}</span></div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">
@@ -290,8 +311,8 @@ export function TicketDetail({
             <span>{formatRupiah(ticket.paid)}</span>
           </div>
           <div className="flex justify-between font-medium">
-            <span className={outstanding > 0 ? "text-destructive" : "text-success"}>Sisa</span>
-            <span className={outstanding > 0 ? "text-destructive" : "text-success"}>{formatRupiah(outstanding)}</span>
+            <span className={outstanding > 0 ? "text-destructive" : "text-success"}>{outstanding < 0 ? "Lebih bayar" : "Sisa"}</span>
+            <span className={outstanding > 0 ? "text-destructive" : "text-success"}>{formatRupiah(Math.abs(outstanding))}</span>
           </div>
 
           {outstanding > 0 && (

@@ -138,7 +138,7 @@ export async function createTicket(
   }
 }
 
-/** Hitung ulang partsCost/total/paymentStatus dari item & laborCost. */
+/** Hitung ulang partsCost/discount/total/paymentStatus dari item, laborCost & diskon. */
 async function recompute(tx: Prisma.TransactionClient, ticketId: string) {
   const t = await tx.serviceTicket.findUnique({
     where: { id: ticketId },
@@ -146,11 +146,15 @@ async function recompute(tx: Prisma.TransactionClient, ticketId: string) {
   });
   if (!t) return;
   const partsCost = t.items.reduce((s, i) => s + i.subtotal, 0);
-  const total = t.laborCost + partsCost;
+  const gross = t.laborCost + partsCost;
+  // Diskon tak boleh melebihi (jasa+sparepart). Simpan nilai ter-clamp agar
+  // total tak pernah negatif walau item dikurangi setelah diskon diisi.
+  const discount = Math.min(Math.max(0, t.discount), gross);
+  const total = gross - discount;
   const paymentStatus = t.paid >= total && total > 0 ? "PAID" : t.paid > 0 ? "PARTIAL" : "UNPAID";
   await tx.serviceTicket.update({
     where: { id: ticketId },
-    data: { partsCost, total, paymentStatus },
+    data: { partsCost, discount, total, paymentStatus },
   });
 }
 
@@ -266,6 +270,16 @@ export async function updateLabor(tenantId: string, ticketId: string, laborCost:
   await ensureTicket(tenantId, ticketId);
   return db.$transaction(async (tx) => {
     await tx.serviceTicket.update({ where: { id: ticketId }, data: { laborCost } });
+    await recompute(tx, ticketId);
+  });
+}
+
+/** Set potongan harga (rupiah). recompute meng-clamp ke (jasa+sparepart). */
+export async function updateDiscount(tenantId: string, ticketId: string, discount: number) {
+  assertNonNegativeInt(discount, "Diskon");
+  await ensureTicket(tenantId, ticketId);
+  return db.$transaction(async (tx) => {
+    await tx.serviceTicket.update({ where: { id: ticketId }, data: { discount } });
     await recompute(tx, ticketId);
   });
 }

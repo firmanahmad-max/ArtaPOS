@@ -35,6 +35,7 @@ export interface ServiceNotaData {
   diagnosis: string | null;
   items: NotaItem[];
   laborCost: number;
+  discount: number;
   total: number;
   paid: number;
   paymentMethod: string | null;
@@ -84,6 +85,7 @@ export function ServiceNotaView({ data, backHref }: { data: ServiceNotaData; bac
       device: data.device,
       items: data.items,
       laborCost: data.laborCost,
+      discount: data.discount,
       total: data.total,
       paid: data.paid,
       paymentMethodLabel: methodLabel ?? undefined,
@@ -165,6 +167,9 @@ export function ServiceNotaView({ data, backHref }: { data: ServiceNotaData; bac
         <div className="space-y-0.5">
           {data.laborCost > 0 && (
             <div className="flex justify-between"><span>Biaya Jasa</span><span>{formatRupiah(data.laborCost)}</span></div>
+          )}
+          {data.discount > 0 && (
+            <div className="flex justify-between"><span>Diskon</span><span>-{formatRupiah(data.discount)}</span></div>
           )}
           <div className="flex justify-between text-sm font-bold"><span>TOTAL</span><span>{formatRupiah(data.total)}</span></div>
           <div className="flex justify-between"><span>Dibayar{methodLabel ? ` (${methodLabel})` : ""}</span><span>{formatRupiah(data.paid)}</span></div>
