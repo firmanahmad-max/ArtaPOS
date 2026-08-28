@@ -167,6 +167,7 @@ async function computeReport(
         ticket: {
           select: {
             total: true,
+            discount: true,
             items: { select: { productId: true, qty: true, subtotal: true, costPrice: true } },
           },
         },
@@ -210,9 +211,16 @@ async function computeReport(
     serviceRevenue += p.amount;
     paidServiceTickets.add(p.ticketId);
     const total = p.ticket.total;
-    const ratio = total > 0 ? p.amount / total : 0;
-    serviceCogs += Math.round(stockCogs(p.ticket.items) * ratio);
-    servicePartsRevenue += Math.round(partsRevenue(p.ticket.items) * ratio);
+    // HPP diakui proporsional thd PORSI DIBAYAR (denominator = total terdiskon)
+    // agar mencapai 100% biaya saat lunas.
+    const cogsRatio = total > 0 ? p.amount / total : 0;
+    serviceCogs += Math.round(stockCogs(p.ticket.items) * cogsRatio);
+    // Bagian sparepart = porsi dari NILAI KOTOR (sebelum diskon) → tak pernah
+    // melebihi pendapatan yang ditagih walau ada diskon tiket. Tanpa diskon,
+    // gross = total sehingga rasionya identik dengan sebelumnya.
+    const gross = total + p.ticket.discount;
+    const revRatio = gross > 0 ? p.amount / gross : 0;
+    servicePartsRevenue += Math.round(partsRevenue(p.ticket.items) * revRatio);
   }
 
   // Kurangi retur: uang yang dikembalikan menurunkan omzet, dan modal barang

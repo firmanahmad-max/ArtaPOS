@@ -147,14 +147,15 @@ async function recompute(tx: Prisma.TransactionClient, ticketId: string) {
   if (!t) return;
   const partsCost = t.items.reduce((s, i) => s + i.subtotal, 0);
   const gross = t.laborCost + partsCost;
-  // Diskon tak boleh melebihi (jasa+sparepart). Simpan nilai ter-clamp agar
-  // total tak pernah negatif walau item dikurangi setelah diskon diisi.
-  const discount = Math.min(Math.max(0, t.discount), gross);
-  const total = gross - discount;
+  // Total di-floor ke 0 (jangan negatif) TANPA menulis ulang discount. Menyimpan
+  // discount ter-clamp di sini akan MENGHILANGKAN diskon yang sudah diniatkan
+  // bila item sempat dikurangi lalu ditambah lagi. Discount dibatasi saat DIISI
+  // (updateDiscount) sehingga di sini cukup pakai nilai tersimpan.
+  const total = Math.max(0, gross - t.discount);
   const paymentStatus = t.paid >= total && total > 0 ? "PAID" : t.paid > 0 ? "PARTIAL" : "UNPAID";
   await tx.serviceTicket.update({
     where: { id: ticketId },
-    data: { partsCost, discount, total, paymentStatus },
+    data: { partsCost, total, paymentStatus },
   });
 }
 
@@ -274,12 +275,18 @@ export async function updateLabor(tenantId: string, ticketId: string, laborCost:
   });
 }
 
-/** Set potongan harga (rupiah). recompute meng-clamp ke (jasa+sparepart). */
+/** Set potongan harga (rupiah). Dibatasi ≤ (jasa+sparepart) saat diisi. */
 export async function updateDiscount(tenantId: string, ticketId: string, discount: number) {
   assertNonNegativeInt(discount, "Diskon");
   await ensureTicket(tenantId, ticketId);
   return db.$transaction(async (tx) => {
-    await tx.serviceTicket.update({ where: { id: ticketId }, data: { discount } });
+    const t = await tx.serviceTicket.findUnique({
+      where: { id: ticketId },
+      select: { laborCost: true, items: { select: { subtotal: true } } },
+    });
+    if (!t) throw new Error("Tiket tidak ditemukan.");
+    const gross = t.laborCost + t.items.reduce((s, i) => s + i.subtotal, 0);
+    await tx.serviceTicket.update({ where: { id: ticketId }, data: { discount: Math.min(discount, gross) } });
     await recompute(tx, ticketId);
   });
 }
