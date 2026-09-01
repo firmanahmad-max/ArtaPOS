@@ -744,7 +744,7 @@ enum SimStatus {
   REJECTED // ditolak pelanggan
 }
 
-/// Rakitan PC. total = componentsCost + buildFee. Komponen memotong stok.
+/// Rakitan PC. total = max(0, componentsCost + buildFee - discount). Komponen memotong stok.
 model PcBuild {
   id             String        @id @default(cuid())
   tenantId       String
@@ -755,6 +755,7 @@ model PcBuild {
   status         BuildStatus   @default(DRAFT)
   buildFee       Int           @default(0) // jasa rakit
   componentsCost Int           @default(0)
+  discount       Int           @default(0) // potongan harga (rupiah), maks componentsCost+buildFee
   total          Int           @default(0)
   paid           Int           @default(0)
   paymentStatus  PaymentStatus @default(UNPAID)

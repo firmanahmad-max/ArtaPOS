@@ -57,6 +57,7 @@ export default async function BuildDetailPage({ params }: { params: Promise<{ id
           status: build.status,
           buildFee: build.buildFee,
           componentsCost: build.componentsCost,
+          discount: build.discount,
           total: build.total,
           paid: build.paid,
           items: build.items.map((i) => ({ id: i.id, productName: i.productName, qty: i.qty, price: i.price, subtotal: i.subtotal })),

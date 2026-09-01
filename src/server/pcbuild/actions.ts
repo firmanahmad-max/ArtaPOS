@@ -81,6 +81,19 @@ export async function updateBuildFeeAction(buildId: string, buildFee: number): P
   }
 }
 
+export async function updateBuildDiscountAction(buildId: string, discount: number): Promise<Result> {
+  const { user, allowed } = await ctx();
+  if (!allowed) return { ok: false, message: NO_PERM };
+  try {
+    await svc.updateDiscount(user.tenantId, buildId, discount);
+    revalidatePath(`/pc-build/${buildId}`);
+    revalidateReports();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Gagal." };
+  }
+}
+
 export async function updateBuildStatusAction(buildId: string, status: BuildStatus): Promise<Result> {
   const { user, allowed } = await ctx();
   if (!allowed) return { ok: false, message: NO_PERM };

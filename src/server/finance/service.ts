@@ -177,6 +177,7 @@ async function computeReport(
       where: { tenantId, status: { in: ["DONE", "DELIVERED"] }, OR: recognizedOn(range) },
       select: {
         total: true,
+        discount: true,
         items: { select: { productId: true, qty: true, subtotal: true, costPrice: true } },
       },
     }),
@@ -242,7 +243,14 @@ async function computeReport(
     sales.reduce((s, x) => s + x.items.reduce((c, i) => c + i.costPrice * i.qty, 0), 0) - returnedCogs;
   const salesGrossProfit = salesRevenue - salesCogs;
   const buildRevenue = builds.reduce((s, b) => s + b.total, 0);
-  const buildPartsRevenue = partsRevenue(buildItems);
+  // Bagian komponen = porsi dari NILAI KOTOR (sebelum diskon) tiap rakitan → tak
+  // pernah melebihi pendapatan rakitan walau ada diskon. Tanpa diskon, gross =
+  // total sehingga identik dengan sebelumnya.
+  const buildPartsRevenue = builds.reduce((s, b) => {
+    const gross = b.total + b.discount;
+    const ratio = gross > 0 ? b.total / gross : 0;
+    return s + Math.round(partsRevenue(b.items) * ratio);
+  }, 0);
   const purchaseTotal = purchaseAgg._sum.total ?? 0;
   const expenseTotal = expenseAgg._sum.amount ?? 0;
   const estimatedNet =

@@ -8,6 +8,7 @@ import {
   addComponentAction,
   removeComponentAction,
   updateBuildFeeAction,
+  updateBuildDiscountAction,
   updateBuildStatusAction,
   recordBuildPaymentAction,
 } from "@/server/pcbuild/actions";
@@ -25,6 +26,7 @@ export interface BuildData {
   status: BuildStatus;
   buildFee: number;
   componentsCost: number;
+  discount: number;
   total: number;
   paid: number;
   items: BuildItem[];
@@ -36,9 +38,11 @@ export function BuildDetail({ build, products }: { build: BuildData; products: B
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
   const [fee, setFee] = useState(build.buildFee);
+  const [discount, setDiscount] = useState(build.discount);
   const [payAmount, setPayAmount] = useState(0);
 
   const outstanding = build.total - build.paid;
+  const grossBeforeDiscount = build.buildFee + build.componentsCost;
 
   function run(fn: () => Promise<{ ok: boolean; message?: string }>) {
     setMsg(null);
@@ -131,11 +135,27 @@ export function BuildDetail({ build, products }: { build: BuildData; products: B
             </div>
           </div>
           <div className="flex justify-between"><span className="text-muted-foreground">Komponen</span><span>{formatRupiah(build.componentsCost)}</span></div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-muted-foreground">Diskon</span>
+            <div className="flex items-center gap-2">
+              <Input type="number" min="0" max={grossBeforeDiscount} value={discount}
+                onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))} className="h-8 w-36 text-right" />
+              <Button variant="outline" size="sm" disabled={pending || discount === build.discount}
+                onClick={() => run(() => updateBuildDiscountAction(build.id, discount))}>
+                <Save className="size-3" />
+              </Button>
+            </div>
+          </div>
+          {build.discount > 0 && (
+            <div className="flex justify-between text-success">
+              <span>Potongan diskon</span><span>-{formatRupiah(build.discount)}</span>
+            </div>
+          )}
           <div className="flex justify-between border-t pt-2 text-base font-bold"><span>Total</span><span>{formatRupiah(build.total)}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Dibayar</span><span>{formatRupiah(build.paid)}</span></div>
           <div className="flex justify-between font-medium">
-            <span className={outstanding > 0 ? "text-destructive" : "text-success"}>Sisa</span>
-            <span className={outstanding > 0 ? "text-destructive" : "text-success"}>{formatRupiah(outstanding)}</span>
+            <span className={outstanding > 0 ? "text-destructive" : "text-success"}>{outstanding < 0 ? "Lebih bayar" : "Sisa"}</span>
+            <span className={outstanding > 0 ? "text-destructive" : "text-success"}>{formatRupiah(Math.abs(outstanding))}</span>
           </div>
           {outstanding > 0 && (
             <div className="flex flex-col gap-2 border-t pt-3 sm:flex-row sm:items-end">

@@ -86,7 +86,11 @@ async function recompute(tx: Prisma.TransactionClient, buildId: string) {
   const b = await tx.pcBuild.findUnique({ where: { id: buildId }, include: { items: true } });
   if (!b) return;
   const componentsCost = b.items.reduce((s, i) => s + i.subtotal, 0);
-  const total = b.buildFee + componentsCost;
+  // Total di-floor ke 0 (jangan negatif) TANPA menulis ulang discount. Discount
+  // dibatasi saat DIISI (updateDiscount); menyimpan nilai ter-clamp di sini akan
+  // menghilangkan diskon yang diniatkan bila komponen sempat dikurangi lalu
+  // ditambah lagi.
+  const total = Math.max(0, b.buildFee + componentsCost - b.discount);
   const paymentStatus = b.paid >= total && total > 0 ? "PAID" : b.paid > 0 ? "PARTIAL" : "UNPAID";
   await tx.pcBuild.update({ where: { id: buildId }, data: { componentsCost, total, paymentStatus } });
 }
@@ -171,6 +175,22 @@ export async function updateBuildFee(tenantId: string, buildId: string, buildFee
   await ensureBuild(tenantId, buildId);
   return db.$transaction(async (tx) => {
     await tx.pcBuild.update({ where: { id: buildId }, data: { buildFee } });
+    await recompute(tx, buildId);
+  });
+}
+
+/** Set potongan harga (rupiah). Dibatasi ≤ (komponen+jasa rakit) saat diisi. */
+export async function updateDiscount(tenantId: string, buildId: string, discount: number) {
+  assertNonNegativeInt(discount, "Diskon");
+  await ensureBuild(tenantId, buildId);
+  return db.$transaction(async (tx) => {
+    const b = await tx.pcBuild.findUnique({
+      where: { id: buildId },
+      select: { buildFee: true, items: { select: { subtotal: true } } },
+    });
+    if (!b) throw new Error("Rakitan tidak ditemukan.");
+    const gross = b.buildFee + b.items.reduce((s, i) => s + i.subtotal, 0);
+    await tx.pcBuild.update({ where: { id: buildId }, data: { discount: Math.min(discount, gross) } });
     await recompute(tx, buildId);
   });
 }
