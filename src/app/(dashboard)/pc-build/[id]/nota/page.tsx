@@ -41,6 +41,7 @@ export default async function PcBuildNotaPage({ params }: { params: Promise<{ id
           customerName: build.customerName,
           customerPhone,
           items: build.items.map((i) => ({ name: i.productName, qty: i.qty })),
+          discount: build.discount,
           total: build.total,
         }}
       />

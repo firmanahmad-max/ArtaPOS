@@ -168,6 +168,7 @@ export function buildPcBuildNotaText(n: {
   name: string;
   customerName: string | null;
   items: { name: string; qty: number }[];
+  discount?: number;
   total: number;
   footer?: string | null;
 }): string {
@@ -185,6 +186,10 @@ export function buildPcBuildNotaText(n: {
   rows.push("Spesifikasi Komponen:");
   n.items.forEach((it, i) => rows.push(`${i + 1}. ${it.name}${it.qty > 1 ? ` (${it.qty}x)` : ""}`));
   rows.push(line);
+  if (n.discount && n.discount > 0) {
+    rows.push(`Subtotal: ${formatRupiah(n.total + n.discount)}`);
+    rows.push(`Diskon: -${formatRupiah(n.discount)}`);
+  }
   rows.push(`*TOTAL RAKITAN: ${formatRupiah(n.total)}*`);
   rows.push(n.footer || "Terima kasih 🙏");
   return rows.join("\n");

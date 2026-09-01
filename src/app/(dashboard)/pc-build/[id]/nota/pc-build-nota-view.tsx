@@ -27,6 +27,7 @@ export interface PcBuildNotaData {
   customerName: string | null;
   customerPhone: string | null;
   items: PcBuildNotaItem[];
+  discount: number;
   total: number;
 }
 
@@ -63,6 +64,7 @@ export function PcBuildNotaView({ data, backHref }: { data: PcBuildNotaData; bac
       name: data.name,
       customerName: data.customerName,
       items: data.items,
+      discount: data.discount,
       total: data.total,
       footer: data.receiptFooter,
     });
@@ -127,6 +129,12 @@ export function PcBuildNotaView({ data, backHref }: { data: PcBuildNotaData; bac
         )}
 
         <div className="my-2 border-t border-dashed" />
+        {data.discount > 0 && (
+          <div className="mb-1 space-y-0.5 text-[11px]">
+            <div className="flex justify-between"><span>Subtotal</span><span>{formatRupiah(data.total + data.discount)}</span></div>
+            <div className="flex justify-between"><span>Diskon</span><span>-{formatRupiah(data.discount)}</span></div>
+          </div>
+        )}
         <div className="flex justify-between text-sm font-bold">
           <span>TOTAL RAKITAN</span>
           <span>{formatRupiah(data.total)}</span>
