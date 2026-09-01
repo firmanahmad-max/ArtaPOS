@@ -41,7 +41,10 @@ export default async function PcBuildNotaPage({ params }: { params: Promise<{ id
           customerName: build.customerName,
           customerPhone,
           items: build.items.map((i) => ({ name: i.productName, qty: i.qty })),
-          discount: build.discount,
+          // Subtotal = nilai kotor sebenarnya (komponen + jasa). Diskon efektif
+          // dihitung di view sbg (subtotal - total) → selalu cocok walau discount
+          // tersimpan > gross (mis. komponen dikurangi setelah diskon diisi).
+          subtotal: build.componentsCost + build.buildFee,
           total: build.total,
         }}
       />

@@ -27,7 +27,7 @@ export interface PcBuildNotaData {
   customerName: string | null;
   customerPhone: string | null;
   items: PcBuildNotaItem[];
-  discount: number;
+  subtotal: number; // nilai kotor (komponen + jasa) sebelum diskon
   total: number;
 }
 
@@ -64,7 +64,7 @@ export function PcBuildNotaView({ data, backHref }: { data: PcBuildNotaData; bac
       name: data.name,
       customerName: data.customerName,
       items: data.items,
-      discount: data.discount,
+      subtotal: data.subtotal,
       total: data.total,
       footer: data.receiptFooter,
     });
@@ -129,10 +129,10 @@ export function PcBuildNotaView({ data, backHref }: { data: PcBuildNotaData; bac
         )}
 
         <div className="my-2 border-t border-dashed" />
-        {data.discount > 0 && (
+        {data.subtotal > data.total && (
           <div className="mb-1 space-y-0.5 text-[11px]">
-            <div className="flex justify-between"><span>Subtotal</span><span>{formatRupiah(data.total + data.discount)}</span></div>
-            <div className="flex justify-between"><span>Diskon</span><span>-{formatRupiah(data.discount)}</span></div>
+            <div className="flex justify-between"><span>Subtotal</span><span>{formatRupiah(data.subtotal)}</span></div>
+            <div className="flex justify-between"><span>Diskon</span><span>-{formatRupiah(data.subtotal - data.total)}</span></div>
           </div>
         )}
         <div className="flex justify-between text-sm font-bold">
