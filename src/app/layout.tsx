@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -30,13 +31,18 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  // Membaca nonce (diset proxy) juga MEMAKSA render dinamis untuk seluruh app →
+  // Next menyuntikkan nonce ke semua skrip framework, jadi CSP ketat tak
+  // memblokir hidrasi di halaman mana pun.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html lang="id" suppressHydrationWarning className="h-full">
       <head>
         <script
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html:
               "try{var t=localStorage.getItem('color-theme');if(t&&t!=='terakota')document.documentElement.dataset.theme=t;}catch(e){}" +
@@ -52,6 +58,7 @@ export default function RootLayout({
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
+          nonce={nonce}
         >
           {children}
           <Toaster />

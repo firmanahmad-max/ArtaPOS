@@ -48,6 +48,9 @@ export async function loginAction(
   const user = await db.user.findFirst({
     where: { email, isActive: true, tenant: { isActive: true } },
     select: { id: true, tenantId: true, role: true, passwordHash: true, isSuperAdmin: true },
+    // Deterministik bila email (yang unik PER-tenant) kebetulan dipakai >1 tenant:
+    // selalu akun tertua, agar target autentikasi tak ambigu.
+    orderBy: { createdAt: "asc" },
   });
 
   // Pesan generik (jangan bocorkan apakah email ada) — cegah user enumeration.
@@ -71,8 +74,16 @@ export async function loginAction(
   await clearLoginAttempts(emailKey);
   await clearLoginAttempts(ipKey);
 
-  // Bootstrap admin platform: email di SUPER_ADMIN_EMAILS → set flag super-admin.
-  const grantSuper = !user.isSuperAdmin && isEnvSuperAdmin(email);
+  // Bootstrap admin platform: hanya bila email di SUPER_ADMIN_EMAILS DAN unik
+  // secara global. createUser juga menolak email allowlist, jadi normalnya akun
+  // sah adalah satu-satunya pemegang email. Guard keunikan = lapis kedua: bila
+  // ada >1 akun beremail sama, JANGAN beri flag ke siapa pun (fail-safe) agar
+  // tenant lain tak bisa "mengklaim" email admin untuk eskalasi lintas-tenant.
+  let grantSuper = false;
+  if (!user.isSuperAdmin && isEnvSuperAdmin(email)) {
+    const holders = await db.user.count({ where: { email } });
+    grantSuper = holders === 1;
+  }
   await db.user.update({
     where: { id: user.id },
     data: { lastLoginAt: new Date(), ...(grantSuper ? { isSuperAdmin: true } : {}) },

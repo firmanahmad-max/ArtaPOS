@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/auth/password";
+import { isEnvSuperAdmin } from "@/lib/auth/super-admin";
 import type { UserRole } from "@/generated/prisma/enums";
 import type { UserCreateInput } from "@/lib/validations/admin";
 
@@ -23,6 +24,12 @@ export function listUsersFull(tenantId: string) {
 }
 
 export async function createUser(tenantId: string, input: UserCreateInput) {
+  // Keamanan: email admin platform (allowlist env) DICADANGKAN. Tanpa penjagaan
+  // ini, admin sebuah tenant bisa membuat akun beremail admin lalu login →
+  // ter-bootstrap jadi super-admin lintas-tenant (eskalasi privilege).
+  if (isEnvSuperAdmin(input.email)) {
+    throw new Error("Email ini dicadangkan dan tidak dapat digunakan.");
+  }
   const passwordHash = await hashPassword(input.password);
   return db.user.create({
     data: {

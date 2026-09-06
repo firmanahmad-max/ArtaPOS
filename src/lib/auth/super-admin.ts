@@ -1,25 +1,31 @@
 import "server-only";
 import { env } from "@/lib/env";
+import {
+  parseSuperAdminEmails,
+  emailInSuperAdminList,
+  isSuperAdminByFlag,
+} from "@/lib/auth/super-admin-core";
 
 /**
- * Admin platform (operator SaaS). Diidentifikasi via flag DB `User.isSuperAdmin`,
- * di-bootstrap dari env `SUPER_ADMIN_EMAILS` (dipisah koma) saat login.
+ * Admin platform (operator SaaS). Otoritas = flag DB `User.isSuperAdmin`.
+ * Env `SUPER_ADMIN_EMAILS` HANYA dipakai untuk BOOTSTRAP flag saat login
+ * (lihat loginAction), bukan sebagai sumber otoritas langsung.
  */
 
 /** Daftar email admin platform dari env (lowercase, ter-trim). */
 export function superAdminEmails(): string[] {
-  return (env.SUPER_ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
+  return parseSuperAdminEmails(env.SUPER_ADMIN_EMAILS);
 }
 
-/** Apakah email termasuk allowlist env. */
+/** Apakah email termasuk allowlist env (dipakai hanya untuk bootstrap login). */
 export function isEnvSuperAdmin(email: string): boolean {
-  return superAdminEmails().includes(email.trim().toLowerCase());
+  return emailInSuperAdminList(email, superAdminEmails());
 }
 
-/** Apakah user adalah admin platform (flag DB ATAU allowlist env). */
-export function isPlatformAdmin(user: { email: string; isSuperAdmin?: boolean }): boolean {
-  return Boolean(user.isSuperAdmin) || isEnvSuperAdmin(user.email);
+/**
+ * Otorisasi admin platform = HANYA flag DB. Email allowlist TIDAK memberi akses
+ * langsung (cegah eskalasi lintas-tenant via email yang unik per-tenant).
+ */
+export function isPlatformAdmin(user: { email?: string; isSuperAdmin?: boolean }): boolean {
+  return isSuperAdminByFlag(user);
 }

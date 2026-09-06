@@ -14,14 +14,8 @@ const securityHeaders = [
     // Izinkan kamera (scan barcode) & bluetooth (print) untuk origin sendiri.
     value: "camera=(self), bluetooth=(self), geolocation=()",
   },
-  {
-    // CSP konservatif: hanya direktif yang TIDAK mematahkan inline-script/style
-    // Next (tanpa default-src/script-src). Mencegah clickjacking
-    // (frame-ancestors), injeksi <base>, plugin <object>, & form lintas-origin.
-    // Gambar/struk pakai data: URL → tak dibatasi karena img-src tak diset.
-    key: "Content-Security-Policy",
-    value: ["object-src 'none'", "base-uri 'self'", "frame-ancestors 'self'", "form-action 'self'"].join("; "),
-  },
+  // Content-Security-Policy diset PER-REQUEST di src/proxy.ts (berbasis nonce,
+  // script-src 'strict-dynamic') — tak bisa statis di sini karena butuh nonce.
 ];
 
 const nextConfig: NextConfig = {
