@@ -14,6 +14,8 @@ import {
   Building2,
   MonitorSmartphone,
   ArrowRight,
+  ShieldCheck,
+  Lock,
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { LogoWordmark } from "@/components/brand/logo-wordmark";
@@ -112,6 +114,64 @@ export default function AboutPage() {
                 </div>
               );
             })}
+          </div>
+        </section>
+
+        {/* Keamanan Data */}
+        <section className="space-y-4">
+          <div>
+            <h2 className="flex items-center gap-2 text-xl font-semibold">
+              <ShieldCheck className="size-5 text-emerald-600 dark:text-emerald-400" />
+              Keamanan Data
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Koneksi ke {APP_NAME} dilindungi enkripsi HTTPS/TLS. Kualitas konfigurasinya diuji secara
+              <span className="font-medium text-foreground"> independen</span> oleh Qualys SSL Labs —
+              layanan penilai keamanan TLS yang diakui luas di industri.
+            </p>
+          </div>
+
+          <div className="space-y-4 rounded-xl border bg-card p-5">
+            {/* Peringkat */}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2">
+                <span className="text-2xl font-extrabold leading-none text-emerald-600 dark:text-emerald-400">A+</span>
+                <span className="text-xs text-muted-foreground">Server utama</span>
+              </div>
+              <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2">
+                <span className="text-2xl font-extrabold leading-none text-emerald-600 dark:text-emerald-400">A</span>
+                <span className="text-xs text-muted-foreground">Server cadangan</span>
+              </div>
+              <span className="text-xs text-muted-foreground sm:ml-auto">
+                Sumber: Qualys SSL Labs · diuji 8 Sep 2026 · <span className="font-mono">artapos.firmanahmad.id</span>
+              </span>
+            </div>
+
+            {/* Arti hasil */}
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Apa artinya bagi Anda:</p>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                {[
+                  "Semua data yang dikirim — login, transaksi, hingga data pelanggan — dienkripsi antara perangkat Anda dan server, sehingga tidak bisa disadap di jaringan.",
+                  "Memakai protokol modern (TLS 1.2/1.3) dengan sertifikat tepercaya, dan menolak protokol serta cipher usang yang rentan.",
+                  "Peringkat A+ menandakan konfigurasi terbaik — termasuk HSTS yang memaksa koneksi selalu lewat jalur terenkripsi.",
+                  "Penilaian dilakukan pihak ketiga independen (Qualys SSL Labs), bukan klaim sepihak kami.",
+                ].map((t) => (
+                  <li key={t} className="flex gap-2">
+                    <Lock className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                    <span>{t}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Catatan jujur */}
+            <p className="border-t pt-3 text-xs text-muted-foreground">
+              Catatan: penilaian ini mengukur keamanan <span className="font-medium">koneksi</span> (data
+              saat dikirim) — satu lapis penting dari keamanan aplikasi secara keseluruhan — dan
+              mencerminkan konfigurasi pada tanggal pengujian. Anda dapat memverifikasi sendiri kapan saja
+              di ssllabs.com.
+            </p>
           </div>
         </section>
 
