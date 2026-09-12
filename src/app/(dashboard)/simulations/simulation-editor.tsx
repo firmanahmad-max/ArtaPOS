@@ -171,9 +171,11 @@ export function SimulationEditor({
   }
 
   function shareWhatsApp() {
+    // Penawaran ke pelanggan: hanya nama komponen + qty (TANPA harga per item),
+    // dan hanya total rakitan.
     const items = rows
       .filter((r) => r.name.trim())
-      .map((r) => ({ name: r.name.trim(), qty: r.qty, sellPrice: r.sellPrice, subtotal: r.sellPrice * r.qty }));
+      .map((r) => ({ name: r.name.trim(), qty: r.qty }));
     if (items.length === 0) { setMsg("Belum ada komponen untuk dikirim."); return; }
     const text = buildSimulationText({
       storeName,
@@ -182,7 +184,6 @@ export function SimulationEditor({
       name: name.trim() || "Rakitan PC",
       customerName: customerName.trim() || null,
       items,
-      buildFee,
       grandTotal: totals.grandSell,
       note: note.trim() || null,
     });

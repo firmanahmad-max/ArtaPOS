@@ -195,15 +195,18 @@ export function buildPcBuildNotaText(n: {
   return rows.join("\n");
 }
 
-/** Penawaran (quotation) simulasi rakitan sebagai teks WhatsApp. */
+/**
+ * Penawaran (quotation) simulasi rakitan sebagai teks WhatsApp.
+ * Sengaja TANPA harga per komponen (juga tanpa rincian jasa rakit) — hanya
+ * daftar spesifikasi + TOTAL rakitan, sesuai preferensi penawaran ke pelanggan.
+ */
 export function buildSimulationText(n: {
   storeName: string;
   number: string;
   dateText: string;
   name: string;
   customerName: string | null;
-  items: { name: string; qty: number; sellPrice: number; subtotal: number }[];
-  buildFee: number;
+  items: { name: string; qty: number }[];
   grandTotal: number;
   note?: string | null;
 }): string {
@@ -217,13 +220,10 @@ export function buildSimulationText(n: {
   ];
   if (n.customerName) rows.push(`Pelanggan: ${n.customerName}`);
   rows.push(line);
-  n.items.forEach((it, i) => {
-    rows.push(`${i + 1}. ${it.name}`);
-    rows.push(`   ${it.qty} x ${formatRupiah(it.sellPrice)} = ${formatRupiah(it.subtotal)}`);
-  });
+  rows.push("Spesifikasi Komponen:");
+  n.items.forEach((it, i) => rows.push(`${i + 1}. ${it.name}${it.qty > 1 ? ` (${it.qty}x)` : ""}`));
   rows.push(line);
-  if (n.buildFee > 0) rows.push(`Jasa Rakit: ${formatRupiah(n.buildFee)}`);
-  rows.push(`*TOTAL: ${formatRupiah(n.grandTotal)}*`);
+  rows.push(`*TOTAL RAKITAN: ${formatRupiah(n.grandTotal)}*`);
   if (n.note) {
     rows.push(line);
     rows.push(n.note);
