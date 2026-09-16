@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Plus, Minus, Trash2, ShoppingCart, Loader2, X, Pause, RotateCcw, Cloud, CloudOff, RefreshCw, AlertTriangle } from "lucide-react";
+import { Search, Plus, Minus, Trash2, ShoppingCart, Loader2, X, Pause, RotateCcw, Cloud, CloudOff, RefreshCw, AlertTriangle, Banknote, ArrowLeftRight, QrCode, CreditCard, Delete } from "lucide-react";
 import { toast } from "sonner";
 import { createSaleAction } from "@/server/pos/actions";
 import { cn, formatRupiah } from "@/lib/utils";
@@ -39,6 +39,15 @@ interface CartLine {
   discount: number;
 }
 
+type PayMethod = "CASH" | "TRANSFER" | "QRIS" | "CREDIT";
+const PAY_METHODS: { id: PayMethod; label: string; icon: typeof Banknote }[] = [
+  { id: "CASH", label: "Tunai", icon: Banknote },
+  { id: "TRANSFER", label: "Transfer", icon: ArrowLeftRight },
+  { id: "QRIS", label: "QRIS", icon: QrCode },
+  { id: "CREDIT", label: "Kredit", icon: CreditCard },
+];
+const KEYPAD = ["7", "8", "9", "4", "5", "6", "1", "2", "3", "000", "0", "del"] as const;
+
 interface HeldSale {
   id: string;
   at: string;
@@ -71,7 +80,7 @@ export function PosTerminal({
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<Map<string, CartLine>>(new Map());
   const [discount, setDiscount] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "TRANSFER" | "QRIS" | "CREDIT">("CASH");
+  const [paymentMethod, setPaymentMethod] = useState<PayMethod>("CASH");
   const [paid, setPaid] = useState(0);
   const [dueDate, setDueDate] = useState("");
   const [customerId, setCustomerId] = useState("");
@@ -80,6 +89,7 @@ export function PosTerminal({
   const [held, setHeld] = useState<HeldSale[]>(() => loadHeld());
   const searchRef = useRef<HTMLInputElement>(null);
   const checkoutRef = useRef<() => void>(() => {});
+  const parkRef = useRef<() => void>(() => {});
   const sync = useOfflineSync();
   const [reviewOpen, setReviewOpen] = useState(false);
 
@@ -142,6 +152,15 @@ export function PosTerminal({
       if (qty <= 0) next.delete(id);
       else next.set(id, { ...line, qty: Math.min(qty, line.product.stock) });
       return next;
+    });
+  }
+
+  /** Keypad angka layar-sentuh → menyusun nilai `paid` digit demi digit. */
+  function keypadPress(k: (typeof KEYPAD)[number]) {
+    setPaid((p) => {
+      if (k === "del") return Math.floor(p / 10);
+      if (k === "000") return p * 1000;
+      return p * 10 + Number(k);
     });
   }
 
@@ -273,12 +292,16 @@ export function PosTerminal({
   // Pintasan keyboard: F2 = bayar, F4 = fokus pencarian.
   useEffect(() => {
     checkoutRef.current = checkout;
+    parkRef.current = parkSale;
   });
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "F2") {
         e.preventDefault();
         checkoutRef.current();
+      } else if (e.key === "F3") {
+        e.preventDefault();
+        parkRef.current();
       } else if (e.key === "F4") {
         e.preventDefault();
         searchRef.current?.focus();
@@ -375,23 +398,21 @@ export function PosTerminal({
                 key={p.id}
                 disabled={out}
                 onClick={() => addToCart(p)}
-                className="group relative flex flex-col rounded-lg border bg-card p-3 text-left transition-colors hover:border-primary hover:bg-accent/40 disabled:cursor-not-allowed disabled:opacity-60"
+                className="group flex flex-col rounded-xl border bg-card p-3 text-left transition-colors hover:border-primary hover:bg-accent/40 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {out && (
-                  <span className="absolute right-2 top-2 rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-semibold text-destructive-foreground">
-                    Habis
-                  </span>
-                )}
-                <span className="line-clamp-2 text-sm font-medium">{p.name}</span>
-                <span
-                  className={cn(
-                    "mt-1 text-xs",
-                    low ? "font-medium text-amber-600 dark:text-amber-400" : "text-muted-foreground",
+                <span className="line-clamp-2 min-h-[34px] text-sm font-medium leading-tight">{p.name}</span>
+                <span className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
+                  {out ? (
+                    <span className="rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-semibold text-destructive-foreground">
+                      Habis
+                    </span>
+                  ) : (
+                    <span className={cn(low ? "font-medium text-amber-600 dark:text-amber-400" : "text-muted-foreground")}>
+                      Stok {p.stock} {p.unit?.symbol ?? ""}{low ? " · menipis" : ""}
+                    </span>
                   )}
-                >
-                  Stok {p.stock} {p.unit?.symbol ?? ""}{low ? " · menipis" : ""}
                 </span>
-                <span className="mt-1 font-semibold text-primary">{formatRupiah(p.sellPrice)}</span>
+                <span className="mt-1 font-mono text-sm font-semibold tabular-nums text-primary">{formatRupiah(p.sellPrice)}</span>
               </button>
             );
           })}
@@ -429,7 +450,7 @@ export function PosTerminal({
                       <Plus className="size-3" />
                     </Button>
                   </div>
-                  <div className="w-20 text-right font-medium">{formatRupiah(lineNet(l))}</div>
+                  <div className="w-20 text-right font-mono font-medium tabular-nums">{formatRupiah(lineNet(l))}</div>
                   <Button variant="ghost" size="icon" className="size-7" onClick={() => setQty(l.product.id, 0)}>
                     <Trash2 className="size-3 text-destructive" />
                   </Button>
@@ -452,19 +473,20 @@ export function PosTerminal({
         <div className="mt-3 space-y-2 border-t pt-3 text-sm">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Subtotal</span>
-            <span>{formatRupiah(subtotal)}</span>
+            <span className="font-mono tabular-nums">{formatRupiah(subtotal)}</span>
           </div>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-muted-foreground">Diskon</span>
+            <span className="text-muted-foreground">Diskon transaksi</span>
             <CurrencyInput
               value={discount}
               onValueChange={(v) => setDiscount(v)}
               className="h-8 w-36"
             />
           </div>
-          <div className="flex justify-between text-base font-bold">
-            <span>Total</span>
-            <span>{formatRupiah(total)}</span>
+          {/* Total — blok tint violet, angka mono besar */}
+          <div className="flex items-center justify-between rounded-xl bg-primary/10 px-3 py-2.5">
+            <span className="text-sm font-semibold">Total</span>
+            <span className="font-mono text-[22px] font-bold tabular-nums text-primary">{formatRupiah(total)}</span>
           </div>
 
           <Select value={customerId} onChange={(e) => setCustomerId(e.target.value)} className="h-9">
@@ -474,25 +496,33 @@ export function PosTerminal({
             ))}
           </Select>
 
-          <Select
-            value={paymentMethod}
-            onChange={(e) => setPaymentMethod(e.target.value as "CASH" | "TRANSFER" | "QRIS" | "CREDIT")}
-            className="h-9"
-          >
-            <option value="CASH">Tunai</option>
-            <option value="TRANSFER">Transfer</option>
-            <option value="QRIS">QRIS</option>
-            <option value="CREDIT">Kredit / Tempo</option>
-          </Select>
+          {/* Metode bayar — tombol besar (ganti dropdown, hemat satu interaksi) */}
+          <div className="grid grid-cols-4 gap-1.5">
+            {PAY_METHODS.map((m) => {
+              const active = paymentMethod === m.id;
+              const Icon = m.icon;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => { setPaymentMethod(m.id); setPaid(0); }}
+                  className={cn(
+                    "flex h-14 flex-col items-center justify-center gap-1 rounded-lg border text-[11px] font-medium transition-colors",
+                    active
+                      ? "gradient-brand border-transparent text-primary-foreground shadow-brand"
+                      : "border-border bg-secondary text-secondary-foreground hover:bg-accent",
+                  )}
+                >
+                  <Icon className="size-4" />
+                  {m.label}
+                </button>
+              );
+            })}
+          </div>
 
           {isCredit && (
             <>
-              <CurrencyInput
-                value={paid}
-                onValueChange={(v) => setPaid(v)}
-                placeholder="Uang muka / DP (boleh 0)"
-                className="h-9"
-              />
               <Input
                 type="date"
                 value={dueDate}
@@ -500,10 +530,6 @@ export function PosTerminal({
                 className="h-9"
                 title="Jatuh tempo"
               />
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Sisa jadi piutang</span>
-                <span className="font-medium text-destructive">{formatRupiah(Math.max(0, total - paid))}</span>
-              </div>
               {!customerId && (
                 <p className="text-xs text-amber-600 dark:text-amber-400">
                   Pilih pelanggan terdaftar untuk penjualan kredit.
@@ -512,25 +538,51 @@ export function PosTerminal({
             </>
           )}
 
-          {paymentMethod === "CASH" && (
+          {/* Jumlah bayar + keypad angka (Tunai & DP Kredit) */}
+          {(paymentMethod === "CASH" || isCredit) && (
             <>
               <CurrencyInput
                 value={paid}
                 onValueChange={(v) => setPaid(v)}
-                placeholder="Jumlah bayar"
-                className="h-9"
+                placeholder={isCredit ? "Uang muka / DP (boleh 0)" : "Jumlah bayar"}
+                className="h-10 text-base"
               />
-              <div className="flex flex-wrap gap-1">
-                {quickCash.map((v) => (
-                  <Button key={v} variant="outline" size="sm" className="h-7 text-xs" onClick={() => setPaid(v)}>
-                    {formatRupiah(v)}
-                  </Button>
+              {paymentMethod === "CASH" && quickCash.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {quickCash.map((v) => (
+                    <Button key={v} variant="outline" size="sm" className="h-7 font-mono text-xs" onClick={() => setPaid(v)}>
+                      {formatRupiah(v)}
+                    </Button>
+                  ))}
+                </div>
+              )}
+              <div className="grid grid-cols-3 gap-1.5">
+                {KEYPAD.map((k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    aria-label={k === "del" ? "Hapus digit" : k}
+                    onClick={() => keypadPress(k)}
+                    className={cn(
+                      "flex h-10 items-center justify-center rounded-lg border border-border bg-secondary font-mono text-base font-semibold text-secondary-foreground transition-transform hover:bg-accent active:scale-95",
+                      k === "del" && "text-rose-600 dark:text-rose-400",
+                    )}
+                  >
+                    {k === "del" ? <Delete className="size-4" /> : k}
+                  </button>
                 ))}
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Kembalian</span>
-                <span className="font-medium">{formatRupiah(change)}</span>
-              </div>
+              {isCredit ? (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Sisa jadi piutang</span>
+                  <span className="font-mono font-medium tabular-nums text-destructive">{formatRupiah(Math.max(0, total - paid))}</span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between rounded-lg bg-emerald-500/10 px-3 py-2 text-sm">
+                  <span className="font-medium text-emerald-700 dark:text-emerald-400">Kembalian</span>
+                  <span className="font-mono text-base font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{formatRupiah(change)}</span>
+                </div>
+              )}
             </>
           )}
 
@@ -544,13 +596,14 @@ export function PosTerminal({
             <Button variant="outline" disabled={pending || lines.length === 0} onClick={parkSale} title="Tahan transaksi">
               <Pause /> Tahan
             </Button>
-            <Button className="flex-1" size="lg" disabled={pending || lines.length === 0} onClick={checkout}>
+            <Button className="h-12 flex-1" size="lg" disabled={pending || lines.length === 0} onClick={checkout}>
               {pending ? <Loader2 className="animate-spin" /> : <ShoppingCart />}
-              Bayar {formatRupiah(total)}
+              Bayar <span className="font-mono tabular-nums">{formatRupiah(total)}</span>
             </Button>
           </div>
           <p className="text-center text-[11px] text-muted-foreground">
             Pintasan: <kbd className="rounded border bg-muted px-1">F2</kbd> bayar ·{" "}
+            <kbd className="rounded border bg-muted px-1">F3</kbd> tahan ·{" "}
             <kbd className="rounded border bg-muted px-1">F4</kbd> cari
           </p>
         </div>
