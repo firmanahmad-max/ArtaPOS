@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import {
   ShoppingCart,
@@ -22,6 +23,7 @@ import { getArtaInsights } from "@/server/insights/service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard, type StatTone } from "@/components/ui/stat-card";
 import { BarChart } from "@/components/charts/bar-chart";
+import { MiniBars } from "@/components/charts/mini-bars";
 import { MonthlyReportReminder } from "@/components/finance/monthly-report-reminder";
 
 export const metadata: Metadata = { title: "Dashboard" };
@@ -97,6 +99,7 @@ export default async function DashboardPage() {
     positive: "bg-emerald-500",
   };
 
+  const last7 = trend.slice(-7).map((d) => d.total);
   const stats: {
     label: string;
     value: string;
@@ -105,6 +108,8 @@ export default async function DashboardPage() {
     tone: StatTone;
     href: string;
     perm?: Permission;
+    chart?: ReactNode;
+    accent?: boolean;
   }[] = [
     {
       label: "Penjualan Hari Ini",
@@ -114,6 +119,7 @@ export default async function DashboardPage() {
       tone: "blue",
       href: "/sales",
       perm: "reports.view",
+      chart: last7.some((v) => v > 0) ? <MiniBars data={last7} /> : undefined,
     },
     {
       label: "Produk Aktif",
@@ -141,6 +147,7 @@ export default async function DashboardPage() {
       tone: "rose",
       href: "/inventory",
       perm: "inventory.manage",
+      accent: lowStock > 0,
     },
   ];
 
@@ -184,6 +191,8 @@ export default async function DashboardPage() {
               hint={s.hint}
               tone={s.tone}
               href={accessible ? s.href : undefined}
+              chart={s.chart}
+              accent={s.accent}
             />
           );
         })}
