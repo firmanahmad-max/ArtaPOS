@@ -13,12 +13,18 @@ export function BarChart({
   formatValue,
   className,
   emphasizeLast = true,
+  barClassName = "bg-primary hover:bg-primary",
+  barMutedClassName = "bg-primary/45 hover:bg-primary/70",
 }: {
   data: BarDatum[];
   formatValue?: (v: number) => string;
   className?: string;
   /** Sorot batang terakhir (hari ini) paling pekat; lainnya lebih redup. */
   emphasizeLast?: boolean;
+  /** Warna batang tersorot (hari ini). Default: primary/violet. */
+  barClassName?: string;
+  /** Warna batang lain (redup). Default: primary/45. */
+  barMutedClassName?: string;
 }) {
   const max = Math.max(1, ...data.map((d) => d.value));
   const crowded = data.length > 8; // label selang-seling di layar sempit agar terbaca
@@ -33,7 +39,7 @@ export function BarChart({
               <div
                 className={cn(
                   "w-full rounded-t transition-all",
-                  today ? "bg-primary hover:bg-primary" : "bg-primary/45 hover:bg-primary/70",
+                  today ? barClassName : barMutedClassName,
                 )}
                 style={{ height: `${Math.max(pct, d.value > 0 ? 4 : 0)}%` }}
               />
