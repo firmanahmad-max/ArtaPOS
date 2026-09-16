@@ -88,6 +88,7 @@ export function PosTerminal({
   const [pending, startCheckout] = useTransition();
   const [held, setHeld] = useState<HeldSale[]>(() => loadHeld());
   const searchRef = useRef<HTMLInputElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const checkoutRef = useRef<() => void>(() => {});
   const parkRef = useRef<() => void>(() => {});
   const sync = useOfflineSync();
@@ -314,12 +315,31 @@ export function PosTerminal({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // Tutup sheet otomatis bila keranjang menjadi kosong (mis. semua item dihapus
+  // saat sheet terbuka) agar tak menyisakan sheet kosong menutupi layar.
+  useEffect(() => {
+    if (cart.size === 0) setCartOpen(false);
+  }, [cart.size]);
+
+  // Kunci scroll kontainer utama saat sheet keranjang terbuka (mobile) agar
+  // latar tak ikut ter-scroll di belakang backdrop.
+  useEffect(() => {
+    if (!cartOpen) return;
+    const scroller = rootRef.current?.closest("main") as HTMLElement | null;
+    if (!scroller) return;
+    const prev = scroller.style.overflow;
+    scroller.style.overflow = "hidden";
+    return () => {
+      scroller.style.overflow = prev;
+    };
+  }, [cartOpen]);
+
   const quickCash = [total, Math.ceil(total / 50000) * 50000, Math.ceil(total / 100000) * 100000].filter(
     (v, i, a) => v > 0 && a.indexOf(v) === i,
   );
 
   return (
-    <div className="grid gap-4 max-lg:pb-16 lg:grid-cols-[1fr_380px]">
+    <div ref={rootRef} className="grid gap-4 max-lg:pb-16 lg:grid-cols-[1fr_380px]">
       {/* Katalog produk */}
       <div className="space-y-3">
         {/* Status sinkronisasi offline — tampil hanya saat relevan */}
@@ -457,7 +477,7 @@ export function PosTerminal({
           <ShoppingCart className="size-4" /> Keranjang ({lines.length})
         </div>
 
-        <div className="max-h-[40vh] space-y-2 overflow-y-auto">
+        <div className="max-h-[40vh] shrink-0 space-y-2 overflow-y-auto">
           {lines.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">Belum ada item.</p>
           ) : (
