@@ -298,7 +298,7 @@ export default async function DashboardPage() {
           <DashboardTrends sales={trend} service={svcTrend} />
 
           {/* Kanan — Tanya Arta + aktivitas terbaru */}
-          <div className="flex flex-col gap-4">
+          <div className="flex min-w-0 flex-col gap-4">
             {topInsights.length > 0 && (
               <div className="relative overflow-hidden rounded-2xl gradient-arta p-5 text-white elevate-lg">
                 <span aria-hidden className="pointer-events-none absolute -right-12 -top-12 size-44 rounded-full bg-[#a855f7]/25 blur-3xl" />

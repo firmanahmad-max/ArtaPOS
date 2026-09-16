@@ -126,7 +126,7 @@ export function DashboardTrends({ sales, service }: { sales: TrendPoint[]; servi
   const prev = (arr: TrendPoint[]) => arr.slice(-2 * n, -n);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex min-w-0 flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 text-base font-bold">
           <TrendingUp className="size-5 text-primary" /> Tren {n === 90 ? "3 Bulan" : `${n} Hari`}
