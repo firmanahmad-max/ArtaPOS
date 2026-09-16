@@ -217,7 +217,7 @@ export default async function FinancePage({
           {compareRows.map((r) => (
             <div key={r.label} className="grid grid-cols-[1fr_auto_auto] items-center gap-x-4 py-1.5 text-sm">
               <span className="text-muted-foreground">{r.label}</span>
-              <span className="text-right font-medium tabular-nums">{formatRupiah(r.cur)}</span>
+              <span className="text-right font-mono font-medium tabular-nums">{formatRupiah(r.cur)}</span>
               <span className="text-right">
                 <DeltaBadge cur={r.cur} prev={r.prev} higherIsBetter={r.higherIsBetter} />
               </span>
@@ -232,7 +232,7 @@ export default async function FinancePage({
       <Card>
         <CardHeader>
           <CardDescription>Estimasi Laba Bersih · {report.periodLabel}</CardDescription>
-          <CardTitle className={cn("text-3xl", report.estimatedNet >= 0 ? "text-success" : "text-destructive")}>
+          <CardTitle className={cn("font-mono text-3xl tabular-nums", report.estimatedNet >= 0 ? "text-success" : "text-destructive")}>
             {formatRupiah(report.estimatedNet)}
           </CardTitle>
         </CardHeader>
@@ -243,7 +243,7 @@ export default async function FinancePage({
                 {r.label}
                 {r.hint ? <span className="ml-1 text-xs">({r.hint})</span> : null}
               </span>
-              <span className={cn(r.value < 0 && "text-destructive")}>{formatRupiah(r.value)}</span>
+              <span className={cn("font-mono tabular-nums", r.value < 0 && "text-destructive")}>{formatRupiah(r.value)}</span>
             </div>
           ))}
         </CardContent>
