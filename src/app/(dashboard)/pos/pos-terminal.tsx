@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Plus, Minus, Trash2, ShoppingCart, Loader2, X, Pause, RotateCcw, Cloud, CloudOff, RefreshCw, AlertTriangle, Banknote, ArrowLeftRight, QrCode, CreditCard, Delete } from "lucide-react";
+import { Search, Plus, Minus, Trash2, ShoppingCart, Loader2, X, Pause, RotateCcw, Cloud, CloudOff, RefreshCw, AlertTriangle, Banknote, ArrowLeftRight, QrCode, CreditCard, Delete, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { createSaleAction } from "@/server/pos/actions";
 import { cn, formatRupiah } from "@/lib/utils";
@@ -92,6 +92,7 @@ export function PosTerminal({
   const parkRef = useRef<() => void>(() => {});
   const sync = useOfflineSync();
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false); // sheet keranjang (mobile)
 
   // Katalog efektif: cache IndexedDB (bila terisi) di atas props SSR, dikurangi
   // reservasi outbox. Lihat effectiveCatalog() untuk detail & pengujiannya.
@@ -178,6 +179,7 @@ export function PosTerminal({
     setDueDate("");
     setPaymentMethod("CASH");
     setError(null);
+    setCartOpen(false); // tutup sheet mobile setelah selesai
   }
 
   function parkSale() {
@@ -424,8 +426,33 @@ export function PosTerminal({
         </div>
       </div>
 
-      {/* Keranjang & pembayaran */}
-      <Card className="flex h-fit flex-col p-4 lg:sticky lg:top-4">
+      {/* Backdrop sheet keranjang (mobile) */}
+      {cartOpen && (
+        <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setCartOpen(false)} />
+      )}
+
+      {/* Keranjang & pembayaran — desktop: kolom sticky; mobile: sheet slide-up */}
+      <div
+        className={cn(
+          "flex flex-col text-card-foreground elevate",
+          "lg:sticky lg:top-4 lg:h-fit lg:rounded-2xl lg:border lg:bg-card lg:p-4",
+          "max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-50 max-lg:max-h-[88vh] max-lg:overflow-y-auto max-lg:rounded-t-[20px] max-lg:border-t max-lg:bg-card max-lg:p-4 max-lg:shadow-2xl max-lg:transition-transform",
+          !cartOpen && "max-lg:translate-y-full",
+        )}
+      >
+        {/* Grabber + tutup (mobile) */}
+        <div className="relative mb-2 lg:hidden">
+          <div className="mx-auto h-1 w-10 rounded-full bg-muted" />
+          <button
+            type="button"
+            onClick={() => setCartOpen(false)}
+            className="absolute -top-1 right-0 rounded-md p-1 text-muted-foreground hover:bg-accent"
+            aria-label="Tutup keranjang"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+
         <div className="mb-2 flex items-center gap-2 font-semibold">
           <ShoppingCart className="size-4" /> Keranjang ({lines.length})
         </div>
@@ -607,7 +634,7 @@ export function PosTerminal({
             <kbd className="rounded border bg-muted px-1">F4</kbd> cari
           </p>
         </div>
-      </Card>
+      </div>
 
       <SyncReviewDialog
         open={reviewOpen}
@@ -620,10 +647,14 @@ export function PosTerminal({
         onSyncAll={sync.syncNow}
       />
 
-      {/* Bar keranjang menetap (mobile) — total selalu terlihat + bayar 1 ketuk.
-          Duduk tepat di atas tab bar bawah (62px). */}
-      {lines.length > 0 && (
-        <div className="fixed inset-x-0 bottom-[62px] z-30 flex items-center gap-3 border-t bg-card/95 px-4 py-2.5 backdrop-blur lg:hidden">
+      {/* Bar keranjang menetap (mobile) — ketuk untuk buka sheet keranjang.
+          Duduk tepat di atas tab bar bawah (62px). Sembunyi saat sheet terbuka. */}
+      {lines.length > 0 && !cartOpen && (
+        <button
+          type="button"
+          onClick={() => setCartOpen(true)}
+          className="fixed inset-x-0 bottom-[62px] z-30 flex w-full items-center gap-3 border-t bg-card/95 px-4 py-2.5 text-left backdrop-blur lg:hidden"
+        >
           <span className="relative shrink-0">
             <ShoppingCart className="size-6 text-primary" />
             <span className="absolute -right-2 -top-1.5 flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold tabular-nums text-primary-foreground">
@@ -634,10 +665,10 @@ export function PosTerminal({
             <p className="text-[11px] leading-none text-muted-foreground">Total</p>
             <p className="font-mono text-base font-bold leading-tight tabular-nums text-primary">{formatRupiah(total)}</p>
           </div>
-          <Button className="h-10" disabled={pending} onClick={checkout}>
-            {pending ? <Loader2 className="animate-spin" /> : <ShoppingCart />} Bayar
-          </Button>
-        </div>
+          <span className="inline-flex h-10 items-center gap-1.5 rounded-lg gradient-brand px-4 text-sm font-medium text-primary-foreground shadow-brand">
+            Lihat & Bayar <ChevronUp className="size-4" />
+          </span>
+        </button>
       )}
     </div>
   );
