@@ -48,3 +48,6 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# Design handoff / mockups (referensi lokal, tak perlu di repo)
+ArtaPOS UI mockups/
