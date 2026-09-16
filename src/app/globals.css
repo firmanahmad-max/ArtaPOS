@@ -404,6 +404,15 @@
     background-clip: text;
     color: transparent;
   }
+  /* Panel gelap "Tanya Arta" (redesign) — aksen violet pekat. */
+  .gradient-arta {
+    background-image: linear-gradient(160deg, #211043, #3b1d7e);
+  }
+  /* Lapisan titik dekoratif untuk hero (poster). */
+  .hero-dots {
+    background-image: radial-gradient(rgba(255, 255, 255, 0.85) 1px, transparent 1px);
+    background-size: 18px 18px;
+  }
   /* Bayangan brand (dipakai item nav aktif) — mengikuti warna primary tema. */
   .shadow-brand {
     box-shadow: 0 6px 16px -8px color-mix(in oklch, var(--primary) 85%, transparent);

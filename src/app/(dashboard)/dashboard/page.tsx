@@ -12,6 +12,7 @@ import {
   TrendingUp,
   Receipt,
   Sparkles,
+  Plus,
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { db } from "@/lib/db";
@@ -164,18 +165,42 @@ export default async function DashboardPage() {
       {can(user.role, "finance.view") && <MonthlyReportReminder />}
 
       {/* Header sambutan */}
-      <div className="overflow-hidden rounded-2xl gradient-brand p-6 text-primary-foreground elevate-lg">
-        <h1 className="text-2xl font-bold tracking-tight">
-          Halo, {user.name.split(" ")[0]} 👋
-        </h1>
-        <p className="mt-1 text-sm text-primary-foreground/85">
-          {ROLE_LABELS[user.role]} di {user.tenant.name}
-          {license && (
-            <span className="ml-2 inline-block rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-medium">
-              Lisensi: {license.plan} ({license.status})
-            </span>
+      <div className="relative overflow-hidden rounded-2xl gradient-brand p-6 text-primary-foreground elevate-lg">
+        <span aria-hidden className="hero-dots pointer-events-none absolute inset-0 opacity-20" />
+        <div className="relative flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-primary-foreground/70">
+              {formatLocalDate(new Date(), { weekday: "long", day: "numeric", month: "long", year: "numeric" }).toUpperCase()} · WIB
+            </p>
+            <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-[28px]">
+              Halo, {user.name.split(" ")[0]} 👋
+            </h1>
+            <p className="mt-1 text-sm text-primary-foreground/85">
+              {ROLE_LABELS[user.role]} di {user.tenant.name}
+              {license && (
+                <span className="ml-2 inline-block rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-medium">
+                  Lisensi: {license.plan} ({license.status})
+                </span>
+              )}
+            </p>
+          </div>
+          {can(user.role, "pos.use") && (
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Link
+                href="/pos"
+                className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-white px-4 text-sm font-semibold text-[#3b1d7e] shadow-sm transition hover:brightness-95"
+              >
+                <ShoppingCart className="size-4" /> Buka Kasir
+              </Link>
+              <Link
+                href="/pos"
+                className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-white/30 px-4 text-sm font-medium text-white transition hover:bg-white/10"
+              >
+                <Plus className="size-4" /> Transaksi baru
+              </Link>
+            </div>
           )}
-        </p>
+        </div>
       </div>
 
       {/* Kartu statistik */}
@@ -198,37 +223,36 @@ export default async function DashboardPage() {
         })}
       </div>
 
-      {/* Ringkasan insight Arta */}
+      {/* Ringkasan insight Arta — panel gelap (gradient-arta) dgn glow */}
       {canReports && topInsights.length > 0 && (
-        <Card>
-          <CardHeader className="flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Sparkles className="size-5 text-primary" /> Tanya Arta
-            </CardTitle>
-            <Link href="/insights" className="text-xs font-medium text-primary hover:underline">
+        <div className="relative overflow-hidden rounded-2xl gradient-arta p-5 text-white elevate-lg">
+          <span aria-hidden className="pointer-events-none absolute -right-12 -top-12 size-44 rounded-full bg-[#a855f7]/25 blur-3xl" />
+          <div className="relative flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-base font-bold">
+              <Sparkles className="size-5 text-violet-300" /> Tanya Arta
+            </h2>
+            <Link href="/insights" className="text-xs font-medium text-violet-200 hover:underline">
               Lihat semua
             </Link>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <ul className="divide-y">
-              {topInsights.map((it) => (
-                <li key={it.id}>
-                  <Link
-                    href={it.href ?? "/insights"}
-                    className="-mx-2 flex items-start gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-accent"
-                  >
-                    <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", insightDot[it.tone])} />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{it.title}</p>
-                      <p className="truncate text-xs text-muted-foreground">{it.detail}</p>
-                    </div>
-                    <ArrowRight className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+          </div>
+          <ul className="relative mt-2 divide-y divide-white/10">
+            {topInsights.map((it) => (
+              <li key={it.id}>
+                <Link
+                  href={it.href ?? "/insights"}
+                  className="-mx-2 flex items-start gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-white/5"
+                >
+                  <span className={cn("mt-1.5 size-2 shrink-0 rounded-full ring-4 ring-white/10", insightDot[it.tone])} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{it.title}</p>
+                    <p className="truncate text-xs text-white/60">{it.detail}</p>
+                  </div>
+                  <ArrowRight className="mt-0.5 size-4 shrink-0 text-white/50" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {/* Panel tren & aktivitas terbaru */}
