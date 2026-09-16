@@ -653,7 +653,7 @@ export function PosTerminal({
         <button
           type="button"
           onClick={() => setCartOpen(true)}
-          className="fixed inset-x-0 bottom-[62px] z-30 flex w-full items-center gap-3 border-t bg-card/95 px-4 py-2.5 text-left backdrop-blur lg:hidden"
+          className="fixed inset-x-0 bottom-0 z-30 flex w-full items-center gap-3 border-t bg-card/95 px-4 py-2.5 text-left backdrop-blur max-md:bottom-[62px] lg:hidden"
         >
           <span className="relative shrink-0">
             <ShoppingCart className="size-6 text-primary" />
