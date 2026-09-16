@@ -15,6 +15,7 @@ import { useOnlineStatus } from "@/hooks/use-online-status";
 import { APP_NAME } from "@/lib/brand";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { SyncStatusChip, ShiftChip } from "@/components/layout/header-chips";
 import { logoutAction } from "@/server/auth/actions";
 
 export interface ShellUser {
@@ -29,10 +30,13 @@ export function AppShell({
   user,
   children,
   badges = {},
+  shift = null,
 }: {
   user: ShellUser;
   children: React.ReactNode;
   badges?: Record<string, number>;
+  /** Shift kasir yang sedang berjalan (untuk chip header). */
+  shift?: { openedAt: string } | null;
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -51,18 +55,18 @@ export function AppShell({
 
   const SidebarContent = (
     <div className="flex h-full flex-col">
-      <div className="flex h-16 items-center gap-2.5 border-b px-4">
+      <div className="flex h-[66px] items-center gap-2.5 border-b px-4">
         <Logo size={34} />
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold leading-tight">{user.storeName}</p>
-          <p className="text-xs font-medium text-gradient-brand">{APP_NAME}</p>
+          <p className="truncate text-[13px] font-semibold leading-tight">{user.storeName}</p>
+          <p className="text-[10.5px] font-bold uppercase tracking-[0.04em] text-gradient-brand">{APP_NAME}</p>
         </div>
       </div>
 
       <nav className="flex-1 space-y-4 overflow-y-auto p-3">
         {groups.map((group) => (
           <div key={group.label} className="space-y-1">
-            <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+            <p className="px-2.5 pb-1 text-[9.5px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
               {group.label}
             </p>
             {group.items.map((item) => {
@@ -78,8 +82,8 @@ export function AppShell({
                   className={cn(
                     "group/nav relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all",
                     active
-                      ? "gradient-brand text-primary-foreground shadow-sm"
-                      : "text-foreground hover:bg-accent hover:text-accent-foreground",
+                      ? "gradient-brand text-primary-foreground shadow-brand"
+                      : "text-secondary-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
                 >
                   <Icon className="size-4 shrink-0" />
@@ -153,7 +157,7 @@ export function AppShell({
     <div className="flex min-h-screen">
       <CommandPalette navItems={navTargets} />
       {/* Sidebar desktop */}
-      <aside className="hidden w-64 shrink-0 border-r bg-card md:block">
+      <aside className="hidden w-[250px] shrink-0 border-r bg-card md:block">
         {SidebarContent}
       </aside>
 
@@ -164,7 +168,7 @@ export function AppShell({
             className="absolute inset-0 bg-black/50"
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="absolute left-0 top-0 h-full w-64 border-r bg-card shadow-lg">
+          <aside className="absolute left-0 top-0 h-full w-[250px] border-r bg-card shadow-lg">
             <button
               className="absolute right-2 top-3 rounded-md p-2 hover:bg-accent"
               onClick={() => setMobileOpen(false)}
@@ -179,7 +183,7 @@ export function AppShell({
 
       {/* Konten */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 items-center gap-2 border-b bg-header px-4 text-header-foreground">
+        <header className="flex h-[66px] items-center gap-2 border-b bg-header px-4 text-header-foreground">
           <Button
             variant="ghost"
             size="icon"
@@ -207,6 +211,9 @@ export function AppShell({
             </kbd>
           </button>
           <div className="flex-1" />
+          {/* Chip status sinkron + shift (desktop/tablet). */}
+          <SyncStatusChip />
+          <ShiftChip openedAt={shift?.openedAt ?? null} />
           {/* Pencarian ringkas (mobile). */}
           <Button
             variant="ghost"

@@ -404,6 +404,10 @@
     background-clip: text;
     color: transparent;
   }
+  /* Bayangan brand (dipakai item nav aktif) — mengikuti warna primary tema. */
+  .shadow-brand {
+    box-shadow: 0 6px 16px -8px color-mix(in oklch, var(--primary) 85%, transparent);
+  }
   /* Bayangan berlapis lembut (kedalaman). */
   .elevate {
     box-shadow:
