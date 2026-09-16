@@ -16,6 +16,7 @@ import { APP_NAME } from "@/lib/brand";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SyncStatusChip, ShiftChip } from "@/components/layout/header-chips";
+import { BottomTabBar } from "@/components/layout/bottom-tab-bar";
 import { logoutAction } from "@/server/auth/actions";
 
 export interface ShellUser {
@@ -232,8 +233,12 @@ export function AppShell({
             <span>Mode offline — Anda sedang tidak terhubung internet.</span>
           </div>
         )}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
+        {/* pb ekstra di mobile agar konten tak tertutup tab bar bawah (62px). */}
+        <main className="flex-1 overflow-y-auto p-4 pb-[78px] md:p-6 md:pb-6">{children}</main>
       </div>
+
+      {/* Tab bar bawah (mobile) — "Menu" membuka drawer nav lengkap. */}
+      <BottomTabBar onMenu={() => setMobileOpen(true)} />
     </div>
   );
 }

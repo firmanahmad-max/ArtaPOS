@@ -317,7 +317,7 @@ export function PosTerminal({
   );
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
+    <div className="grid gap-4 max-lg:pb-16 lg:grid-cols-[1fr_380px]">
       {/* Katalog produk */}
       <div className="space-y-3">
         {/* Status sinkronisasi offline — tampil hanya saat relevan */}
@@ -619,6 +619,26 @@ export function PosTerminal({
         onDiscard={sync.discardItem}
         onSyncAll={sync.syncNow}
       />
+
+      {/* Bar keranjang menetap (mobile) — total selalu terlihat + bayar 1 ketuk.
+          Duduk tepat di atas tab bar bawah (62px). */}
+      {lines.length > 0 && (
+        <div className="fixed inset-x-0 bottom-[62px] z-30 flex items-center gap-3 border-t bg-card/95 px-4 py-2.5 backdrop-blur lg:hidden">
+          <span className="relative shrink-0">
+            <ShoppingCart className="size-6 text-primary" />
+            <span className="absolute -right-2 -top-1.5 flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold tabular-nums text-primary-foreground">
+              {lines.length}
+            </span>
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] leading-none text-muted-foreground">Total</p>
+            <p className="font-mono text-base font-bold leading-tight tabular-nums text-primary">{formatRupiah(total)}</p>
+          </div>
+          <Button className="h-10" disabled={pending} onClick={checkout}>
+            {pending ? <Loader2 className="animate-spin" /> : <ShoppingCart />} Bayar
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
