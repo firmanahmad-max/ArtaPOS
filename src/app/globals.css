@@ -5,9 +5,76 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Tema Terakota — pastel hangat (clay/terracotta). */
+  /* Tema Violet (redesign brand) — DEFAULT. Nilai hex final & terukur dari
+     handoff redesign (kontras teks ≥4.5:1 diverifikasi). Terakota lama tetap
+     tersedia sebagai [data-theme="terakota"]. */
   --radius: 0.8rem;
 
+  --background: #f5f4f9; /* page */
+  --foreground: #1b1926; /* ink */
+  --card: #ffffff;
+  --card-foreground: #1b1926;
+  --popover: #ffffff;
+  --popover-foreground: #1b1926;
+  --primary: #6d3ce0;
+  --primary-foreground: #ffffff;
+  --primary-accent: #9b4df5; /* ujung gradien tombol */
+  --secondary: #f3f2f8; /* chip */
+  --secondary-foreground: #2c2839; /* ink-sub */
+  --muted: #f3f2f8;
+  --muted-foreground: #6b667c; /* muted — lolos 4.5:1 di #fff/#f5f4f9/#f3f2f8 */
+  --accent: #f2edff; /* primary-tint */
+  --accent-foreground: #5424c4; /* primary-deep */
+  --destructive: #c0344a;
+  --destructive-foreground: #ffffff;
+  --success: #0f7a5f;
+  --success-foreground: #ffffff;
+  --border: #e7e4ef;
+  --input: #e3dff0; /* border-input */
+  --ring: #6d3ce0;
+
+  /* Header bar aplikasi — default mengikuti warna kartu (tema Ocean menimpanya jadi navy). */
+  --header: var(--card);
+  --header-foreground: var(--foreground);
+
+  --shadow-color: 249 21% 12%;
+}
+
+.dark {
+  --background: #12111a; /* page */
+  --foreground: #efedf6; /* ink */
+  --card: #191723;
+  --card-foreground: #efedf6;
+  --popover: #191723;
+  --popover-foreground: #efedf6;
+  --primary: #a78bfa;
+  --primary-foreground: #17131f; /* teks gelap di atas violet terang */
+  --primary-accent: #c4b5fd;
+  --secondary: #221f30; /* chip */
+  --secondary-foreground: #efedf6;
+  --muted: #221f30;
+  --muted-foreground: #948fa6;
+  --accent: rgba(139, 92, 246, 0.16); /* primary-tint gelap */
+  --accent-foreground: #c4b5fd; /* primary-deep */
+  --destructive: #fb7185;
+  --destructive-foreground: #17131f;
+  --success: #34d399;
+  --success-foreground: #0c1a14;
+  --border: #272338;
+  --input: #2e2a40; /* border-input */
+  --ring: #a78bfa;
+
+  --header: var(--card);
+  --header-foreground: var(--foreground);
+
+  --shadow-color: 252 30% 3%;
+}
+
+/* ── Tema warna alternatif (dipilih di Pengaturan, disimpan per-perangkat) ── */
+/* Default (tanpa data-theme) = Violet (redesign). */
+
+/* Tema Terakota — pastel hangat (clay/terracotta). Palet lama, dipertahankan. */
+[data-theme="terakota"] {
   --background: oklch(0.975 0.012 55);
   --foreground: oklch(0.25 0.03 40);
   --card: oklch(0.995 0.005 60);
@@ -16,7 +83,7 @@
   --popover-foreground: oklch(0.25 0.03 40);
   --primary: oklch(0.55 0.135 41);
   --primary-foreground: oklch(0.99 0.012 70);
-  --primary-accent: oklch(0.68 0.115 52); /* terakota hangat, untuk gradien */
+  --primary-accent: oklch(0.68 0.115 52);
   --secondary: oklch(0.95 0.013 55);
   --secondary-foreground: oklch(0.32 0.03 42);
   --muted: oklch(0.95 0.013 55);
@@ -30,15 +97,11 @@
   --border: oklch(0.9 0.014 55);
   --input: oklch(0.9 0.014 55);
   --ring: oklch(0.55 0.135 41);
-
-  /* Header bar aplikasi — default mengikuti warna kartu (tema Ocean menimpanya jadi navy). */
   --header: var(--card);
   --header-foreground: var(--foreground);
-
   --shadow-color: 24 42% 26%;
 }
-
-.dark {
+.dark[data-theme="terakota"] {
   --background: oklch(0.185 0.013 38);
   --foreground: oklch(0.96 0.008 55);
   --card: oklch(0.23 0.014 40);
@@ -61,15 +124,10 @@
   --border: oklch(1 0 0 / 11%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.7 0.13 46);
-
   --header: var(--card);
   --header-foreground: var(--foreground);
-
   --shadow-color: 25 50% 4%;
 }
-
-/* ── Tema warna alternatif (dipilih di Pengaturan, disimpan per-perangkat) ── */
-/* Default (tanpa data-theme) = Terakota. */
 
 [data-theme="mint"] {
   --background: oklch(0.975 0.012 165);
@@ -281,8 +339,9 @@
 }
 
 @theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Redesign: Archivo (teks/judul) + JetBrains Mono (angka/nomor dokumen). */
+  --font-sans: var(--font-archivo);
+  --font-mono: var(--font-jetbrains);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);

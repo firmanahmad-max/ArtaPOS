@@ -15,6 +15,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 const COLOR_THEMES = [
+  { id: "violet", name: "Violet", c1: "#6d3ce0", c2: "#9b4df5" },
   { id: "terakota", name: "Terakota", c1: "#C0603E", c2: "#DE9572" },
   { id: "mint", name: "Mint", c1: "#3FAE8E", c2: "#7FCDB8" },
   { id: "lavender", name: "Lavender", c1: "#7B6FD0", c2: "#B492E6" },
@@ -22,16 +23,18 @@ const COLOR_THEMES = [
   { id: "ocean", name: "Ocean", c1: "#1E2A44", c2: "#3B82F6" },
 ] as const;
 
+const DEFAULT_THEME = "violet"; // tema default = tanpa atribut data-theme
+
 const themeListeners = new Set<() => void>();
 function subscribeTheme(cb: () => void) {
   themeListeners.add(cb);
   return () => themeListeners.delete(cb);
 }
 function getThemeSnapshot() {
-  return document.documentElement.getAttribute("data-theme") || "terakota";
+  return document.documentElement.getAttribute("data-theme") || DEFAULT_THEME;
 }
 function setColorTheme(id: string) {
-  if (id === "terakota") {
+  if (id === DEFAULT_THEME) {
     localStorage.removeItem("color-theme");
     document.documentElement.removeAttribute("data-theme");
   } else {
@@ -43,7 +46,7 @@ function setColorTheme(id: string) {
 
 /** Pemilih tema warna — berlaku instan & tersimpan per-perangkat (localStorage). */
 export function ColorThemePicker() {
-  const active = useSyncExternalStore(subscribeTheme, getThemeSnapshot, () => "terakota");
+  const active = useSyncExternalStore(subscribeTheme, getThemeSnapshot, () => DEFAULT_THEME);
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">

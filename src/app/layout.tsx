@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Archivo, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ServiceWorkerRegistrar } from "@/components/pwa/sw-registrar";
@@ -8,8 +8,9 @@ import { SplashScreen } from "@/components/pwa/splash-screen";
 import { Toaster } from "@/components/ui/sonner";
 import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+// Redesign: Archivo untuk teks & judul, JetBrains Mono untuk angka/nomor dokumen.
+const fontSans = Archivo({ variable: "--font-archivo", subsets: ["latin"], display: "swap" });
+const fontMono = JetBrains_Mono({ variable: "--font-jetbrains", subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
   title: { default: `${APP_NAME} — ${APP_TAGLINE}`, template: `%s · ${APP_NAME}` },
@@ -45,13 +46,13 @@ export default async function RootLayout({
           nonce={nonce}
           dangerouslySetInnerHTML={{
             __html:
-              "try{var t=localStorage.getItem('color-theme');if(t&&t!=='terakota')document.documentElement.dataset.theme=t;}catch(e){}" +
+              "try{var t=localStorage.getItem('color-theme');if(t&&t!=='violet')document.documentElement.dataset.theme=t;}catch(e){}" +
               "try{if(sessionStorage.getItem('artapos-splash'))document.documentElement.classList.add('splash-seen');else sessionStorage.setItem('artapos-splash','1');}catch(e){}",
           }}
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} min-h-full font-sans antialiased`}
+        className={`${fontSans.variable} ${fontMono.variable} min-h-full font-sans antialiased`}
       >
         <ThemeProvider
           attribute="class"
