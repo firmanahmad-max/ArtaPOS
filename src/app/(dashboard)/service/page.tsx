@@ -10,10 +10,15 @@ import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FilterChips } from "@/components/ui/filter-chips";
 import { SERVICE_STATUS_META } from "./status-config";
 import { formatLocalDate } from "@/lib/timezone";
 
 export const metadata: Metadata = { title: "Jasa Servis" };
+
+/** Batas SLA sederhana: tiket AKTIF lebih tua dari ini dianggap lewat SLA. */
+const SLA_DAYS = 3;
+const ACTIVE_ST: ServiceStatus[] = ["RECEIVED", "IN_PROGRESS", "WAITING_PARTS"];
 
 const STATUS_ORDER: ServiceStatus[] = [
   "RECEIVED",
@@ -34,17 +39,40 @@ const TINT_BY_VARIANT: Record<string, string> = {
   destructive: "bg-rose-500/12",
 };
 
-export default async function ServicePage() {
+export default async function ServicePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ filter?: string }>;
+}) {
   const user = await getCurrentUser();
   if (!can(user.role, "service.manage")) {
     return <Card className="p-8 text-center text-sm text-muted-foreground">Tidak punya izin.</Card>;
   }
+  const { filter = "" } = await searchParams;
   const tickets = await listTickets(user.tenantId);
 
   const counts = tickets.reduce<Record<string, number>>((acc, t) => {
     acc[t.status] = (acc[t.status] ?? 0) + 1;
     return acc;
   }, {});
+
+  const slaThreshold = Date.now() - SLA_DAYS * 86400000;
+  const isActive = (st: ServiceStatus) => ACTIVE_ST.includes(st);
+  const isSla = (t: (typeof tickets)[number]) => isActive(t.status) && new Date(t.createdAt).getTime() < slaThreshold;
+  const chips = [
+    { value: "active", label: "Aktif", count: tickets.filter((t) => isActive(t.status)).length },
+    { value: "", label: "Semua", count: tickets.length },
+    { value: "sla", label: "Lewat SLA", count: tickets.filter(isSla).length, tone: "danger" as const },
+    { value: "ready", label: "Siap diambil", count: tickets.filter((t) => t.status === "DONE").length, tone: "success" as const },
+  ];
+  const shown =
+    filter === "active"
+      ? tickets.filter((t) => isActive(t.status))
+      : filter === "sla"
+        ? tickets.filter(isSla)
+        : filter === "ready"
+          ? tickets.filter((t) => t.status === "DONE")
+          : tickets;
 
   return (
     <div className="space-y-6">
@@ -84,6 +112,8 @@ export default async function ServicePage() {
         })}
       </div>
 
+      {tickets.length > 0 && <FilterChips chips={chips} />}
+
       {tickets.length === 0 ? (
         <EmptyState
           icon={Wrench}
@@ -95,9 +125,11 @@ export default async function ServicePage() {
             </Link>
           }
         />
+      ) : shown.length === 0 ? (
+        <Card className="p-8 text-center text-sm text-muted-foreground">Tidak ada tiket pada filter ini.</Card>
       ) : (
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          {tickets.map((t) => {
+          {shown.map((t) => {
             const s = SERVICE_STATUS_META[t.status];
             const device = [t.deviceType, t.deviceBrand].filter(Boolean).join(" ");
             return (
@@ -117,7 +149,7 @@ export default async function ServicePage() {
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="font-bold tabular-nums">{formatRupiah(t.total)}</p>
+                    <p className="font-mono font-bold tabular-nums">{formatRupiah(t.total)}</p>
                     <p className="text-xs text-muted-foreground">
                       {formatLocalDate(t.createdAt, { dateStyle: "medium" })}
                     </p>

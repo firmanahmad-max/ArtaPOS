@@ -2,31 +2,41 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Plus, Pencil, QrCode, Boxes, Tags, ClipboardCheck, Upload, Download, PackageX, AlertTriangle, Coins } from "lucide-react";
 import { getAuthContext } from "@/lib/auth/guard";
-import { listProductsPaged, inventorySummary, ensureDefaultUnits } from "@/server/inventory/service";
+import { listProductsPaged, inventorySummary, ensureDefaultUnits, type InventoryFilter } from "@/server/inventory/service";
 import { formatRupiah } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FilterChips } from "@/components/ui/filter-chips";
 import { Pagination } from "@/components/ui/pagination";
 import { SearchBox, DeleteProductButton } from "./inventory-client";
 
 export const metadata: Metadata = { title: "Inventory" };
 
+const FILTERS: InventoryFilter[] = ["low", "out", "nobarcode"];
+
 export default async function InventoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; page?: string; filter?: string }>;
 }) {
   const { tenantId } = await getAuthContext();
   await ensureDefaultUnits(tenantId);
-  const { q, page: pageParam } = await searchParams;
+  const { q, page: pageParam, filter: filterParam } = await searchParams;
+  const filter = FILTERS.includes(filterParam as InventoryFilter) ? (filterParam as InventoryFilter) : undefined;
   const page = Math.max(1, Number(pageParam) || 1);
   const [{ items: products, total, totalPages }, summary] = await Promise.all([
-    listProductsPaged(tenantId, { search: q, page, perPage: 25 }),
+    listProductsPaged(tenantId, { search: q, page, perPage: 25, filter }),
     inventorySummary(tenantId),
   ]);
+  const chips = [
+    { value: "", label: "Semua", count: summary.productCount },
+    { value: "low", label: "Menipis", count: summary.lowStock, tone: "warning" as const },
+    { value: "out", label: "Habis", count: summary.outOfStock, tone: "danger" as const },
+    { value: "nobarcode", label: "Tanpa barcode", count: summary.noBarcode },
+  ];
 
   return (
     <div className="space-y-6">
@@ -91,17 +101,19 @@ export default async function InventoryPage({
         <span className="text-sm text-muted-foreground">{total} produk</span>
       </div>
 
+      <FilterChips chips={chips} />
+
       {products.length === 0 ? (
         <EmptyState
           icon={Boxes}
-          title={q ? "Produk tidak ditemukan" : "Belum ada produk"}
+          title={q || filter ? "Produk tidak ditemukan" : "Belum ada produk"}
           description={
-            q
-              ? "Coba kata kunci lain."
+            q || filter
+              ? "Coba kata kunci atau filter lain."
               : "Tambahkan produk pertama Anda untuk mulai mengelola stok."
           }
           action={
-            !q && (
+            !q && !filter && (
               <Link href="/inventory/new" className={buttonVariants({})}>
                 <Plus /> Tambah Produk
               </Link>
@@ -128,13 +140,13 @@ export default async function InventoryPage({
                   <tr key={p.id} className="border-b last:border-0 hover:bg-muted/40">
                     <td className="p-3">
                       <div className="font-medium">{p.name}</div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="font-mono text-xs text-muted-foreground">
                         {p.sku}
                         {p.barcode ? ` · ${p.barcode}` : ""}
                       </div>
                     </td>
                     <td className="hidden p-3 text-muted-foreground sm:table-cell">{p.category?.name ?? "—"}</td>
-                    <td className="p-3 text-right font-medium">{formatRupiah(p.sellPrice)}</td>
+                    <td className="p-3 text-right font-mono font-medium tabular-nums">{formatRupiah(p.sellPrice)}</td>
                     <td className="p-3 text-center">
                       {out ? (
                         <Badge variant="destructive">Habis</Badge>
@@ -172,7 +184,7 @@ export default async function InventoryPage({
       )}
 
       {total > 0 && (
-        <Pagination page={page} totalPages={totalPages} basePath="/inventory" params={{ q }} />
+        <Pagination page={page} totalPages={totalPages} basePath="/inventory" params={{ q, filter: filterParam }} />
       )}
     </div>
   );

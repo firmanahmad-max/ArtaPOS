@@ -10,6 +10,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FilterChips } from "@/components/ui/filter-chips";
 import { formatLocalDate } from "@/lib/timezone";
 import type { SimStatus } from "@/generated/prisma/enums";
 
@@ -23,12 +24,27 @@ const STATUS_META: Record<SimStatus, { label: string; variant: "default" | "seco
   REJECTED: { label: "Ditolak", variant: "destructive" },
 };
 
-export default async function SimulationsPage() {
+export default async function SimulationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ filter?: string }>;
+}) {
   const user = await getCurrentUser();
   if (!can(user.role, "pcbuild.manage")) {
     return <Card className="p-8 text-center text-sm text-muted-foreground">Tidak punya izin.</Card>;
   }
+  const { filter = "" } = await searchParams;
   const sims = await listSimulations(user.tenantId);
+
+  const count = (st: SimStatus) => sims.filter((s) => s.status === st).length;
+  const chips = [
+    { value: "", label: "Semua", count: sims.length },
+    { value: "DRAFT", label: "Draf", count: count("DRAFT") },
+    { value: "SENT", label: "Terkirim", count: count("SENT"), tone: "warning" as const },
+    { value: "APPROVED", label: "Disetujui", count: count("APPROVED"), tone: "success" as const },
+    { value: "REJECTED", label: "Ditolak", count: count("REJECTED"), tone: "danger" as const },
+  ];
+  const shown = filter ? sims.filter((s) => s.status === filter) : sims;
 
   return (
     <div className="space-y-6">
@@ -40,6 +56,8 @@ export default async function SimulationsPage() {
         <Link href="/simulations/new" className={buttonVariants({})}><Plus /> Simulasi Baru</Link>
       </div>
 
+      {sims.length > 0 && <FilterChips chips={chips} />}
+
       {sims.length === 0 ? (
         <EmptyState
           icon={ClipboardList}
@@ -47,9 +65,11 @@ export default async function SimulationsPage() {
           description="Buat penawaran rakitan pertama — komponen dari inventory atau bebas, lengkap dengan bujet & margin."
           action={<Link href="/simulations/new" className={buttonVariants({})}><Plus /> Simulasi Baru</Link>}
         />
+      ) : shown.length === 0 ? (
+        <Card className="p-8 text-center text-sm text-muted-foreground">Tidak ada simulasi pada filter ini.</Card>
       ) : (
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          {sims.map((s) => {
+          {shown.map((s) => {
             const t = simTotals(s.items, s.buildFee, s.budget);
             const meta = STATUS_META[s.status];
             return (
@@ -64,8 +84,8 @@ export default async function SimulationsPage() {
                     <p className="truncate text-sm text-muted-foreground">{s.customerName || "Tanpa pelanggan"} · {s.items.length} komponen</p>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="font-bold tabular-nums">{formatRupiah(t.grandSell)}</p>
-                    <p className={cn("text-xs font-medium tabular-nums", t.margin >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}>
+                    <p className="font-mono font-bold tabular-nums">{formatRupiah(t.grandSell)}</p>
+                    <p className={cn("font-mono text-xs font-medium tabular-nums", t.margin >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}>
                       margin {formatRupiah(t.margin)}
                     </p>
                     <p className="text-xs text-muted-foreground">{formatLocalDate(s.createdAt, { dateStyle: "medium" })}</p>

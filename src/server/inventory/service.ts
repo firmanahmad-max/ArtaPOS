@@ -103,13 +103,25 @@ function productWhere(tenantId: string, search?: string) {
 }
 
 /** Daftar produk dengan paginasi + pencarian. */
+export type InventoryFilter = "low" | "out" | "nobarcode";
+
 export async function listProductsPaged(
   tenantId: string,
-  opts: { search?: string; page?: number; perPage?: number } = {},
+  opts: { search?: string; page?: number; perPage?: number; filter?: InventoryFilter } = {},
 ) {
   const perPage = opts.perPage ?? 25;
   const page = Math.max(1, opts.page ?? 1);
-  const where = productWhere(tenantId, opts.search);
+  const base = productWhere(tenantId, opts.search);
+  // Filter cepat → dikomposisi dgn AND agar tak menimpa OR pencarian.
+  const filterWhere =
+    opts.filter === "low"
+      ? { minStock: { gt: 0 }, stock: { gt: 0, lte: db.product.fields.minStock } }
+      : opts.filter === "out"
+        ? { minStock: { gt: 0 }, stock: { lte: 0 } }
+        : opts.filter === "nobarcode"
+          ? { OR: [{ barcode: null }, { barcode: "" }] }
+          : null;
+  const where = filterWhere ? { AND: [base, filterWhere] } : base;
   const [items, total] = await Promise.all([
     db.product.findMany({
       where,
@@ -130,12 +142,14 @@ export async function listProductsPaged(
 export async function inventorySummary(tenantId: string) {
   const products = await db.product.findMany({
     where: { tenantId, isActive: true },
-    select: { stock: true, costPrice: true, minStock: true },
+    select: { stock: true, costPrice: true, minStock: true, barcode: true },
   });
   let outOfStock = 0;
   let lowStock = 0;
   let stockValue = 0;
+  let noBarcode = 0;
   for (const p of products) {
+    if (!p.barcode) noBarcode++;
     // Hanya produk yang DILACAK stoknya (punya ambang minStock > 0) yang
     // dihitung habis/menipis. Produk minStock=0 (mis. jasa/instalasi/non-
     // inventaris) permanen bernilai 0 dan BUKAN "kehabisan stok". Filter ini
@@ -146,7 +160,7 @@ export async function inventorySummary(tenantId: string) {
     }
     stockValue += Math.max(0, p.stock) * p.costPrice;
   }
-  return { productCount: products.length, outOfStock, lowStock, stockValue };
+  return { productCount: products.length, outOfStock, lowStock, stockValue, noBarcode };
 }
 
 export function getProduct(tenantId: string, id: string) {

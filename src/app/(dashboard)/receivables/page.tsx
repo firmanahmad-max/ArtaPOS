@@ -9,18 +9,40 @@ import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
+import { FilterChips } from "@/components/ui/filter-chips";
 import { formatLocalDate } from "@/lib/timezone";
 
 export const metadata: Metadata = { title: "Piutang" };
 
-export default async function ReceivablesPage() {
+export default async function ReceivablesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ filter?: string }>;
+}) {
   const user = await getCurrentUser();
   if (!can(user.role, "reports.view")) {
     return <Card className="p-8 text-center text-sm text-muted-foreground">Tidak punya izin.</Card>;
   }
+  const { filter = "" } = await searchParams;
   const receivables = await listReceivables(user.tenantId);
   const totalOutstanding = receivables.reduce((s, r) => s + r.outstanding, 0);
   const overdueCount = receivables.filter((r) => r.overdue).length;
+
+  const now = Date.now();
+  const isSoon = (r: (typeof receivables)[number]) =>
+    !!r.dueDate && !r.overdue && new Date(r.dueDate).getTime() <= now + 7 * 86400000;
+  const soonCount = receivables.filter(isSoon).length;
+  const chips = [
+    { value: "", label: "Semua", count: receivables.length },
+    { value: "overdue", label: "Lewat tempo", count: overdueCount, tone: "danger" as const },
+    { value: "soon", label: "Jatuh tempo ≤7 hari", count: soonCount, tone: "warning" as const },
+  ];
+  const shown =
+    filter === "overdue"
+      ? receivables.filter((r) => r.overdue)
+      : filter === "soon"
+        ? receivables.filter(isSoon)
+        : receivables;
 
   return (
     <div className="space-y-6">
@@ -54,11 +76,15 @@ export default async function ReceivablesPage() {
         />
       </div>
 
+      {receivables.length > 0 && <FilterChips chips={chips} />}
+
       {receivables.length === 0 ? (
         <Card className="flex flex-col items-center gap-3 p-12 text-center">
           <CheckCircle2 className="size-10 text-success" />
           <p className="text-sm text-muted-foreground">Tidak ada piutang. Semua lunas. 🎉</p>
         </Card>
+      ) : shown.length === 0 ? (
+        <Card className="p-8 text-center text-sm text-muted-foreground">Tidak ada piutang pada filter ini.</Card>
       ) : (
         <Card className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -72,9 +98,9 @@ export default async function ReceivablesPage() {
               </tr>
             </thead>
             <tbody>
-              {receivables.map((r) => (
+              {shown.map((r) => (
                 <tr key={r.id} className="border-b last:border-0 hover:bg-muted/40">
-                  <td className="p-3 font-medium">{r.number}</td>
+                  <td className="p-3 font-mono font-medium text-primary">{r.number}</td>
                   <td className="p-3 text-muted-foreground">{r.customerName || "—"}</td>
                   <td className="p-3">
                     {r.dueDate ? (
@@ -86,7 +112,7 @@ export default async function ReceivablesPage() {
                       <span className="text-muted-foreground">—</span>
                     )}
                   </td>
-                  <td className="p-3 text-right font-medium text-destructive">{formatRupiah(r.outstanding)}</td>
+                  <td className="p-3 text-right font-mono font-medium tabular-nums text-destructive">{formatRupiah(r.outstanding)}</td>
                   <td className="p-3 text-right">
                     <Link href={`/sales/${r.id}`} className={buttonVariants({ variant: "outline", size: "sm" })}>
                       Terima

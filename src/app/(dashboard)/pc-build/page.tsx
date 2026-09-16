@@ -10,6 +10,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FilterChips } from "@/components/ui/filter-chips";
 import { BUILD_STATUS_META } from "./build-status";
 import { formatLocalDate } from "@/lib/timezone";
 
@@ -26,17 +27,34 @@ const TINT_BY_VARIANT: Record<string, string> = {
   destructive: "bg-rose-500/12",
 };
 
-export default async function PcBuildPage() {
+export default async function PcBuildPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ filter?: string }>;
+}) {
   const user = await getCurrentUser();
   if (!can(user.role, "pcbuild.manage")) {
     return <Card className="p-8 text-center text-sm text-muted-foreground">Tidak punya izin.</Card>;
   }
+  const { filter = "" } = await searchParams;
   const builds = await listBuilds(user.tenantId);
 
   const counts = builds.reduce<Record<string, number>>((acc, b) => {
     acc[b.status] = (acc[b.status] ?? 0) + 1;
     return acc;
   }, {});
+  const isActive = (st: BuildStatus) => st === "DRAFT" || st === "ASSEMBLING";
+  const chips = [
+    { value: "active", label: "Berjalan", count: builds.filter((b) => isActive(b.status)).length },
+    { value: "", label: "Semua", count: builds.length },
+    { value: "ready", label: "Siap diambil", count: builds.filter((b) => b.status === "DONE").length, tone: "success" as const },
+  ];
+  const shown =
+    filter === "active"
+      ? builds.filter((b) => isActive(b.status))
+      : filter === "ready"
+        ? builds.filter((b) => b.status === "DONE")
+        : builds;
 
   return (
     <div className="space-y-6">
@@ -69,6 +87,8 @@ export default async function PcBuildPage() {
         })}
       </div>
 
+      {builds.length > 0 && <FilterChips chips={chips} />}
+
       {builds.length === 0 ? (
         <EmptyState
           icon={Cpu}
@@ -80,9 +100,11 @@ export default async function PcBuildPage() {
             </Link>
           }
         />
+      ) : shown.length === 0 ? (
+        <Card className="p-8 text-center text-sm text-muted-foreground">Tidak ada rakitan pada filter ini.</Card>
       ) : (
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          {builds.map((b) => {
+          {shown.map((b) => {
             const s = BUILD_STATUS_META[b.status];
             return (
               <Link key={b.id} href={`/pc-build/${b.id}`} className="block">
@@ -100,7 +122,7 @@ export default async function PcBuildPage() {
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="font-bold tabular-nums">{formatRupiah(b.total)}</p>
+                    <p className="font-mono font-bold tabular-nums">{formatRupiah(b.total)}</p>
                     <p className="text-xs text-muted-foreground">
                       {formatLocalDate(b.createdAt, { dateStyle: "medium" })}
                     </p>
