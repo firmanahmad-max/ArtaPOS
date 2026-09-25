@@ -16,6 +16,8 @@ import {
   ArrowRight,
   ShieldCheck,
   Lock,
+  Download,
+  FileText,
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { LogoWordmark } from "@/components/brand/logo-wordmark";
@@ -183,6 +185,31 @@ export default function AboutPage() {
               Manual lengkap semua fitur beserta langkah & contoh pemakaian. Klik tiap bagian untuk membuka.
             </p>
           </div>
+
+          {/* Unduh panduan versi PDF (lengkap dengan tangkapan layar) */}
+          <div className="flex flex-col gap-4 rounded-xl border bg-gradient-to-br from-primary/10 to-primary/5 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                <FileText className="size-6" />
+              </div>
+              <div>
+                <p className="font-semibold">Panduan Lengkap (PDF)</p>
+                <p className="text-sm text-muted-foreground">
+                  22 bab langkah demi langkah dengan tangkapan layar tiap fitur — cocok dicetak atau dibagikan ke staf.
+                </p>
+              </div>
+            </div>
+            <a
+              href="/panduan-artapos.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              download
+              className={`${buttonVariants()} shrink-0 gap-2`}
+            >
+              <Download className="size-4" /> Unduh PDF
+            </a>
+          </div>
+
           <Manual />
         </section>
 

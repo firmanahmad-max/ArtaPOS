@@ -66,6 +66,6 @@ export const config = {
   // /api dikecualikan: route handler memverifikasi sendiri via DAL (dan JSON
   // tak butuh CSP).
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|manifest.webmanifest|icons|sw.js|.*\\.(?:png|jpg|jpeg|svg|ico|webp)$).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|manifest.webmanifest|icons|sw.js|.*\\.(?:png|jpg|jpeg|svg|ico|webp|pdf)$).*)",
   ],
 };
