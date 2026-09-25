@@ -12,6 +12,7 @@ import {
   Users,
   Wrench,
   Cpu,
+  Calculator,
   ShieldCheck,
   PackageOpen,
   Wallet,
@@ -49,9 +50,9 @@ const SECTIONS: Section[] = [
     title: "Dashboard",
     desc: "Ringkasan aktivitas toko hari ini: penjualan, produk, servis aktif, stok habis, tren, dan penjualan terbaru.",
     steps: [
-      "Kartu statistik menampilkan penjualan hari ini, produk aktif, servis aktif, dan stok habis.",
-      "Grafik Tren Penjualan & Tren Jasa Servis menampilkan performa 14 hari terakhir.",
-      "Klik kartu atau 'Lihat semua' untuk masuk ke modul terkait.",
+      "Kartu statistik: Penjualan Hari Ini (dengan mini-grafik & perubahan vs kemarin), Produk Aktif (bar cakupan stok), Servis Aktif (rincian per status), dan Stok Habis (pintasan 'Buat pesanan pembelian').",
+      "Panel Tren: pilih periode 14 hari / 30 hari / 3 bulan untuk melihat tren Penjualan (ungu) & Jasa Servis (amber) beserta total, rata-rata, dan hari tertinggi.",
+      "Panel Tanya Arta & Penjualan Terbaru tampil di kolom kanan; klik kartu atau 'Lihat semua' untuk masuk ke modul terkait.",
     ],
   },
   {
@@ -191,12 +192,25 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    icon: Calculator,
+    title: "Simulasi Rakitan (Penawaran)",
+    desc: "Susun penawaran rakitan PC lengkap dengan bujet & margin — tanpa memotong stok.",
+    steps: [
+      "Simulasi Baru: beri nama & pelanggan, tetapkan bujet (opsional), tambah komponen dari katalog (autofill harga) atau ketik bebas.",
+      "Sisa bujet, total jual, modal, dan margin (Rp & %) dihitung otomatis saat Anda menambah/mengubah komponen.",
+      "Kirim penawaran ke pelanggan via WhatsApp — hanya daftar komponen & TOTAL rakitan (harga per komponen disembunyikan).",
+      "Bila disetujui: 'Impor ke Rakit PC' — komponen berstok cukup langsung dialokasikan (potong stok), sisanya jadi baris non-stok.",
+    ],
+    example: "Tawarkan 'PC Gaming 10jt': tambah CPU, GPU, RAM… sisa bujet turun tiap komponen; kirim WA berisi daftar + total Rp 9.800.000.",
+  },
+  {
     icon: Cpu,
     title: "Rakit PC (PC Builder)",
-    desc: "Buat rakitan dari komponen katalog + jasa rakit.",
+    desc: "Buat rakitan dari komponen katalog + jasa rakit, dengan diskon & nota.",
     steps: [
       "Rakitan Baru: beri nama & pelanggan, tambah komponen (memotong stok), tetapkan jasa rakit.",
-      "Ubah status: Draft → Dirakit → Selesai → Diserahkan; catat pembayaran.",
+      "Ubah status: Draft → Dirakit → Selesai → Diserahkan; beri diskon bila perlu; catat pembayaran.",
+      "Cetak Nota: rincian komponen tanpa harga per item, hanya total rakitan — bagikan via WhatsApp (gambar/teks) atau cetak.",
     ],
   },
   {
@@ -246,7 +260,7 @@ const SECTIONS: Section[] = [
     desc: "Sesuaikan identitas toko, tampilan, dan aktivasi lisensi.",
     steps: [
       "Profil Toko: nama, alamat, telepon, catatan kaki struk, logo, foto promo halaman lacak.",
-      "Tema Warna: pilih nuansa (Terakota, Mint, Lavender, Sky, Ocean) + mode terang/gelap.",
+      "Tema Warna: pilih nuansa (Violet bawaan, Terakota, Mint, Lavender, Sky, Ocean) + mode terang/gelap.",
       "Lisensi: lihat status paket. Punya kode aktivasi dari admin? Masukkan di 'Tukar Kode' untuk mengaktifkan/memperpanjang.",
     ],
   },
