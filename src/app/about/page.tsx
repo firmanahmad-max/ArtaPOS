@@ -67,6 +67,9 @@ export default function AboutPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Link href="/harga" className={buttonVariants({ variant: "ghost", size: "sm" })}>
+            Harga
+          </Link>
           <ThemeToggle />
           <Link href="/dashboard" className={buttonVariants({ size: "sm" })}>
             Buka Aplikasi <ArrowRight className="size-4" />
