@@ -18,7 +18,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "prisma db seed",
-    "seed:demo": "node prisma/seed-demo.mjs"
+    "seed:demo": "node prisma/seed-demo.mjs",
+    "seed:promo": "node prisma/seed-promo.mjs"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.0.2",

@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Check, ArrowRight, Sparkles, KeyRound, ChevronDown } from "lucide-react";
+import { Check, ArrowRight, KeyRound, ChevronDown } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
-import { cn, formatRupiah } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
 import { db } from "@/lib/db";
 import { PRICING_TIERS, PRICING_INCLUDES, TRIAL_DAYS } from "@/lib/pricing";
+import { PricingCards } from "./pricing-cards";
 
 export const metadata: Metadata = {
   title: "Harga",
@@ -60,8 +61,6 @@ export default async function HargaPage() {
   } catch {
     remaining = {};
   }
-  const slotsLeft = (id: string, quota?: number) =>
-    remaining[id] ?? quota ?? null;
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -95,66 +94,8 @@ export default async function HargaPage() {
           </p>
         </section>
 
-        {/* Pricing cards */}
-        <section className="grid gap-5 lg:grid-cols-3">
-          {PRICING_TIERS.map((t) => {
-            const left = t.quota != null ? slotsLeft(t.id, t.quota) : null;
-            const full = left != null && left <= 0;
-            return (
-              <div
-                key={t.id}
-                className={cn(
-                  "relative flex flex-col rounded-2xl border bg-card p-6",
-                  t.highlight ? "border-primary/40 ring-2 ring-primary/30 elevate-lg" : "elevate",
-                )}
-              >
-                {t.badge && (
-                  <span className="absolute -top-3 left-6 inline-flex items-center gap-1 rounded-full gradient-brand px-3 py-1 text-xs font-semibold text-primary-foreground shadow-brand">
-                    <Sparkles className="size-3.5" /> {t.badge}
-                  </span>
-                )}
-                <div className="mb-1 flex items-start justify-between gap-2">
-                  <h2 className="text-lg font-bold">{t.name}</h2>
-                  {t.quota != null && (
-                    <span
-                      className={cn(
-                        "shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums",
-                        full
-                          ? "bg-muted text-muted-foreground"
-                          : "bg-amber-500/15 text-amber-700 dark:text-amber-400",
-                      )}
-                    >
-                      {full ? "Kuota penuh" : `Tersisa ${left}/${t.quota}`}
-                    </span>
-                  )}
-                </div>
-                <p className="min-h-[40px] text-sm text-muted-foreground">{t.tagline}</p>
-
-                <div className="mt-4 flex items-baseline gap-1.5">
-                  <span className="font-mono text-4xl font-bold tabular-nums text-foreground">{formatRupiah(t.monthly)}</span>
-                  <span className="text-sm text-muted-foreground">/bulan</span>
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  atau <span className="font-medium text-foreground">{formatRupiah(t.annual)}</span>/tahun
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">{t.billNote}</p>
-
-                <Link
-                  href="/login"
-                  className={cn(
-                    buttonVariants({ variant: t.highlight ? "default" : "outline" }),
-                    "mt-5 w-full",
-                  )}
-                >
-                  {full ? "Gabung daftar tunggu" : "Pilih paket ini"}
-                </Link>
-                {t.id === "pendiri" && (
-                  <p className="mt-2 text-center text-xs text-muted-foreground">Harga dikunci — tidak naik selama aktif</p>
-                )}
-              </div>
-            );
-          })}
-        </section>
+        {/* Pricing cards (dengan toggle Bulanan/Tahunan) */}
+        <PricingCards tiers={PRICING_TIERS} remaining={remaining} />
 
         {/* Included features */}
         <section className="rounded-2xl border bg-card p-6 elevate sm:p-8">

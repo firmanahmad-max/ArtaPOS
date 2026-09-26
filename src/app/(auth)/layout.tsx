@@ -14,6 +14,8 @@ export default function AuthLayout({
       <div className="mt-6 flex items-center gap-3 text-xs text-muted-foreground">
         <Link href="/about" className="hover:text-foreground hover:underline">Tentang {APP_NAME}</Link>
         <span>·</span>
+        <Link href="/harga" className="hover:text-foreground hover:underline">Harga</Link>
+        <span>·</span>
         <Link href="/disclaimer" className="hover:text-foreground hover:underline">Disclaimer</Link>
       </div>
     </div>
