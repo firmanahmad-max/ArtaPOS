@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Users, BookOpen } from "lucide-react";
+import { Users, BookOpen, AlertTriangle, ArrowRight, Tag } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { getLicense } from "@/server/license/service";
@@ -29,6 +29,12 @@ export default async function SettingsPage() {
   const license = await getLicense(user.tenantId);
   const storeInfo = await getReceiptStoreInfo(user.tenantId);
   const canLicense = can(user.role, "license.manage");
+
+  // Status masa berlaku lisensi → CTA perpanjang (ke /harga) bila hampir/sudah habis.
+  const validMs = license?.validUntil ? new Date(license.validUntil).getTime() : null;
+  const daysLeft = validMs != null ? Math.ceil((validMs - Date.now()) / 86_400_000) : null;
+  const licenseExpired = !!license && (license.status !== "ACTIVE" || (daysLeft != null && daysLeft < 0));
+  const licenseExpiringSoon = daysLeft != null && daysLeft >= 0 && daysLeft <= 14;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -90,8 +96,36 @@ export default async function SettingsPage() {
             </CardDescription>
           </CardHeader>
           {canLicense && (
-            <CardContent>
+            <CardContent className="space-y-4">
+              {(licenseExpired || licenseExpiringSoon) && (
+                <div
+                  className={`flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between ${
+                    licenseExpired ? "border-rose-500/40 bg-rose-500/5" : "border-amber-500/40 bg-amber-500/5"
+                  }`}
+                >
+                  <div className="flex items-start gap-2.5 text-sm">
+                    <AlertTriangle className={`size-5 shrink-0 ${licenseExpired ? "text-rose-500" : "text-amber-500"}`} />
+                    <div>
+                      <p className="font-medium text-foreground">
+                        {licenseExpired
+                          ? "Lisensi sudah berakhir"
+                          : `Lisensi berakhir dalam ${daysLeft} hari`}
+                      </p>
+                      <p className="text-muted-foreground">Perpanjang agar toko tetap berjalan tanpa gangguan.</p>
+                    </div>
+                  </div>
+                  <Link href="/harga" className={`${buttonVariants({ size: "sm" })} shrink-0 gap-1.5`}>
+                    Lihat paket &amp; perpanjang <ArrowRight className="size-4" />
+                  </Link>
+                </div>
+              )}
               <RedeemLicenseForm />
+              <Link
+                href="/harga"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+              >
+                <Tag className="size-4" /> Lihat semua paket harga
+              </Link>
             </CardContent>
           )}
         </Card>
