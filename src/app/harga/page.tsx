@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Check, ArrowRight, KeyRound, ChevronDown } from "lucide-react";
+import { Check, ArrowRight, KeyRound, ChevronDown, FileText } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
@@ -132,6 +132,15 @@ export default async function HargaPage() {
               <KeyRound className="size-4" /> Aktifkan kode
             </Link>
           </div>
+          <a
+            href="/mengapa-artapos.pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+            download
+            className="mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-white/85 underline-offset-4 hover:text-white hover:underline"
+          >
+            <FileText className="size-4" /> Unduh brosur “Mengapa Harus ArtaPOS” (PDF)
+          </a>
         </section>
 
         {/* FAQ */}
