@@ -89,9 +89,17 @@ export default async function FinancePage({
   let expenseBreakdown: { category: string; amount: number }[] = [];
   try {
     comparison = await getFinanceComparison(user.tenantId, period);
-    expenseBreakdown = await getExpenseBreakdown(user.tenantId, period);
   } catch {
     comparison = null;
+  }
+  // Rincian biaya opsional: kegagalannya JANGAN menjatuhkan seluruh laporan
+  // (laporan utama sudah berhasil). Degradasi ke daftar kosong.
+  if (comparison) {
+    try {
+      expenseBreakdown = await getExpenseBreakdown(user.tenantId, period);
+    } catch {
+      expenseBreakdown = [];
+    }
   }
   if (!comparison) {
     return (
@@ -203,7 +211,7 @@ export default async function FinancePage({
   if (totalRevenue > 0) {
     insights.push({ tone: "info", text: `Sumber pendapatan terbesar: ${topSource.key} — ${topSource.share}% dari omzet. HPP ${cogsRatio}% dari pendapatan.` });
   }
-  if (bestMargin && bestMargin.margin != null) {
+  if (bestMargin && bestMargin.margin != null && bestMargin.margin > 0) {
     insights.push({ tone: "positive", text: `Margin tertinggi dari ${bestMargin.key} (${bestMargin.margin}%). Lini ini paling efisien untuk didorong.` });
   }
   if (topExpense) {
@@ -336,8 +344,13 @@ export default async function FinancePage({
                       </span>
                       <span className="text-right font-mono tabular-nums">{formatRupiah(s.rev)}</span>
                       <span className="col-start-2 flex items-center justify-end gap-1 text-xs font-medium text-muted-foreground">
-                        <Percent className="size-3" />
-                        {s.margin != null ? `margin ${s.margin}%` : "tanpa modal"}
+                        {s.margin != null ? (
+                          <>
+                            <Percent className="size-3" />margin {s.margin}%
+                          </>
+                        ) : (
+                          "—"
+                        )}
                       </span>
                     </div>
                   ))}
