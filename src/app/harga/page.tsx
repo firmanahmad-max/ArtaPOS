@@ -10,9 +10,25 @@ import { db } from "@/lib/db";
 import { PRICING_TIERS, PRICING_INCLUDES, TRIAL_DAYS } from "@/lib/pricing";
 import { PricingCards } from "./pricing-cards";
 
+const OG_DESC = "Semua fitur, tanpa batas pengguna maupun transaksi. Mulai Rp 12.500/bln · coba gratis 30 hari.";
 export const metadata: Metadata = {
   title: "Harga",
   description: `Harga langganan ${APP_NAME} — produk yang sama untuk semua toko, makin awal bergabung makin murah.`,
+  openGraph: {
+    title: `Harga ${APP_NAME} — makin awal bergabung, makin murah`,
+    description: OG_DESC,
+    url: "/harga",
+    siteName: APP_NAME,
+    locale: "id_ID",
+    type: "website",
+    images: [{ url: "/og-harga.png", width: 1200, height: 630, alt: `Harga ${APP_NAME}` }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `Harga ${APP_NAME} — makin awal bergabung, makin murah`,
+    description: OG_DESC,
+    images: ["/og-harga.png"],
+  },
 };
 
 const FAQ = [

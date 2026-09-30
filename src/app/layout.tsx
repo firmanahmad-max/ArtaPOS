@@ -13,6 +13,7 @@ const fontSans = Archivo({ variable: "--font-archivo", subsets: ["latin"], displ
 const fontMono = JetBrains_Mono({ variable: "--font-jetbrains", subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://artapos.firmanahmad.id"),
   title: { default: `${APP_NAME} — ${APP_TAGLINE}`, template: `%s · ${APP_NAME}` },
   description: `${APP_NAME}: aplikasi manajemen toko komputer — penjualan, inventory, servis, rakit PC, keuangan. ${APP_TAGLINE}.`,
   manifest: "/manifest.webmanifest",

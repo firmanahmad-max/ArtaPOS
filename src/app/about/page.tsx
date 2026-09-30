@@ -34,9 +34,26 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
 import { Manual } from "./manual";
 
+const OG_DESC_ABOUT =
+  "Aplikasi manajemen toko komputer: kasir, inventory, jasa servis, rakit PC, garansi, sampai keuangan — dalam satu aplikasi.";
 export const metadata: Metadata = {
   title: "Tentang",
   description: `Tentang ${APP_NAME} — aplikasi manajemen toko komputer. ${APP_TAGLINE}.`,
+  openGraph: {
+    title: `${APP_NAME} — ${APP_TAGLINE}`,
+    description: OG_DESC_ABOUT,
+    url: "/about",
+    siteName: APP_NAME,
+    locale: "id_ID",
+    type: "website",
+    images: [{ url: "/og-artapos.png", width: 1200, height: 630, alt: APP_NAME }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${APP_NAME} — ${APP_TAGLINE}`,
+    description: OG_DESC_ABOUT,
+    images: ["/og-artapos.png"],
+  },
 };
 
 const FEATURES = [
