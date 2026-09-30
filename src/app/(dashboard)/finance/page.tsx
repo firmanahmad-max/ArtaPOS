@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Wallet, TrendingUp, LineChart, Receipt, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
+import { Wallet, TrendingUp, LineChart, Receipt, ArrowUpRight, ArrowDownRight, Minus, Sparkles, PieChart, Percent } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
-import { getFinanceComparison } from "@/server/finance/service";
+import { getFinanceComparison, getExpenseBreakdown } from "@/server/finance/service";
 import { buildReportText } from "@/lib/whatsapp";
 import { formatRupiah } from "@/lib/utils";
 import type { ReportPeriod } from "@/lib/validations/finance";
@@ -54,6 +54,20 @@ function DeltaBadge({ cur, prev, higherIsBetter = true }: { cur: number; prev: n
   );
 }
 
+/** Delta ringkas untuk kartu KPI (StatCard). undefined bila tak ada pembanding. */
+function kpiDelta(cur: number, prev: number): { value: string; positive?: boolean } | undefined {
+  const pct = deltaPct(cur, prev);
+  if (pct === null || Math.abs(pct) < 0.05) return undefined;
+  return { value: `${Math.abs(pct).toLocaleString("id-ID", { maximumFractionDigits: 0 })}%`, positive: pct > 0 };
+}
+
+const INSIGHT_DOT: Record<string, string> = {
+  positive: "bg-emerald-500",
+  warning: "bg-amber-500",
+  critical: "bg-rose-500",
+  info: "bg-primary",
+};
+
 export default async function FinancePage({
   searchParams,
 }: {
@@ -72,8 +86,10 @@ export default async function FinancePage({
   // jujur — bukan crash ke error boundary, dan bukan pula angka nol yang
   // menyesatkan seolah toko tak punya pemasukan.
   let comparison: Awaited<ReturnType<typeof getFinanceComparison>> | null = null;
+  let expenseBreakdown: { category: string; amount: number }[] = [];
   try {
     comparison = await getFinanceComparison(user.tenantId, period);
+    expenseBreakdown = await getExpenseBreakdown(user.tenantId, period);
   } catch {
     comparison = null;
   }
@@ -146,6 +162,64 @@ export default async function FinancePage({
     { label: "Biaya operasional", cur: report.expenseTotal, prev: previous.expenseTotal, higherIsBetter: false },
   ];
 
+  // ── Komposisi pendapatan & margin per lini ──────────────────────────────
+  const marginOf = (profit: number, rev: number) => (rev > 0 ? Math.round((profit / rev) * 100) : null);
+  const sources = [
+    { key: "Penjualan", rev: report.salesRevenue, profit: report.salesGrossProfit, bar: "bg-primary" },
+    { key: "Jasa Servis", rev: report.serviceRevenue, profit: report.serviceRevenue - report.serviceCogs, bar: "bg-amber-500" },
+    { key: "Rakit PC", rev: report.buildRevenue, profit: report.buildRevenue - report.buildCogs, bar: "bg-sky-500" },
+  ].map((s) => ({
+    ...s,
+    share: totalRevenue > 0 ? Math.round((s.rev / totalRevenue) * 100) : 0,
+    margin: marginOf(s.profit, s.rev),
+  }));
+  const withRev = sources.filter((s) => s.rev > 0);
+  const topSource = [...sources].sort((a, b) => b.rev - a.rev)[0];
+  const bestMargin = withRev.length ? [...withRev].sort((a, b) => (b.margin ?? 0) - (a.margin ?? 0))[0] : null;
+
+  // ── Rasio kunci ─────────────────────────────────────────────────────────
+  const cogsTotal = report.salesCogs + report.serviceCogs + report.buildCogs;
+  const cogsRatio = totalRevenue > 0 ? Math.round((cogsTotal / totalRevenue) * 100) : 0;
+  const expenseRatio = totalRevenue > 0 ? Math.round((report.expenseTotal / totalRevenue) * 100) : 0;
+  const netMargin = totalRevenue > 0 ? Math.round((report.estimatedNet / totalRevenue) * 100) : 0;
+  const topExpense = expenseBreakdown[0] ?? null;
+  const expenseMax = expenseBreakdown.reduce((m, e) => Math.max(m, e.amount), 0);
+  const netPct = deltaPct(report.estimatedNet, previous.estimatedNet);
+
+  // ── Insight otomatis (bahasa sederhana) ─────────────────────────────────
+  const fmtPct = (p: number) => Math.abs(p).toLocaleString("id-ID", { maximumFractionDigits: 0 });
+  const insights: { tone: "positive" | "warning" | "critical" | "info"; text: string }[] = [];
+  if (report.estimatedNet < 0) {
+    insights.push({ tone: "critical", text: `Periode ini rugi ${formatRupiah(report.estimatedNet)} — pendapatan belum menutup HPP + biaya operasional.` });
+  } else if (netPct === null) {
+    insights.push({ tone: "info", text: `Laba bersih ${formatRupiah(report.estimatedNet)} (margin ${netMargin}%). Belum ada pembanding periode lalu.` });
+  } else if (netPct >= 0.05) {
+    insights.push({ tone: "positive", text: `Laba bersih ${formatRupiah(report.estimatedNet)}, naik ${fmtPct(netPct)}% dari ${previous.periodLabel} (margin ${netMargin}%).` });
+  } else if (netPct <= -0.05) {
+    insights.push({ tone: "warning", text: `Laba bersih ${formatRupiah(report.estimatedNet)}, turun ${fmtPct(netPct)}% dari ${previous.periodLabel} (margin ${netMargin}%).` });
+  } else {
+    insights.push({ tone: "info", text: `Laba bersih ${formatRupiah(report.estimatedNet)} (margin ${netMargin}%), setara periode lalu.` });
+  }
+  if (totalRevenue > 0) {
+    insights.push({ tone: "info", text: `Sumber pendapatan terbesar: ${topSource.key} — ${topSource.share}% dari omzet. HPP ${cogsRatio}% dari pendapatan.` });
+  }
+  if (bestMargin && bestMargin.margin != null) {
+    insights.push({ tone: "positive", text: `Margin tertinggi dari ${bestMargin.key} (${bestMargin.margin}%). Lini ini paling efisien untuk didorong.` });
+  }
+  if (topExpense) {
+    const share = report.expenseTotal > 0 ? Math.round((topExpense.amount / report.expenseTotal) * 100) : 0;
+    insights.push({
+      tone: expenseRatio >= 30 ? "warning" : "info",
+      text: `Biaya operasional ${expenseRatio}% dari pendapatan. Terbesar: ${topExpense.category} — ${formatRupiah(topExpense.amount)} (${share}% dari total biaya).`,
+    });
+  } else if (totalRevenue > 0) {
+    insights.push({ tone: "info", text: "Belum ada biaya operasional tercatat periode ini. Catat sewa/listrik/gaji agar laba bersih akurat." });
+  }
+
+  const revDelta = kpiDelta(totalRevenue, prevRevenue);
+  const grossDelta = kpiDelta(grossProfit, prevGross);
+  const netDelta = kpiDelta(report.estimatedNet, previous.estimatedNet);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -178,6 +252,7 @@ export default async function FinancePage({
           value={formatRupiah(totalRevenue)}
           hint="Total omzet periode ini"
           tone="blue"
+          delta={revDelta}
         />
         <StatCard
           icon={TrendingUp}
@@ -185,13 +260,15 @@ export default async function FinancePage({
           value={formatRupiah(grossProfit)}
           hint={`Margin ${grossMargin}%`}
           tone="emerald"
+          delta={grossDelta}
         />
         <StatCard
           icon={LineChart}
           label="Laba Bersih"
           value={formatRupiah(report.estimatedNet)}
-          hint={report.estimatedNet >= 0 ? "Setelah biaya" : "Rugi periode ini"}
+          hint={report.estimatedNet >= 0 ? `Margin ${netMargin}%` : "Rugi periode ini"}
           tone={report.estimatedNet >= 0 ? "violet" : "rose"}
+          delta={netDelta}
         />
         <StatCard
           icon={Receipt}
@@ -200,6 +277,123 @@ export default async function FinancePage({
           hint="Operasional periode ini"
           tone="amber"
         />
+      </div>
+
+      {/* Insight otomatis */}
+      {insights.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Sparkles className="size-5 text-primary" /> Insight Keuangan
+            </CardTitle>
+            <CardDescription>Bacaan cepat dari angka {report.periodLabel}.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2.5">
+              {insights.map((it, i) => (
+                <li key={i} className="flex items-start gap-3 text-sm">
+                  <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", INSIGHT_DOT[it.tone])} />
+                  <span>{it.text}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Sumber pendapatan & margin per lini */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <PieChart className="size-5 text-primary" /> Sumber Pendapatan &amp; Margin
+            </CardTitle>
+            <CardDescription>Dari mana omzet berasal dan seberapa untung tiap lini.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {totalRevenue > 0 ? (
+              <>
+                <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted">
+                  {sources
+                    .filter((s) => s.rev > 0)
+                    .map((s) => (
+                      <div
+                        key={s.key}
+                        className={cn("h-full", s.bar)}
+                        style={{ width: `${(s.rev / totalRevenue) * 100}%` }}
+                        title={`${s.key}: ${s.share}%`}
+                      />
+                    ))}
+                </div>
+                <div className="space-y-2.5">
+                  {sources.map((s) => (
+                    <div key={s.key} className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-0.5 text-sm">
+                      <span className="flex items-center gap-2">
+                        <span className={cn("size-2.5 shrink-0 rounded-full", s.bar)} />
+                        {s.key}
+                        <span className="text-xs text-muted-foreground">{s.share}%</span>
+                      </span>
+                      <span className="text-right font-mono tabular-nums">{formatRupiah(s.rev)}</span>
+                      <span className="col-start-2 flex items-center justify-end gap-1 text-xs font-medium text-muted-foreground">
+                        <Percent className="size-3" />
+                        {s.margin != null ? `margin ${s.margin}%` : "tanpa modal"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="py-6 text-center text-sm text-muted-foreground">Belum ada pendapatan pada periode ini.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Rincian biaya per kategori */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Receipt className="size-5 text-primary" /> Rincian Biaya Operasional
+            </CardTitle>
+            <CardDescription>
+              {report.expenseTotal > 0
+                ? `Total ${formatRupiah(report.expenseTotal)} · ${expenseRatio}% dari pendapatan`
+                : "Belum ada biaya tercatat"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {expenseBreakdown.length > 0 ? (
+              <div className="space-y-3">
+                {expenseBreakdown.map((e) => {
+                  const share = report.expenseTotal > 0 ? Math.round((e.amount / report.expenseTotal) * 100) : 0;
+                  return (
+                    <div key={e.category} className="space-y-1">
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span>{e.category}</span>
+                        <span className="font-mono tabular-nums">
+                          {formatRupiah(e.amount)} <span className="text-xs text-muted-foreground">({share}%)</span>
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-amber-500"
+                          style={{ width: `${expenseMax > 0 ? (e.amount / expenseMax) * 100 : 0}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                Belum ada biaya operasional.{" "}
+                <Link href="/finance/expenses" className="font-medium text-primary hover:underline">
+                  Catat biaya
+                </Link>{" "}
+                agar laba bersih akurat.
+              </p>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Perbandingan dengan periode sebelumnya */}

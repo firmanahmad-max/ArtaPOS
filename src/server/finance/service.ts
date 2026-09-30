@@ -143,6 +143,26 @@ export async function getFinanceComparison(
   return { current, previous };
 }
 
+/**
+ * Rincian biaya operasional per kategori untuk satu periode (periode berjalan
+ * saja — bukan pembanding — agar tak menambah beban koneksi ke dua periode).
+ */
+export async function getExpenseBreakdown(
+  tenantId: string,
+  period: ReportPeriod,
+): Promise<{ category: string; amount: number }[]> {
+  const { from, to } = periodRange(period);
+  const rows = await db.expense.groupBy({
+    by: ["category"],
+    where: { tenantId, date: { gte: from, lt: to } },
+    _sum: { amount: true },
+  });
+  return rows
+    .map((r) => ({ category: r.category, amount: r._sum.amount ?? 0 }))
+    .filter((r) => r.amount > 0)
+    .sort((a, b) => b.amount - a.amount);
+}
+
 async function computeReport(
   tenantId: string,
   from: Date,
