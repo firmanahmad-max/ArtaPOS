@@ -137,19 +137,16 @@ export function AppShell({
             Keluar
           </Button>
         </form>
-        <div className="mt-2 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[11px] text-muted-foreground">
           <Link href="/about" onClick={() => setMobileOpen(false)} className="hover:text-foreground hover:underline">
-            Tentang {APP_NAME}
+            Tentang
           </Link>
-          <span>·</span>
           <Link href="/about#panduan" onClick={() => setMobileOpen(false)} className="hover:text-foreground hover:underline">
             Panduan
           </Link>
-          <span>·</span>
           <Link href="/harga" onClick={() => setMobileOpen(false)} className="hover:text-foreground hover:underline">
             Harga
           </Link>
-          <span>·</span>
           <Link href="/disclaimer" onClick={() => setMobileOpen(false)} className="hover:text-foreground hover:underline">
             Disclaimer
           </Link>
