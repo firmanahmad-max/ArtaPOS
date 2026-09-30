@@ -244,8 +244,9 @@ export default async function FinancePage({
         ))}
       </div>
 
-      {/* Ringkasan KPI */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Ringkasan KPI — 2 kolom (2×2) agar nominal besar + chip delta tak terpotong.
+          Kartu penuh 4-kolom hanya di layar sangat lebar (≥1536px). */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
         <StatCard
           icon={Wallet}
           label="Pendapatan"
