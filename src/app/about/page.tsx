@@ -104,6 +104,30 @@ export default function AboutPage() {
           </p>
         </section>
 
+        {/* Unduh brosur persuasif "Mengapa Harus ArtaPOS" */}
+        <div className="flex flex-col gap-4 rounded-xl border bg-gradient-to-br from-primary/10 to-primary/5 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+              <FileText className="size-6" />
+            </div>
+            <div>
+              <p className="font-semibold">Mengapa Harus ArtaPOS? (PDF)</p>
+              <p className="text-sm text-muted-foreground">
+                Brosur singkat — pertanyaan kunci pemilik toko dijawab dengan fitur &amp; tangkapan layar. Cocok dibagikan ke calon pengguna.
+              </p>
+            </div>
+          </div>
+          <a
+            href="/mengapa-artapos.pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+            download
+            className={`${buttonVariants()} shrink-0 gap-2`}
+          >
+            <Download className="size-4" /> Unduh PDF
+          </a>
+        </div>
+
         {/* Features */}
         <section className="space-y-4">
           <h2 className="text-xl font-semibold">Fitur Unggulan</h2>
