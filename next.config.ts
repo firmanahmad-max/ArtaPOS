@@ -19,6 +19,12 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  experimental: {
+    // Unggahan foto (galeri, foto servis/RMA, logo, promo) dikirim sebagai data
+    // URL base64 via Server Action. Default limit Server Action = 1 MB; naikkan
+    // agar foto mendekati batas aplikasi (~0.9–1.4 MB) tak gagal diam-diam.
+    serverActions: { bodySizeLimit: "2mb" },
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

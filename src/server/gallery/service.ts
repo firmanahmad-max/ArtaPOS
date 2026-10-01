@@ -15,9 +15,11 @@ export interface GalleryInput {
 }
 
 const MAX_PHOTO = 1_400_000; // ~1.4 MB (data URL)
+// Hanya raster yang aman di-<img> publik; tolak svg (permukaan XSS) & lainnya.
+const PHOTO_RE = /^data:image\/(png|jpe?g|webp|gif);base64,/;
 function cleanPhoto(photo: string | null | undefined): string | null {
   if (!photo) return null;
-  if (!photo.startsWith("data:image/")) throw new Error("Format foto tidak valid.");
+  if (!PHOTO_RE.test(photo)) throw new Error("Format foto tidak valid.");
   if (photo.length > MAX_PHOTO) throw new Error("Foto terlalu besar — kecilkan/kompres dulu.");
   return photo;
 }
@@ -35,6 +37,8 @@ export function listGalleryPublic(tenantId: string) {
     where: { tenantId, isActive: true },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
     select: { id: true, title: true, spec: true, price: true, photo: true, label: true },
+    // Batasi agar halaman publik (foto data URL) tak membengkak tak terbatas.
+    take: 200,
   });
 }
 
