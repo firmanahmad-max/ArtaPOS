@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
-import { Wrench, Megaphone } from "lucide-react";
+import Link from "next/link";
+import { Wrench, Megaphone, Images } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -19,7 +21,7 @@ export default async function LacakPage({
   searchParams: Promise<{ no?: string }>;
 }) {
   const { no } = await searchParams;
-  const { storeName, promo, promoImage } = await getTrackPagePromo();
+  const { storeName, promo, promoImage, slug, hasGallery } = await getTrackPagePromo();
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
       <div className="absolute right-4 top-4">
@@ -54,6 +56,12 @@ export default async function LacakPage({
               {promo && <p className="whitespace-pre-line break-words text-sm">{promo}</p>}
             </CardContent>
           </Card>
+        )}
+
+        {hasGallery && slug && (
+          <Link href={`/galeri/${slug}`} className={`${buttonVariants({ variant: "outline" })} mt-4 w-full`}>
+            <Images className="size-4" /> Lihat Galeri Produk &amp; Promo
+          </Link>
         )}
 
         <p className="mt-4 text-center text-xs text-muted-foreground">Dilayani oleh ArtaPOS</p>

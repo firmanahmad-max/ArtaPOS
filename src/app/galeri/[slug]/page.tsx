@@ -15,13 +15,22 @@ export async function generateMetadata({
   const { slug } = await params;
   const store = await getGalleryStoreBySlug(slug).catch(() => null);
   const name = store?.name ?? "Galeri";
+  const desc = `Produk & promo pilihan dari ${name}. Lihat spesifikasi, harga, dan hubungi via WhatsApp.`;
+  const img = [{ url: "/og-galeri.png", width: 1200, height: 630, alt: `Galeri ${name}` }];
   return {
     title: `Galeri — ${name}`,
-    description: `Produk & promo pilihan dari ${name}. Lihat spesifikasi, harga, dan hubungi via WhatsApp.`,
+    description: desc,
     openGraph: {
       title: `Galeri Produk — ${name}`,
-      description: `Produk & promo pilihan dari ${name}.`,
+      description: desc,
       type: "website",
+      images: img,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `Galeri Produk — ${name}`,
+      description: desc,
+      images: ["/og-galeri.png"],
     },
   };
 }
