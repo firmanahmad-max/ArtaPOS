@@ -22,6 +22,7 @@ import {
   ChevronDown,
   Printer,
   Search,
+  Images,
   type LucideIcon,
 } from "lucide-react";
 
@@ -148,6 +149,19 @@ const SECTIONS: Section[] = [
       "Scan: pakai kamera perangkat atau USB scanner (keyboard-wedge) di kasir/pencarian.",
       "Cetak label: buka produk → Label barcode (Code128) untuk ditempel pada barang.",
     ],
+  },
+  {
+    icon: Images,
+    title: "Galeri Publik (Etalase Produk Online)",
+    desc: "Pajang produk/promo pilihan di halaman publik yang bisa dibagikan — pelanggan lihat foto, spesifikasi & harga, lalu klik WhatsApp bila berminat.",
+    steps: [
+      "Buka Inventaris → Galeri Publik → Tambah Item. Pilih produk dari katalog (judul & harga terisi otomatis) atau isi manual.",
+      "Lengkapi foto (otomatis dikompres), spesifikasi singkat, dan label opsional (Promo/Baru/Unggulan/Diskon/Terlaris).",
+      "Simpan — item aktif langsung tampil di galeri publik toko Anda. Sembunyikan/Ubah/Hapus kapan pun.",
+      "Bagikan tautan galeri (/galeri/<toko>) ke WhatsApp/sosmed; tombolnya juga muncul di halaman Lacak. Pastikan No. HP toko terisi di Pengaturan agar tombol 'Chat WA' aktif.",
+      "Pelanggan menekan 'Saya Berminat (Chat WA)' → langsung chat WhatsApp berisi nama produk; atau 'Bagikan' untuk meneruskan ke orang lain.",
+    ],
+    example: "Pajang 'SSD 1TB NVMe' dengan label Promo + foto → bagikan tautan galeri ke status WA → pelanggan klik Chat WA dan transaksi dimulai.",
   },
   {
     icon: Truck,

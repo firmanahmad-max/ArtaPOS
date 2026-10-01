@@ -67,7 +67,7 @@ export const PRICING_INCLUDES: string[] = [
   "Pengguna & transaksi tak terbatas",
   "Multi-perangkat (desktop, tablet, HP) + mode offline",
   "Scan barcode, cetak struk Bluetooth, kirim laporan via WhatsApp",
-  "Garansi, RMA, poin pelanggan, dan lacak servis online",
+  "Garansi, RMA, poin pelanggan, lacak servis & galeri produk online",
   "Pembaruan fitur berkala tanpa biaya tambahan",
 ];
 
