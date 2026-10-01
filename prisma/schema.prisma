@@ -83,6 +83,7 @@ model Tenant {
   warrantyUnits  WarrantyUnit[]
   rmaClaims      RmaClaim[]
   promoRedemptions PromoRedemption[]
+  galleryItems   GalleryItem[]
 
   @@map("tenants")
 }
@@ -305,6 +306,7 @@ model Product {
   category  Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   unit      Unit?           @relation(fields: [unitId], references: [id], onDelete: SetNull)
   movements StockMovement[]
+  galleryItems GalleryItem[]
 
   @@unique([tenantId, sku])
   @@unique([tenantId, barcode])
@@ -703,6 +705,30 @@ model ServicePhoto {
 
   @@index([ticketId])
   @@map("service_photos")
+}
+
+/// Item Galeri Publik — etalase produk/promo yang tampil di halaman publik
+/// `/galeri/[slug]`. Boleh tertaut ke Product (autofill) atau berdiri sendiri.
+model GalleryItem {
+  id          String   @id @default(cuid())
+  tenantId    String
+  productId   String? // opsional: tautkan ke produk katalog
+  title       String
+  spec        String? // spesifikasi/deskripsi singkat
+  price       Int      @default(0) // harga tampil (rupiah; 0 = "Hubungi")
+  photo       String? // data URL JPEG (di-resize di browser)
+  label       String? // badge: "Promo" / "Baru" / "Unggulan" / dll
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@map("gallery_items")
 }
 
 /// Baris pada tiket servis: sparepart (productId terisi) atau jasa/lainnya.

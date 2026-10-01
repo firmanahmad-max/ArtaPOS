@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard,
   ShoppingCart,
+  Images,
   Boxes,
   Truck,
   Wrench,
@@ -59,6 +60,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Inventaris",
     items: [
       { href: "/inventory", label: "Inventory", icon: Boxes, permission: "inventory.manage", enabled: true },
+      { href: "/gallery", label: "Galeri Publik", icon: Images, permission: "inventory.manage", enabled: true },
       { href: "/warranty", label: "Garansi", icon: ShieldCheck, permission: "inventory.manage", enabled: true },
       { href: "/rma", label: "Klaim RMA", icon: PackageOpen, permission: "inventory.manage", enabled: true },
     ],
