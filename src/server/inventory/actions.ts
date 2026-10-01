@@ -12,6 +12,7 @@ import {
   stockAdjustSchema,
 } from "@/lib/validations/inventory";
 import * as svc from "@/server/inventory/service";
+import { withDbRetry } from "@/lib/db-retry";
 
 const NO_PERMISSION = "Anda tidak punya izin untuk mengelola inventory.";
 
@@ -41,7 +42,7 @@ export async function createCategoryAction(
   if (!parsed.success) return { errors: toFieldErrors(parsed.error) };
 
   try {
-    await svc.createCategory(ctx.tenantId, parsed.data);
+    await withDbRetry(() => svc.createCategory(ctx.tenantId, parsed.data));
   } catch (e) {
     return { message: friendlyError(e) };
   }
@@ -60,7 +61,7 @@ export async function quickCreateCategoryAction(
   if (!parsed.success) return { ok: false, message: "Nama kategori tidak valid." };
 
   try {
-    const cat = await svc.createCategory(ctx.tenantId, parsed.data);
+    const cat = await withDbRetry(() => svc.createCategory(ctx.tenantId, parsed.data));
     revalidatePath("/inventory/master");
     return { ok: true, id: cat.id, name: cat.name };
   } catch (e) {
@@ -83,7 +84,7 @@ export async function createUnitAction(
   if (!parsed.success) return { errors: toFieldErrors(parsed.error) };
 
   try {
-    await svc.createUnit(ctx.tenantId, parsed.data);
+    await withDbRetry(() => svc.createUnit(ctx.tenantId, parsed.data));
   } catch (e) {
     return { message: friendlyError(e) };
   }
@@ -102,7 +103,7 @@ export async function quickCreateUnitAction(
   if (!parsed.success) return { ok: false, message: "Nama satuan tidak valid." };
 
   try {
-    const unit = await svc.createUnit(ctx.tenantId, parsed.data);
+    const unit = await withDbRetry(() => svc.createUnit(ctx.tenantId, parsed.data));
     revalidatePath("/inventory/master");
     return { ok: true, id: unit.id, name: unit.name };
   } catch (e) {
@@ -137,7 +138,7 @@ export async function createProductAction(
   if (!parsed.success) return { errors: toFieldErrors(parsed.error) };
 
   try {
-    await svc.createProduct(ctx.tenantId, ctx.userId, parsed.data);
+    await withDbRetry(() => svc.createProduct(ctx.tenantId, ctx.userId, parsed.data));
   } catch (e) {
     return { message: friendlyError(e) };
   }
@@ -157,7 +158,7 @@ export async function updateProductAction(
   if (!parsed.success) return { errors: toFieldErrors(parsed.error) };
 
   try {
-    await svc.updateProduct(ctx.tenantId, productId, parsed.data);
+    await withDbRetry(() => svc.updateProduct(ctx.tenantId, productId, parsed.data));
   } catch (e) {
     return { message: friendlyError(e) };
   }
@@ -168,7 +169,7 @@ export async function updateProductAction(
 export async function deactivateProductAction(productId: string): Promise<void> {
   const ctx = await getAuthContext();
   if (!can(ctx.role, "inventory.manage")) throw new Error(NO_PERMISSION);
-  await svc.deactivateProduct(ctx.tenantId, productId);
+  await withDbRetry(() => svc.deactivateProduct(ctx.tenantId, productId));
   revalidatePath("/inventory");
 }
 
@@ -177,6 +178,9 @@ export async function importProductsAction(
 ): Promise<{ ok: boolean; message?: string; created?: number; errors?: { row: number; message: string }[] }> {
   const ctx = await getAuthContext();
   if (!can(ctx.role, "inventory.manage")) return { ok: false, message: NO_PERMISSION };
+  // SENGAJA tanpa withDbRetry: import menulis baris per-baris (tiap baris 1
+  // transaksi, commit bertahap) — mengulang seluruh operasi bisa menduplikasi
+  // baris yang sudah ter-commit. Error per-baris sudah dilaporkan di hasil.
   try {
     const r = await svc.importProducts(ctx.tenantId, ctx.userId, csvText);
     revalidatePath("/inventory");
@@ -201,7 +205,9 @@ export async function adjustStockAction(
   if (!parsed.success) return { errors: toFieldErrors(parsed.error) };
 
   try {
-    const { stockAfter } = await svc.adjustStock(ctx.tenantId, ctx.userId, parsed.data);
+    const { stockAfter } = await withDbRetry(() =>
+      svc.adjustStock(ctx.tenantId, ctx.userId, parsed.data),
+    );
     revalidatePath("/inventory");
     return { ok: true, message: `Stok diperbarui. Stok sekarang: ${stockAfter}.` };
   } catch (e) {
