@@ -38,6 +38,8 @@ export default async function GalleryPage() {
     photo: i.photo,
     label: i.label,
     isActive: i.isActive,
+    views: i.views,
+    clicks: i.clicks,
   }));
 
   return (

@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, ImagePlus, X, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, ImagePlus, X, Eye, EyeOff, Loader2, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +27,8 @@ export interface GalleryRow {
   photo: string | null;
   label: string | null;
   isActive: boolean;
+  views: number;
+  clicks: number;
 }
 interface ProductOpt {
   id: string;
@@ -88,6 +90,9 @@ export function GalleryManager({
   const [form, setForm] = useState<Form | null>(null);
   const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const totalViews = items.reduce((s, i) => s + i.views, 0);
+  const totalClicks = items.reduce((s, i) => s + i.clicks, 0);
 
   function startNew() {
     setForm({ ...BLANK });
@@ -298,6 +303,24 @@ export function GalleryManager({
         </Card>
       )}
 
+      {/* Ringkasan minat konsumen */}
+      {items.length > 0 && (
+        <div className="grid grid-cols-2 gap-3 sm:max-w-md">
+          <Card className="p-4">
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Eye className="size-4" /> Total dilihat
+            </p>
+            <p className="mt-1 font-mono text-2xl font-bold tabular-nums">{totalViews.toLocaleString("id-ID")}</p>
+          </Card>
+          <Card className="p-4">
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <MessageCircle className="size-4" /> Total klik Chat WA
+            </p>
+            <p className="mt-1 font-mono text-2xl font-bold tabular-nums text-primary">{totalClicks.toLocaleString("id-ID")}</p>
+          </Card>
+        </div>
+      )}
+
       {/* Daftar pajangan */}
       {items.length === 0 ? (
         <Card className="p-8 text-center text-sm text-muted-foreground">
@@ -323,6 +346,16 @@ export function GalleryManager({
                 <p className="mt-1 font-mono font-bold tabular-nums text-primary">
                   {it.price > 0 ? formatRupiah(it.price) : "Hubungi"}
                 </p>
+                <div className="mt-1.5 flex items-center gap-3 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1" title="Dilihat konsumen (unik per sesi pengunjung)">
+                    <Eye className="size-3.5" />
+                    <span className="font-mono font-medium tabular-nums text-foreground">{it.views}</span> dilihat
+                  </span>
+                  <span className="inline-flex items-center gap-1" title="Klik tombol “Chat WA” (minat konsumen)">
+                    <MessageCircle className="size-3.5" />
+                    <span className="font-mono font-medium tabular-nums text-foreground">{it.clicks}</span> chat
+                  </span>
+                </div>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   <Button variant="outline" size="sm" onClick={() => startEdit(it)}>
                     <Pencil className="size-3.5" /> Ubah

@@ -103,6 +103,30 @@ export async function updateGalleryItem(tenantId: string, id: string, input: Gal
   });
 }
 
+/**
+ * Catat impresi (view) untuk beberapa item sekaligus — dipanggil dari halaman
+ * PUBLIK (tanpa tenant/auth). Tak perlu scoping tenant: increment per id, dibatasi
+ * item aktif. Dibatasi 60 id/panggilan agar aman. Fire-and-forget (anti bot
+ * sempurna tak dijamin; dedupe per sesi dilakukan di klien).
+ */
+export async function recordGalleryViews(itemIds: string[]) {
+  const ids = itemIds.filter((x) => typeof x === "string" && x).slice(0, 60);
+  if (!ids.length) return;
+  await db.galleryItem.updateMany({
+    where: { id: { in: ids }, isActive: true },
+    data: { views: { increment: 1 } },
+  });
+}
+
+/** Catat klik tombol "Chat WA" pada satu item (dari halaman publik). */
+export async function recordGalleryClick(itemId: string) {
+  if (!itemId) return;
+  await db.galleryItem.updateMany({
+    where: { id: itemId, isActive: true },
+    data: { clicks: { increment: 1 } },
+  });
+}
+
 export async function setGalleryActive(tenantId: string, id: string, isActive: boolean) {
   const r = await db.galleryItem.updateMany({ where: { id, tenantId }, data: { isActive } });
   if (r.count === 0) throw new Error("Item galeri tidak ditemukan.");

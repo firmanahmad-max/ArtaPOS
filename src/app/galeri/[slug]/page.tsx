@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { MessageCircle, Store } from "lucide-react";
+import { Store } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { formatRupiah } from "@/lib/utils";
 import { APP_NAME } from "@/lib/brand";
 import { getGalleryStoreBySlug, listGalleryPublic } from "@/server/gallery/service";
 import { ShareButton } from "./share-button";
+import { ViewBeacon, ChatWaButton } from "./gallery-tracker";
 
 export async function generateMetadata({
   params,
@@ -74,6 +75,7 @@ export default async function GaleriPage({ params }: { params: Promise<{ slug: s
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        <ViewBeacon slug={slug} ids={items.map((i) => i.id)} />
         {items.length === 0 ? (
           <div className="rounded-xl border bg-card p-12 text-center text-muted-foreground">
             Belum ada produk yang dipajang. Silakan cek kembali nanti.
@@ -112,16 +114,7 @@ export default async function GaleriPage({ params }: { params: Promise<{ slug: s
                         {it.price > 0 ? formatRupiah(it.price) : "Hubungi untuk harga"}
                       </p>
                       <div className="mt-1 flex flex-col gap-2">
-                        {waHref && (
-                          <a
-                            href={waHref}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
-                          >
-                            <MessageCircle className="size-4" /> Saya Berminat (Chat WA)
-                          </a>
-                        )}
+                        {waHref && <ChatWaButton itemId={it.id} href={waHref} />}
                         <ShareButton title={it.title} price={it.price} spec={it.spec} />
                       </div>
                     </div>
