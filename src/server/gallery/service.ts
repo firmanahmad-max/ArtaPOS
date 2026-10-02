@@ -42,6 +42,19 @@ export function listGalleryPublic(tenantId: string) {
   });
 }
 
+/**
+ * Item galeri paling diminati konsumen (untuk insight "Tanya Arta"/Dashboard).
+ * Urut klik "Chat WA" lalu dilihat; hanya item aktif yang punya traksi.
+ */
+export function topGalleryItems(tenantId: string, limit = 3) {
+  return db.galleryItem.findMany({
+    where: { tenantId, isActive: true, OR: [{ clicks: { gt: 0 } }, { views: { gt: 0 } }] },
+    orderBy: [{ clicks: "desc" }, { views: "desc" }],
+    select: { id: true, title: true, clicks: true, views: true },
+    take: limit,
+  });
+}
+
 /** Data toko (publik) berdasarkan slug — untuk header & nomor WA galeri. */
 export function getGalleryStoreBySlug(slug: string) {
   return db.tenant.findUnique({

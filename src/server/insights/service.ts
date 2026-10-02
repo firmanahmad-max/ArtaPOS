@@ -8,6 +8,7 @@ import { inventorySummary } from "@/server/inventory/service";
 import { listReceivables } from "@/server/pos/service";
 import { listPayables } from "@/server/purchasing/service";
 import { getFinanceComparison } from "@/server/finance/service";
+import { topGalleryItems } from "@/server/gallery/service";
 
 /**
  * "Tanya Arta" — mesin insight otomatis (deterministik, tanpa API eksternal).
@@ -70,6 +71,7 @@ export async function getArtaInsights(tenantId: string, role: UserRole): Promise
     completed30,
     void30,
     rmaStalled,
+    galleryTop,
   ] = await Promise.all([
     canReports ? salesTrend(tenantId, 14) : Promise.resolve([]),
     canReports ? serviceTrend(tenantId, 14) : Promise.resolve([]),
@@ -102,6 +104,8 @@ export async function getArtaInsights(tenantId: string, role: UserRole): Promise
           take: 5,
         })
       : Promise.resolve([]),
+    // Produk terpopuler di Galeri Publik (minat konsumen: klik WA + dilihat).
+    canInv ? topGalleryItems(tenantId, 3) : Promise.resolve([]),
   ]);
   const finance = canFin ? await getFinanceComparison(tenantId, "month") : null;
 
@@ -283,6 +287,36 @@ export async function getArtaInsights(tenantId: string, role: UserRole): Promise
       href: "/rma",
       actionLabel: "Lihat klaim RMA",
     });
+  }
+
+  // ── Galeri Publik: produk paling diminati konsumen ─────────────────────
+  if (canInv && galleryTop.length > 0) {
+    const g = galleryTop[0];
+    if (g.clicks > 0) {
+      const others = galleryTop.slice(1).filter((x) => x.clicks > 0);
+      const more = others.length
+        ? ` Berikutnya: ${others.map((o) => `${o.title} (${o.clicks} klik)`).join(", ")}.`
+        : "";
+      insights.push({
+        id: "gallery-popular",
+        domain: "penjualan",
+        tone: "positive",
+        title: `Paling diminati di Galeri: ${g.title}`,
+        detail: `${g.clicks} klik “Chat WA” & ${g.views} kali dilihat di etalase online.${more} Pastikan stok & harganya siap, atau jadikan prioritas promo.`,
+        href: "/gallery",
+        actionLabel: "Buka Galeri",
+      });
+    } else if (g.views >= 5) {
+      insights.push({
+        id: "gallery-viewed",
+        domain: "penjualan",
+        tone: "info",
+        title: `Produk galeri paling dilihat: ${g.title}`,
+        detail: `${g.views} kali dilihat di etalase online, tapi belum ada yang klik “Chat WA”. Coba perjelas foto/harga atau sebarkan tautan galeri lebih luas.`,
+        href: "/gallery",
+        actionLabel: "Buka Galeri",
+      });
+    }
   }
 
   // ── Pembelian & Utang ──────────────────────────────────────────────────
