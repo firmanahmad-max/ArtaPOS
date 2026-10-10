@@ -31,6 +31,8 @@ export interface ReceiptData {
   cashierName: string | null;
   subtotal: number;
   discount: number;
+  serviceFee: number;
+  serviceFeeLabel?: string | null;
   total: number;
   paymentMethod: string;
   paid: number;
@@ -93,6 +95,8 @@ export function ReceiptView({ data }: { data: ReceiptData }) {
         })),
         subtotal: data.subtotal,
         discount: data.discount,
+        serviceFee: data.serviceFee,
+        serviceFeeLabel: data.serviceFeeLabel,
         total: data.total,
         methodLabel: METHOD[data.paymentMethod] ?? data.paymentMethod,
         paid: data.paid,
@@ -122,6 +126,8 @@ export function ReceiptView({ data }: { data: ReceiptData }) {
       items: data.items.map((i) => ({ name: i.productName, qty: i.qty, price: i.price, subtotal: i.subtotal })),
       subtotal: data.subtotal,
       discount: data.discount,
+      serviceFee: data.serviceFee,
+      serviceFeeLabel: data.serviceFeeLabel,
       total: data.total,
       methodLabel: METHOD[data.paymentMethod] ?? data.paymentMethod,
       paid: data.paid,
@@ -184,6 +190,9 @@ export function ReceiptView({ data }: { data: ReceiptData }) {
           <div className="flex justify-between"><span>Subtotal</span><span>{formatRupiah(data.subtotal)}</span></div>
           {data.discount > 0 && (
             <div className="flex justify-between"><span>Diskon</span><span>-{formatRupiah(data.discount)}</span></div>
+          )}
+          {data.serviceFee > 0 && (
+            <div className="flex justify-between"><span>{data.serviceFeeLabel || "Biaya lain/jasa"}</span><span>+{formatRupiah(data.serviceFee)}</span></div>
           )}
           <div className="flex justify-between text-sm font-bold"><span>TOTAL</span><span>{formatRupiah(data.total)}</span></div>
           <div className="flex justify-between"><span>Bayar ({METHOD[data.paymentMethod] ?? data.paymentMethod})</span><span>{formatRupiah(data.paid)}</span></div>

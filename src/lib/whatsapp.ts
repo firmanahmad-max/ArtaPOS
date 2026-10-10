@@ -131,6 +131,8 @@ export function buildSaleReceiptText(r: {
   items: { name: string; qty: number; price: number; subtotal: number }[];
   subtotal: number;
   discount: number;
+  serviceFee?: number;
+  serviceFeeLabel?: string | null;
   total: number;
   methodLabel: string;
   paid: number;
@@ -148,6 +150,8 @@ export function buildSaleReceiptText(r: {
   rows.push(line);
   rows.push(`Subtotal: ${formatRupiah(r.subtotal)}`);
   if (r.discount > 0) rows.push(`Diskon: -${formatRupiah(r.discount)}`);
+  if (r.serviceFee && r.serviceFee > 0)
+    rows.push(`${r.serviceFeeLabel || "Biaya lain/jasa"}: +${formatRupiah(r.serviceFee)}`);
   rows.push(`*TOTAL: ${formatRupiah(r.total)}*`);
   rows.push(`Bayar (${r.methodLabel}): ${formatRupiah(r.paid)}`);
   if (r.change > 0) rows.push(`Kembali: ${formatRupiah(r.change)}`);

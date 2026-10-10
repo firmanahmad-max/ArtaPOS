@@ -40,6 +40,8 @@ export default async function ReceiptPage({
           cashierName: sale.cashierName,
           subtotal: sale.subtotal,
           discount: sale.discount,
+          serviceFee: sale.serviceFee,
+          serviceFeeLabel: sale.serviceFeeLabel,
           total: sale.total,
           paymentMethod: sale.paymentMethod,
           paid: sale.paid,

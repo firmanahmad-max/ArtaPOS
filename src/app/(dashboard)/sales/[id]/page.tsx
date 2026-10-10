@@ -109,6 +109,12 @@ export default async function SaleDetailPage({
               <span>-{formatRupiah(sale.discount)}</span>
             </div>
           )}
+          {sale.serviceFee > 0 && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">{sale.serviceFeeLabel || "Biaya lain/jasa"}</span>
+              <span>+{formatRupiah(sale.serviceFee)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-base font-bold">
             <span>Total</span>
             <span>{formatRupiah(sale.total)}</span>

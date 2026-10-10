@@ -10,6 +10,9 @@ export const saleSchema = z.object({
   items: z.array(saleItemSchema).min(1, "Keranjang masih kosong"),
   customerId: z.string().min(1).optional().nullable(),
   discount: z.number().int().min(0).default(0),
+  // Biaya lain/jasa (mis. jasa setup/instal aplikasi) — menambah total, tanpa HPP.
+  serviceFee: z.number().int().min(0).default(0),
+  serviceFeeLabel: z.string().max(60).optional(),
   paymentMethod: z.enum(["CASH", "TRANSFER", "QRIS", "CREDIT"]).default("CASH"),
   paid: z.number().int().min(0).default(0),
   dueDate: z.string().min(1).optional().nullable(),

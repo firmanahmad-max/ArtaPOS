@@ -80,6 +80,8 @@ export function PosTerminal({
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<Map<string, CartLine>>(new Map());
   const [discount, setDiscount] = useState(0);
+  const [serviceFee, setServiceFee] = useState(0);
+  const [serviceFeeLabel, setServiceFeeLabel] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PayMethod>("CASH");
   const [paid, setPaid] = useState(0);
   const [dueDate, setDueDate] = useState("");
@@ -118,7 +120,7 @@ export function PosTerminal({
   const lines = [...cart.values()];
   const lineNet = (l: CartLine) => Math.max(0, l.product.sellPrice * l.qty - l.discount);
   const subtotal = lines.reduce((s, l) => s + lineNet(l), 0);
-  const total = Math.max(0, subtotal - discount);
+  const total = Math.max(0, subtotal - discount) + Math.max(0, serviceFee);
   const change = Math.max(0, paid - total);
 
   function addToCart(p: PosProduct) {
@@ -175,6 +177,8 @@ export function PosTerminal({
   function resetCart() {
     setCart(new Map());
     setDiscount(0);
+    setServiceFee(0);
+    setServiceFeeLabel("");
     setPaid(0);
     setCustomerId("");
     setDueDate("");
@@ -261,6 +265,8 @@ export function PosTerminal({
     const payload = {
       items: lines.map((l) => ({ productId: l.product.id, qty: l.qty, discount: l.discount })),
       discount,
+      serviceFee: Math.max(0, serviceFee),
+      serviceFeeLabel: serviceFee > 0 ? serviceFeeLabel.trim() || undefined : undefined,
       paymentMethod,
       paid: effectivePaid,
       customerId: customerId || undefined,
@@ -530,6 +536,24 @@ export function PosTerminal({
               className="h-8 w-36"
             />
           </div>
+          {/* Biaya lain/jasa (mis. setup/instal) — menambah total, tanpa HPP */}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-muted-foreground">Biaya lain/jasa</span>
+            <CurrencyInput
+              value={serviceFee}
+              onValueChange={(v) => setServiceFee(v)}
+              className="h-8 w-36"
+            />
+          </div>
+          {serviceFee > 0 && (
+            <Input
+              value={serviceFeeLabel}
+              onChange={(e) => setServiceFeeLabel(e.target.value)}
+              placeholder="Keterangan biaya (mis. Setup & instal aplikasi)"
+              maxLength={60}
+              className="h-8 text-sm"
+            />
+          )}
           {/* Total — blok tint violet, angka mono besar */}
           <div className="flex items-center justify-between rounded-xl bg-primary/10 px-3 py-2.5">
             <span className="text-sm font-semibold">Total</span>

@@ -27,6 +27,8 @@ export interface EscposReceipt {
   items: { name: string; qty: number; price: number; subtotal: number }[];
   subtotal: number;
   discount: number;
+  serviceFee?: number;
+  serviceFeeLabel?: string | null;
   total: number;
   methodLabel: string;
   paid: number;
@@ -143,6 +145,8 @@ export function buildReceiptEscpos(r: EscposReceipt, width = 32): Uint8Array {
 
   b.leftRight("Subtotal", rupiah(r.subtotal));
   if (r.discount > 0) b.leftRight("Diskon", "-" + rupiah(r.discount));
+  if (r.serviceFee && r.serviceFee > 0)
+    b.leftRight(r.serviceFeeLabel || "Biaya lain/jasa", "+" + rupiah(r.serviceFee));
   b.bold(true).double(true).leftRight("TOTAL", rupiah(r.total)).double(false).bold(false);
   b.leftRight(`Bayar (${r.methodLabel})`, rupiah(r.paid));
   b.leftRight("Kembali", rupiah(r.change));

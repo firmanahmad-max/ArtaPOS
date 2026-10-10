@@ -414,7 +414,9 @@ model Sale {
   customerName  String? // snapshot nama pelanggan
   subtotal      Int // jumlah seluruh item sebelum diskon
   discount      Int           @default(0) // diskon tingkat transaksi (rupiah)
-  total         Int // subtotal - discount
+  serviceFee      Int         @default(0) // biaya lain/jasa (mis. setup/instal) — menambah total, TANPA HPP
+  serviceFeeLabel String? // label biaya lain/jasa (mis. "Setup & instal aplikasi")
+  total         Int // subtotal - discount + serviceFee
   paymentMethod PaymentMethod @default(CASH)
   paymentStatus PaymentStatus @default(PAID) // PAID utk tunai/transfer; kredit → UNPAID/PARTIAL
   paid          Int           @default(0) // jumlah dibayar/diterima (DP utk kredit)

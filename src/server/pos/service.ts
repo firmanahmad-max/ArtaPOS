@@ -331,7 +331,10 @@ export async function createSale(
     });
 
     const discount = Math.min(input.discount ?? 0, subtotal);
-    const total = subtotal - discount;
+    // Biaya lain/jasa (mis. setup/instal) — menambah total, tanpa HPP.
+    const serviceFee = Math.max(0, input.serviceFee ?? 0);
+    const serviceFeeLabel = serviceFee > 0 ? input.serviceFeeLabel?.trim() || null : null;
+    const total = subtotal - discount + serviceFee;
     const isCredit = input.paymentMethod === "CREDIT";
 
     // Pelanggan (wajib untuk kredit; opsional lainnya). Scoped tenant.
@@ -388,6 +391,8 @@ export async function createSale(
         customerName,
         subtotal,
         discount,
+        serviceFee,
+        serviceFeeLabel,
         total,
         paymentMethod: input.paymentMethod,
         paymentStatus,
