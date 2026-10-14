@@ -646,6 +646,10 @@ model ServiceTicket {
   complaint      String // keluhan
   diagnosis      String?
   status         ServiceStatus @default(RECEIVED)
+  // Keterangan status bebas (lebih rinci dari fase `status`), terlihat pelanggan
+  // di /lacak & pesan WA. Dikosongkan otomatis saat fase status berganti.
+  statusNote     String?
+  statusNoteAt   DateTime?
   technicianId   String?
   technicianName String?
   laborCost      Int           @default(0) // biaya jasa

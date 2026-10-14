@@ -162,7 +162,7 @@ async function recompute(tx: Prisma.TransactionClient, ticketId: string) {
 async function ensureTicket(tenantId: string, ticketId: string) {
   const t = await db.serviceTicket.findFirst({
     where: { id: ticketId, tenantId },
-    select: { id: true, completedAt: true },
+    select: { id: true, completedAt: true, status: true },
   });
   if (!t) throw new Error("Tiket tidak ditemukan.");
   return t;
@@ -305,13 +305,32 @@ export async function updateStatus(tenantId: string, ticketId: string, status: S
   if (status === "DELIVERED") completedAt = new Date();
   else if (status === "DONE") completedAt = t.completedAt ?? new Date();
   else completedAt = null;
+  // Keterangan status melekat pada fase lama → kosongkan saat fase berganti agar
+  // pelanggan tak melihat keterangan basi (mis. "menunggu sparepart" saat Selesai).
+  const phaseChanged = t.status !== status;
   return db.serviceTicket.update({
     where: { id: ticketId },
     data: {
       status,
       ...(diagnosis !== undefined ? { diagnosis: diagnosis || null } : {}),
+      ...(phaseChanged ? { statusNote: null, statusNoteAt: null } : {}),
       completedAt,
     },
+  });
+}
+
+export const STATUS_NOTE_MAX = 120;
+
+/** Set/hapus keterangan status bebas (tampil ke pelanggan). Kosong = hapus. */
+export async function updateStatusNote(tenantId: string, ticketId: string, note: string) {
+  await ensureTicket(tenantId, ticketId);
+  const clean = note.trim().replace(/\s+/g, " ");
+  if (clean.length > STATUS_NOTE_MAX) {
+    throw new Error(`Keterangan status maksimal ${STATUS_NOTE_MAX} karakter.`);
+  }
+  return db.serviceTicket.update({
+    where: { id: ticketId },
+    data: clean ? { statusNote: clean, statusNoteAt: new Date() } : { statusNote: null, statusNoteAt: null },
   });
 }
 

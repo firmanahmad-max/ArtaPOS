@@ -157,6 +157,20 @@ export async function updateStatusAction(
   }
 }
 
+export async function updateStatusNoteAction(ticketId: string, note: string): Promise<Result> {
+  const u = await guard();
+  if (!u) return { ok: false, message: NO_PERM };
+  const user = await getCurrentUser();
+  try {
+    await svc.updateStatusNote(user.tenantId, ticketId, String(note ?? ""));
+    revalidatePath(`/service/${ticketId}`);
+    revalidatePath("/service");
+    return { ok: true, message: note.trim() ? "Keterangan status disimpan." : "Keterangan status dihapus." };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Gagal." };
+  }
+}
+
 export async function addServicePhotoAction(ticketId: string, dataUrl: string, caption: string): Promise<Result> {
   const u = await guard();
   if (!u) return { ok: false, message: NO_PERM };

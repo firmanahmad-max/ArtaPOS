@@ -27,6 +27,9 @@ export interface TrackResult {
   number?: string;
   device?: string;
   statusLabel?: string;
+  /** Keterangan status bebas dari toko (lebih rinci dari fase). */
+  statusNote?: string | null;
+  statusNoteAt?: string | null;
   createdAt?: string;
   completedAt?: string | null;
   technician?: string | null;
@@ -56,6 +59,8 @@ export async function trackServiceAction(number: string, phone: string): Promise
       deviceType: true,
       deviceBrand: true,
       status: true,
+      statusNote: true,
+      statusNoteAt: true,
       total: true,
       customerPhone: true,
       createdAt: true,
@@ -78,6 +83,8 @@ export async function trackServiceAction(number: string, phone: string): Promise
     number: ticket.number,
     device: [ticket.deviceType, ticket.deviceBrand].filter(Boolean).join(" "),
     statusLabel: STATUS_LABEL[ticket.status] ?? ticket.status,
+    statusNote: ticket.statusNote,
+    statusNoteAt: ticket.statusNoteAt ? ticket.statusNoteAt.toISOString() : null,
     createdAt: ticket.createdAt.toISOString(),
     completedAt: ticket.completedAt ? ticket.completedAt.toISOString() : null,
     technician: ticket.technicianName,

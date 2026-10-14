@@ -60,6 +60,8 @@ export default async function TicketDetailPage({
         ticket={{
           id: ticket.id,
           status: ticket.status,
+          statusNote: ticket.statusNote,
+          statusNoteAt: ticket.statusNoteAt?.toISOString() ?? null,
           accessories: ticket.accessories,
           laborCost: ticket.laborCost,
           partsCost: ticket.partsCost,

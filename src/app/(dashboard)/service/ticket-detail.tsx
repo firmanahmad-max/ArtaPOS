@@ -12,9 +12,11 @@ import {
   updateServiceDiscountAction,
   updateAccessoriesAction,
   updateStatusAction,
+  updateStatusNoteAction,
   recordServicePaymentAction,
 } from "@/server/service-jobs/actions";
 import { clampQty, formatRupiah } from "@/lib/utils";
+import { formatLocalDateTime } from "@/lib/timezone";
 import { buildServiceStatusText, waLink } from "@/lib/whatsapp";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PartPicker } from "@/components/inventory/part-picker";
-import { SERVICE_STATUS_META, SERVICE_FLOW } from "./status-config";
+import { SERVICE_STATUS_META, SERVICE_FLOW, STATUS_NOTE_SUGGESTIONS } from "./status-config";
 
 const METHOD_LABEL: Record<string, string> = {
   CASH: "Tunai",
@@ -43,6 +45,8 @@ export interface TicketItem {
 export interface TicketData {
   id: string;
   status: ServiceStatus;
+  statusNote: string | null;
+  statusNoteAt: string | null;
   accessories: string | null;
   laborCost: number;
   partsCost: number;
@@ -80,6 +84,13 @@ export function TicketDetail({
 
   // form state
   const [accessories, setAccessories] = useState(ticket.accessories ?? "");
+  const [statusNote, setStatusNote] = useState(ticket.statusNote ?? "");
+  // Sinkronkan input saat data server berubah (mis. fase berganti → keterangan dikosongkan).
+  const [syncedNote, setSyncedNote] = useState(ticket.statusNote);
+  if (syncedNote !== ticket.statusNote) {
+    setSyncedNote(ticket.statusNote);
+    setStatusNote(ticket.statusNote ?? "");
+  }
   const [labor, setLabor] = useState(ticket.laborCost);
   const [discount, setDiscount] = useState(ticket.discount);
   const [lineName, setLineName] = useState("");
@@ -107,10 +118,22 @@ export function TicketDetail({
     <div className="space-y-4">
       {/* Status workflow */}
       <Card>
-        <CardHeader className="flex-row items-center justify-between space-y-0">
-          <CardTitle className="flex items-center gap-2">
+        <CardHeader className="space-y-1.5">
+          <CardTitle className="flex flex-wrap items-center gap-2">
             Status <Badge variant={meta.variant}>{meta.label}</Badge>
           </CardTitle>
+          {ticket.statusNote && (
+            <p className="text-sm">
+              <span className="text-muted-foreground">Keterangan: </span>
+              <span className="font-medium">{ticket.statusNote}</span>
+              {ticket.statusNoteAt && (
+                <span className="text-xs text-muted-foreground">
+                  {" · "}
+                  {formatLocalDateTime(ticket.statusNoteAt, { dateStyle: "medium", timeStyle: "short" })}
+                </span>
+              )}
+            </p>
+          )}
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
           {SERVICE_FLOW.map((st) => (
@@ -147,6 +170,7 @@ export function TicketDetail({
                   number,
                   device,
                   statusLabel: meta.label,
+                  statusNote: ticket.statusNote,
                   trackUrl: `${window.location.origin}/lacak?no=${encodeURIComponent(number)}`,
                 });
                 window.open(waLink(text, customerPhone), "_blank", "noopener,noreferrer");
@@ -155,6 +179,64 @@ export function TicketDetail({
               <MessageCircle /> Beri tahu via WhatsApp
             </Button>
           )}
+
+          {/* Keterangan status bebas — lebih rinci dari fase, terlihat pelanggan */}
+          <div className="mt-2 w-full space-y-2 border-t pt-3">
+            <label htmlFor="status-note" className="text-sm font-medium">
+              Keterangan status <span className="font-normal text-muted-foreground">(opsional · terlihat pelanggan di halaman lacak &amp; WA)</span>
+            </label>
+            <div className="flex gap-2">
+              <Input
+                id="status-note"
+                value={statusNote}
+                onChange={(e) => setStatusNote(e.target.value)}
+                maxLength={120}
+                placeholder={`mis. ${STATUS_NOTE_SUGGESTIONS[ticket.status][0] ?? "Sparepart dalam pengiriman, estimasi tiba Kamis"}`}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && statusNote.trim() !== (ticket.statusNote ?? "")) {
+                    run(() => updateStatusNoteAction(ticket.id, statusNote));
+                  }
+                }}
+              />
+              <Button
+                size="sm"
+                className="h-9 shrink-0"
+                disabled={pending || statusNote.trim() === (ticket.statusNote ?? "")}
+                onClick={() => run(() => updateStatusNoteAction(ticket.id, statusNote))}
+              >
+                <Save /> Simpan
+              </Button>
+              {ticket.statusNote && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-9 shrink-0 text-destructive"
+                  disabled={pending}
+                  onClick={() => run(() => updateStatusNoteAction(ticket.id, ""))}
+                  aria-label="Hapus keterangan status"
+                >
+                  <Trash2 />
+                </Button>
+              )}
+            </div>
+            {STATUS_NOTE_SUGGESTIONS[ticket.status].length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {STATUS_NOTE_SUGGESTIONS[ticket.status].map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setStatusNote(s)}
+                    className="rounded-full border px-2.5 py-0.5 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Keterangan otomatis dikosongkan saat status berganti, agar pelanggan tak melihat info lama.
+            </p>
+          </div>
         </CardContent>
       </Card>
 

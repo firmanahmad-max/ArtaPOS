@@ -9,6 +9,7 @@ import {
   type TrackRmaResult,
 } from "@/server/public/track";
 import { formatRupiah, cn } from "@/lib/utils";
+import { formatLocalDateTime } from "@/lib/timezone";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -106,6 +107,16 @@ export function TrackForm({ defaultNumber = "" }: { defaultNumber?: string }) {
             <CheckCircle2 className="size-5" />
             <span className="font-semibold">{svc.statusLabel}</span>
           </div>
+          {svc.statusNote && (
+            <div className="rounded-md border-l-2 border-primary bg-primary/5 px-3 py-2 text-sm">
+              <p className="font-medium">{svc.statusNote}</p>
+              {svc.statusNoteAt && (
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Diperbarui {formatLocalDateTime(svc.statusNoteAt, { dateStyle: "medium", timeStyle: "short" })}
+                </p>
+              )}
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-1 text-sm">
             <span className="text-muted-foreground">No. Tiket</span>
             <span className="text-right font-medium">{svc.number}</span>

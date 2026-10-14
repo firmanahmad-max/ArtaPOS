@@ -147,6 +147,9 @@ export default async function ServicePage({
                       {device}
                       {t.complaint ? ` • ${t.complaint}` : ""}
                     </p>
+                    {t.statusNote && (
+                      <p className="mt-0.5 truncate text-xs font-medium text-primary">↳ {t.statusNote}</p>
+                    )}
                   </div>
                   <div className="shrink-0 text-right">
                     <p className="font-mono font-bold tabular-nums">{formatRupiah(t.total)}</p>

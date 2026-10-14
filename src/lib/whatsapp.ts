@@ -42,6 +42,7 @@ export function buildServiceStatusText(args: {
   number: string;
   device: string;
   statusLabel: string;
+  statusNote?: string | null;
   trackUrl?: string;
 }): string {
   const lines = [
@@ -50,6 +51,7 @@ export function buildServiceStatusText(args: {
     `Perangkat: ${args.device}`,
     `Status: *${args.statusLabel}*`,
   ];
+  if (args.statusNote) lines.push(`Keterangan: ${args.statusNote}`);
   if (args.trackUrl) lines.push(`Cek status: ${args.trackUrl}`);
   lines.push("Terima kasih 🙏");
   return lines.join("\n");
