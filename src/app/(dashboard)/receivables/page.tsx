@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
 import { FilterChips } from "@/components/ui/filter-chips";
-import { formatLocalDate } from "@/lib/timezone";
+import { daysFromNow, formatLocalDate } from "@/lib/timezone";
 
 export const metadata: Metadata = { title: "Piutang" };
 
@@ -28,9 +28,9 @@ export default async function ReceivablesPage({
   const totalOutstanding = receivables.reduce((s, r) => s + r.outstanding, 0);
   const overdueCount = receivables.filter((r) => r.overdue).length;
 
-  const now = Date.now();
+  const soonLimit = daysFromNow(7);
   const isSoon = (r: (typeof receivables)[number]) =>
-    !!r.dueDate && !r.overdue && new Date(r.dueDate).getTime() <= now + 7 * 86400000;
+    !!r.dueDate && !r.overdue && new Date(r.dueDate).getTime() <= soonLimit;
   const soonCount = receivables.filter(isSoon).length;
   const chips = [
     { value: "", label: "Semua", count: receivables.length },

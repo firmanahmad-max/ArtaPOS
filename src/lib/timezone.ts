@@ -45,12 +45,24 @@ export function formatLocalDateTime(at: Date | string, opts: Intl.DateTimeFormat
   return new Date(at).toLocaleString("id-ID", { ...opts, timeZone: REPORT_TIME_ZONE });
 }
 
-/**
- * Batas waktu (epoch ms) N hari sebelum `now` — untuk ambang usia (mis. SLA)
- * di Server Component. Membaca jam di helper (bukan di badan komponen) menjaga
- * komponen tetap murni (lint react-hooks/purity); Server Component dirender
- * sekali per request, jadi "sekarang" memang bernilai per request.
- */
+// ── Ambang waktu relatif "sekarang" ─────────────────────────────────────────
+// Dipakai Server Component (dirender sekali per request, jadi "sekarang" memang
+// bernilai per request). Membaca jam di helper — bukan di badan komponen —
+// menjaga komponen murni (lint react-hooks/purity) & membuatnya mudah diuji
+// lewat parameter `now`.
+const MS_PER_DAY = 86_400_000;
+
+/** Epoch ms N hari dari `now` (negatif = ke belakang). */
+export function daysFromNow(days: number, now: number = Date.now()): number {
+  return now + days * MS_PER_DAY;
+}
+
+/** Epoch ms N hari sebelum `now` — mis. batas usia tiket untuk SLA. */
 export function cutoffDaysAgo(days: number, now: number = Date.now()): number {
-  return now - days * 86_400_000;
+  return daysFromNow(-days, now);
+}
+
+/** Sisa hari (dibulatkan ke atas) hingga `at`; negatif bila sudah lewat. */
+export function daysUntil(at: Date | string | number, now: number = Date.now()): number {
+  return Math.ceil((new Date(at).getTime() - now) / MS_PER_DAY);
 }

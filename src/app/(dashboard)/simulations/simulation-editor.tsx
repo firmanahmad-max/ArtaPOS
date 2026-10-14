@@ -85,8 +85,10 @@ export function SimulationEditor({
   const [buildFee, setBuildFee] = useState(initial?.buildFee ?? 0);
   const [note, setNote] = useState(initial?.note ?? "");
   const [createdAt, setCreatedAt] = useState(initial ? initial.createdAt.slice(0, 10) : todayISODate());
+  // Key baris awal dari indeks (render murni, tanpa baca ref). Baris baru memakai
+  // `newKey()` (prefix "r") di event handler → prefix beda, tak mungkin bentrok.
   const [rows, setRows] = useState<Row[]>(
-    () => initial?.items.map((it) => ({ key: newKey(), ...it })) ?? [],
+    () => initial?.items.map((it, i) => ({ key: `i${i}`, ...it })) ?? [],
   );
   const [search, setSearch] = useState("");
 

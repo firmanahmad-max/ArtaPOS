@@ -1,6 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { localParts, startOfDay, dayKey, formatLocalDate } from "../src/lib/timezone.ts";
+import {
+  localParts,
+  startOfDay,
+  dayKey,
+  formatLocalDate,
+  daysFromNow,
+  cutoffDaysAgo,
+  daysUntil,
+} from "../src/lib/timezone.ts";
 
 // WIB = UTC+7 tetap. Semua perhitungan harus benar terlepas dari TZ server.
 
@@ -32,4 +40,22 @@ test("startOfDay menormalkan luapan bulan/hari", () => {
 test("formatLocalDate memakai zona laporan, bukan zona server", () => {
   const label = formatLocalDate(startOfDay(2026, 5, 14), { dateStyle: "full" });
   assert.match(label, /14 Juni 2026/);
+});
+
+// ── Ambang relatif "sekarang" (now disuntik → deterministik) ────────────────
+const NOW = Date.parse("2026-10-14T00:00:00Z");
+const DAY = 86_400_000;
+
+test("daysFromNow & cutoffDaysAgo: maju/mundur N hari dari now", () => {
+  assert.equal(daysFromNow(7, NOW), NOW + 7 * DAY);
+  assert.equal(daysFromNow(-2, NOW), NOW - 2 * DAY);
+  assert.equal(cutoffDaysAgo(3, NOW), NOW - 3 * DAY);
+});
+
+test("daysUntil: sisa hari dibulatkan ke atas, negatif bila lewat", () => {
+  assert.equal(daysUntil(NOW + 14 * DAY, NOW), 14);
+  assert.equal(daysUntil(NOW + 1, NOW), 1); // sisa sebentar = masih 1 hari
+  assert.equal(daysUntil(NOW, NOW), 0); // tepat jatuh tempo
+  assert.equal(daysUntil(NOW - DAY, NOW), -1); // sudah lewat 1 hari
+  assert.equal(daysUntil(new Date(NOW + 2 * DAY).toISOString(), NOW), 2); // terima string
 });

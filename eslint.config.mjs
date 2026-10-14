@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Bundle prototipe dari handoff desain (bukan kode aplikasi).
+    "ArtaPOS UI mockups/**",
   ]),
 ]);
 

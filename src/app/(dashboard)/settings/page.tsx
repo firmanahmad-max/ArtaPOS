@@ -10,7 +10,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StoreSettingsForm, StoreLogoForm, RedeemLicenseForm, ColorThemePicker, TrackPromoImageForm, ShowQuickStartButton } from "./settings-client";
-import { formatLocalDate } from "@/lib/timezone";
+import { daysUntil, formatLocalDate } from "@/lib/timezone";
 
 export const metadata: Metadata = { title: "Pengaturan" };
 
@@ -31,8 +31,7 @@ export default async function SettingsPage() {
   const canLicense = can(user.role, "license.manage");
 
   // Status masa berlaku lisensi → CTA perpanjang (ke /harga) bila hampir/sudah habis.
-  const validMs = license?.validUntil ? new Date(license.validUntil).getTime() : null;
-  const daysLeft = validMs != null ? Math.ceil((validMs - Date.now()) / 86_400_000) : null;
+  const daysLeft = license?.validUntil ? daysUntil(license.validUntil) : null;
   const licenseExpired = !!license && (license.status !== "ACTIVE" || (daysLeft != null && daysLeft < 0));
   const licenseExpiringSoon = daysLeft != null && daysLeft >= 0 && daysLeft <= 14;
 

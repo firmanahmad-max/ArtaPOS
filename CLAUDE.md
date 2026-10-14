@@ -39,6 +39,7 @@ kirim laporan ke WhatsApp, lisensi/demo.
 - `revalidateTag(tag, profile)` butuh argumen ke-2; ada `updateTag`/`refresh` baru.
 - PPR via config `cacheComponents: true` (bukan `experimental.ppr`).
 - Baca docs bundel di `node_modules/next/dist/docs/` bila ragu (lihat AGENTS.md).
+- **Lint harus bersih** (`npm run lint` = 0 error/0 warning; folder `ArtaPOS UI mockups/` di-ignore). Aturan React Compiler yang sering kena: (1) `react-hooks/purity` — jangan `Date.now()` di badan komponen; pakai helper `src/lib/timezone.ts` (`daysFromNow`/`cutoffDaysAgo`/`daysUntil`, terima `now` utk test) dan tampilkan waktu via `formatLocalDateTime` (zona tetap, cegah hydration mismatch); (2) setState di `useEffect` utk menyesuaikan state → pakai pola "sesuaikan state saat render" (`prev` state + bandingkan); (3) jangan baca/tulis `ref.current` saat render (termasuk lazy `useState` initializer).
 
 ### Prisma 7 (breaking vs Prisma 5/6)
 - Generator `prisma-client` → client di **`src/generated/prisma`**. Impor: `import { PrismaClient } from "@/generated/prisma/client"`.

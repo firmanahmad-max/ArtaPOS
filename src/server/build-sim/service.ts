@@ -2,7 +2,6 @@ import "server-only";
 import { db } from "@/lib/db";
 import { moveStock } from "@/server/shared/stock";
 import { nextDocNumber } from "@/server/shared/numbering";
-import type { Prisma } from "@/generated/prisma/client";
 import type { SimStatus } from "@/generated/prisma/enums";
 import type { BuildSimInput } from "@/lib/validations/build-sim";
 

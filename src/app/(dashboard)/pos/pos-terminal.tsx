@@ -97,6 +97,16 @@ export function PosTerminal({
   const [reviewOpen, setReviewOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false); // sheet keranjang (mobile)
 
+  // Tutup sheet otomatis bila keranjang menjadi kosong (mis. semua item dihapus
+  // saat sheet terbuka) agar tak menyisakan sheet kosong menutupi layar.
+  // Pola React "sesuaikan state saat render" (bukan useEffect) → tanpa render
+  // berantai; hanya bereaksi saat ukuran keranjang BERUBAH menjadi 0.
+  const [prevCartSize, setPrevCartSize] = useState(cart.size);
+  if (prevCartSize !== cart.size) {
+    setPrevCartSize(cart.size);
+    if (cart.size === 0 && cartOpen) setCartOpen(false);
+  }
+
   // Katalog efektif: cache IndexedDB (bila terisi) di atas props SSR, dikurangi
   // reservasi outbox. Lihat effectiveCatalog() untuk detail & pengujiannya.
   const catalog = useMemo<PosProduct[]>(
@@ -191,7 +201,7 @@ export function PosTerminal({
     if (cart.size === 0) return;
     const cust = customers.find((c) => c.id === customerId);
     const sale: HeldSale = {
-      id: Date.now().toString(),
+      id: newOpId(),
       at: new Date().toISOString(),
       label: cust ? cust.name : `${cart.size} item`,
       lines: [...cart.values()].map((l) => ({ productId: l.product.id, qty: l.qty, discount: l.discount })),
@@ -320,12 +330,6 @@ export function PosTerminal({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
-
-  // Tutup sheet otomatis bila keranjang menjadi kosong (mis. semua item dihapus
-  // saat sheet terbuka) agar tak menyisakan sheet kosong menutupi layar.
-  useEffect(() => {
-    if (cart.size === 0) setCartOpen(false);
-  }, [cart.size]);
 
   // Kunci scroll kontainer utama saat sheet keranjang terbuka (mobile) agar
   // latar tak ikut ter-scroll di belakang backdrop.
