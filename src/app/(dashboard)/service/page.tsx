@@ -12,7 +12,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterChips } from "@/components/ui/filter-chips";
 import { SERVICE_STATUS_META } from "./status-config";
-import { formatLocalDate } from "@/lib/timezone";
+import { cutoffDaysAgo, formatLocalDate } from "@/lib/timezone";
 
 export const metadata: Metadata = { title: "Jasa Servis" };
 
@@ -56,7 +56,7 @@ export default async function ServicePage({
     return acc;
   }, {});
 
-  const slaThreshold = Date.now() - SLA_DAYS * 86400000;
+  const slaThreshold = cutoffDaysAgo(SLA_DAYS);
   const isActive = (st: ServiceStatus) => ACTIVE_ST.includes(st);
   const isSla = (t: (typeof tickets)[number]) => isActive(t.status) && new Date(t.createdAt).getTime() < slaThreshold;
   const chips = [

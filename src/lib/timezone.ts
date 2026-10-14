@@ -44,3 +44,13 @@ export function formatLocalDate(at: Date | string, opts: Intl.DateTimeFormatOpti
 export function formatLocalDateTime(at: Date | string, opts: Intl.DateTimeFormatOptions): string {
   return new Date(at).toLocaleString("id-ID", { ...opts, timeZone: REPORT_TIME_ZONE });
 }
+
+/**
+ * Batas waktu (epoch ms) N hari sebelum `now` — untuk ambang usia (mis. SLA)
+ * di Server Component. Membaca jam di helper (bukan di badan komponen) menjaga
+ * komponen tetap murni (lint react-hooks/purity); Server Component dirender
+ * sekali per request, jadi "sekarang" memang bernilai per request.
+ */
+export function cutoffDaysAgo(days: number, now: number = Date.now()): number {
+  return now - days * 86_400_000;
+}
