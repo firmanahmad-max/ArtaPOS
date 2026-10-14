@@ -87,7 +87,17 @@ export default async function SaleDetailPage({
           <tbody>
             {sale.items.map((it) => (
               <tr key={it.id} className="border-b last:border-0">
-                <td className="p-3">{it.productName}</td>
+                <td className="p-3">
+                  {it.productName}
+                  {it.consignmentItemId && (
+                    <span
+                      className="ml-2 rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300"
+                      title={`Barang titipan · hak pemilik ${formatRupiah(it.costPrice)}`}
+                    >
+                      Titipan
+                    </span>
+                  )}
+                </td>
                 <td className="p-3 text-center">{it.qty}</td>
                 <td className="p-3 text-right">{formatRupiah(it.price)}</td>
                 <td className="p-3 text-right">{formatRupiah(it.subtotal)}</td>

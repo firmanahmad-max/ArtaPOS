@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { listProductsForSale } from "@/server/pos/service";
 import { listCustomers } from "@/server/customers/service";
+import { listConsignmentItemsForSale } from "@/server/consignment/service";
 import { Card } from "@/components/ui/card";
 import { PosTerminal } from "./pos-terminal";
 
@@ -19,9 +20,10 @@ export default async function PosPage() {
     );
   }
 
-  const [products, customers] = await Promise.all([
+  const [products, customers, consignmentItems] = await Promise.all([
     listProductsForSale(user.tenantId),
     listCustomers(user.tenantId),
+    listConsignmentItemsForSale(user.tenantId),
   ]);
 
   return (
@@ -39,6 +41,18 @@ export default async function PosPage() {
           unit: p.unit,
         }))}
         customers={customers.map((c) => ({ id: c.id, name: c.name }))}
+        consignmentItems={consignmentItems.map((ci) => ({
+          // Barang titipan tampil seperti produk 1 unit; barcode = no. seri (bisa di-scan).
+          id: ci.id,
+          name: `${ci.category} ${ci.name}`,
+          sku: ci.serialNumber ?? "",
+          barcode: ci.serialNumber,
+          sellPrice: ci.askingPrice,
+          stock: 1,
+          minStock: 0,
+          unit: null,
+          consignment: { owner: ci.consignment.customerName, number: ci.consignment.number },
+        }))}
       />
     </div>
   );

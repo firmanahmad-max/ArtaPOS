@@ -27,6 +27,8 @@ export interface PosProduct {
   stock: number;
   minStock: number;
   unit: { symbol: string | null } | null;
+  /** Terisi bila ini BARANG TITIPAN (titip jual): unik 1 unit, hanya dijual online. */
+  consignment?: { owner: string; number: string } | null;
 }
 export interface PosCustomer {
   id: string;
@@ -72,12 +74,16 @@ function saveHeld(list: HeldSale[]) {
 export function PosTerminal({
   products,
   customers,
+  consignmentItems = [],
 }: {
   products: PosProduct[];
   customers: PosCustomer[];
+  /** Barang titipan yang masih ditawarkan (tak masuk cache offline). */
+  consignmentItems?: PosProduct[];
 }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
+  const [mode, setMode] = useState<"products" | "consignment">("products");
   const [cart, setCart] = useState<Map<string, CartLine>>(new Map());
   const [discount, setDiscount] = useState(0);
   const [serviceFee, setServiceFee] = useState(0);
@@ -115,26 +121,34 @@ export function PosTerminal({
   );
 
   const filtered = useMemo(() => {
+    const source = mode === "consignment" ? consignmentItems : catalog;
     const q = search.trim().toLowerCase();
-    if (!q) return catalog.slice(0, 60);
-    return catalog
+    if (!q) return source.slice(0, 60);
+    return source
       .filter(
         (p) =>
           p.name.toLowerCase().includes(q) ||
           p.sku.toLowerCase().includes(q) ||
-          (p.barcode ?? "").toLowerCase().includes(q),
+          (p.barcode ?? "").toLowerCase().includes(q) ||
+          (p.consignment?.owner ?? "").toLowerCase().includes(q),
       )
       .slice(0, 60);
-  }, [search, catalog]);
+  }, [search, catalog, consignmentItems, mode]);
 
   const lines = [...cart.values()];
   const lineNet = (l: CartLine) => Math.max(0, l.product.sellPrice * l.qty - l.discount);
   const subtotal = lines.reduce((s, l) => s + lineNet(l), 0);
   const total = Math.max(0, subtotal - discount) + Math.max(0, serviceFee);
   const change = Math.max(0, paid - total);
+  const hasConsignment = lines.some((l) => l.product.consignment);
+  const CONSIGNMENT_OFFLINE = "Barang titipan hanya bisa dijual saat online (unit tunggal, cegah terjual ganda).";
 
   function addToCart(p: PosProduct) {
     setError(null);
+    if (p.consignment && typeof navigator !== "undefined" && !navigator.onLine) {
+      setError(CONSIGNMENT_OFFLINE);
+      return;
+    }
     setCart((prev) => {
       const next = new Map(prev);
       const cur = next.get(p.id);
@@ -179,7 +193,10 @@ export function PosTerminal({
   }
 
   function onScan(code: string) {
-    const p = catalog.find((x) => x.barcode === code || x.sku === code);
+    // Produk dulu, lalu barang titipan (barcode = no. seri barang titipan).
+    const p =
+      catalog.find((x) => x.barcode === code || x.sku === code) ??
+      consignmentItems.find((x) => x.barcode === code);
     if (p) addToCart(p);
     else setError(`Barcode ${code} tidak ditemukan.`);
   }
@@ -216,10 +233,14 @@ export function PosTerminal({
 
   function restoreSale(h: HeldSale) {
     const next = new Map<string, CartLine>();
+    let missing = 0;
     for (const ln of h.lines) {
-      const p = catalog.find((x) => x.id === ln.productId);
+      // Barang titipan mungkin sudah laku sejak ditahan → tak ada di daftar lagi.
+      const p = catalog.find((x) => x.id === ln.productId) ?? consignmentItems.find((x) => x.id === ln.productId);
       if (p) next.set(p.id, { product: p, qty: Math.min(ln.qty, p.stock), discount: ln.discount ?? 0 });
+      else missing += 1;
     }
+    if (missing > 0) toast.warning(`${missing} item tak lagi tersedia (mungkin sudah terjual) dan dilewati.`);
     setCart(next);
     setCustomerId(h.customerId || "");
     removeHeld(h.id);
@@ -273,7 +294,13 @@ export function PosTerminal({
     }
     const clientOpId = newOpId();
     const payload = {
-      items: lines.map((l) => ({ productId: l.product.id, qty: l.qty, discount: l.discount })),
+      items: lines
+        .filter((l) => !l.product.consignment)
+        .map((l) => ({ productId: l.product.id, qty: l.qty, discount: l.discount })),
+      // Barang titipan dikirim terpisah: harga & komisi diambil server dari DB.
+      consignmentItems: lines
+        .filter((l) => l.product.consignment)
+        .map((l) => ({ consignmentItemId: l.product.id, discount: l.discount })),
       discount,
       serviceFee: Math.max(0, serviceFee),
       serviceFeeLabel: serviceFee > 0 ? serviceFeeLabel.trim() || undefined : undefined,
@@ -283,8 +310,12 @@ export function PosTerminal({
       dueDate: isCredit && dueDate ? dueDate : undefined,
     };
 
-    // Offline → langsung antre (tanpa memanggil server).
+    // Offline → langsung antre (tanpa memanggil server). Barang titipan tak boleh antre.
     if (typeof navigator !== "undefined" && !navigator.onLine) {
+      if (hasConsignment) {
+        setError(CONSIGNMENT_OFFLINE);
+        return;
+      }
       void queueOffline(clientOpId, payload);
       return;
     }
@@ -302,7 +333,14 @@ export function PosTerminal({
           toast.error("Checkout gagal", { description: msg });
         }
       } catch {
-        // Server tak terjangkau (jaringan putus di tengah) → simpan offline.
+        // Server tak terjangkau (jaringan putus di tengah) → simpan offline,
+        // kecuali ada barang titipan (unit tunggal; harus dikonfirmasi online).
+        if (hasConsignment) {
+          const msg = "Koneksi terputus. Penjualan berisi barang titipan — coba lagi saat online.";
+          setError(msg);
+          toast.error("Checkout gagal", { description: msg });
+          return;
+        }
         await queueOffline(clientOpId, payload);
       }
     });
@@ -421,10 +459,57 @@ export function PosTerminal({
           <BarcodeScanner onDetected={onScan} />
         </div>
 
+        {/* Sumber daftar: produk toko atau barang titipan pelanggan */}
+        <div className="flex gap-1.5" role="tablist" aria-label="Sumber barang">
+          {(
+            [
+              { id: "products", label: "Produk", count: catalog.length },
+              { id: "consignment", label: "Titipan", count: consignmentItems.length },
+            ] as const
+          ).map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={mode === t.id}
+              onClick={() => setMode(t.id)}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                mode === t.id
+                  ? "gradient-brand border-transparent text-primary-foreground shadow-brand"
+                  : "text-muted-foreground hover:border-primary/50 hover:text-foreground",
+              )}
+            >
+              {t.label} <span className="font-mono tabular-nums opacity-80">{t.count}</span>
+            </button>
+          ))}
+        </div>
+
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {filtered.map((p) => {
             const out = p.stock <= 0;
             const low = !out && p.minStock > 0 && p.stock <= p.minStock;
+            if (p.consignment) {
+              const inCart = cart.has(p.id);
+              return (
+                <button
+                  key={p.id}
+                  disabled={inCart}
+                  onClick={() => addToCart(p)}
+                  className="group flex flex-col rounded-xl border border-dashed border-amber-500/50 bg-amber-500/5 p-3 text-left transition-colors hover:border-amber-500 hover:bg-amber-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <span className="line-clamp-2 min-h-[34px] text-sm font-medium leading-tight">{p.name}</span>
+                  <span className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
+                    <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
+                      Titipan
+                    </span>
+                    <span className="truncate text-muted-foreground">{inCart ? "di keranjang" : p.consignment.owner}</span>
+                  </span>
+                  {p.sku && <span className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">SN {p.sku}</span>}
+                  <span className="mt-1 font-mono text-sm font-semibold tabular-nums text-primary">{formatRupiah(p.sellPrice)}</span>
+                </button>
+              );
+            }
             return (
               <button
                 key={p.id}
@@ -450,7 +535,11 @@ export function PosTerminal({
           })}
           {filtered.length === 0 && (
             <p className="col-span-full py-8 text-center text-sm text-muted-foreground">
-              Produk tidak ditemukan.
+              {mode === "consignment"
+                ? consignmentItems.length === 0
+                  ? "Belum ada barang titipan yang ditawarkan."
+                  : "Barang titipan tidak ditemukan."
+                : "Produk tidak ditemukan."}
             </p>
           )}
         </div>
@@ -496,7 +585,14 @@ export function PosTerminal({
                 <div className="flex items-center gap-2">
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-medium">{l.product.name}</div>
-                    <div className="text-xs text-muted-foreground">{formatRupiah(l.product.sellPrice)}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {formatRupiah(l.product.sellPrice)}
+                      {l.product.consignment && (
+                        <span className="ml-1.5 rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
+                          Titipan · {l.product.consignment.owner}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-1">
                     <Button variant="outline" size="icon" className="size-7" onClick={() => setQty(l.product.id, l.qty - 1)}>

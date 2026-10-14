@@ -477,11 +477,17 @@ model SaleItem {
   discount    Int    @default(0) // diskon baris (rupiah)
   subtotal    Int // qty * price - discount
   returnedQty Int    @default(0) // akumulasi qty yang sudah diretur
+  // Baris BARANG TITIPAN (titip jual): consignmentItemId terisi dan productId diisi
+  // id barang titipan yang sama (BUKAN id produk) → lookup produk saat void/retur
+  // tak ketemu sehingga stok tak disentuh, sementara kunci per-baris tetap unik
+  // (dipakai finance/refund-audit). costPrice = hak pemilik → laba kotor = komisi.
+  consignmentItemId String?
 
   sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
 
   @@index([saleId])
   @@index([productId])
+  @@index([consignmentItemId])
   @@map("sale_items")
 }
 
@@ -740,6 +746,12 @@ model GalleryItem {
   @@map("gallery_items")
 }
 
+/// Jenis komisi toko atas barang titipan.
+enum ConsignmentCommissionType {
+  PERCENT // persen dari harga terjual
+  FIXED // nominal rupiah tetap per barang
+}
+
 /// Status barang titip jual.
 enum ConsignmentItemStatus {
   AVAILABLE // dititipkan, sedang ditawarkan
@@ -782,6 +794,14 @@ model ConsignmentItem {
   soldPrice     Int? // harga terjual aktual (opsional)
   statusAt      DateTime? // kapan status terakhir diubah (terjual/diambil)
   sortOrder     Int                   @default(0)
+  // Komisi toko (disepakati saat dititipkan; bisa diubah selama masih dititipkan).
+  commissionType  ConsignmentCommissionType @default(PERCENT)
+  commissionValue Int                       @default(0) // persen (0–100) atau rupiah
+  // Diisi saat terjual: pembagian hasil. ownerShare = hak pemilik (utang toko ke pemilik).
+  storeCommission Int?
+  ownerShare      Int?
+  saleId          String? // penjualan kasir yang menjual barang ini (null = ditandai manual)
+  ownerPaidAt     DateTime? // kapan hak pemilik dibayarkan (null = belum)
 
   consignment Consignment @relation(fields: [consignmentId], references: [id], onDelete: Cascade)
 

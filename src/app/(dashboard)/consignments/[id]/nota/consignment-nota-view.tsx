@@ -20,6 +20,7 @@ export interface ConsignmentNotaData {
   customerPhone: string | null;
   note: string | null;
   askingTotal: number;
+  owner: { total: number; paid: number; owed: number } | null;
   items: {
     category: string;
     name: string;
@@ -27,6 +28,8 @@ export interface ConsignmentNotaData {
     condition: string | null;
     askingPrice: number;
     statusLabel?: string;
+    commissionText: string;
+    sold: { price: number; commission: number; ownerShare: number; paid: boolean } | null;
   }[];
 }
 
@@ -63,6 +66,7 @@ export function ConsignmentNotaView({ data, backHref }: { data: ConsignmentNotaD
       items: data.items,
       askingTotal: data.askingTotal,
       note: data.note,
+      owner: data.owner,
     });
     window.open(waLink(text, data.customerPhone ?? undefined), "_blank", "noopener,noreferrer");
   }
@@ -107,6 +111,17 @@ export function ConsignmentNotaView({ data, backHref }: { data: ConsignmentNotaD
                 <span>Harga jual{it.statusLabel ? ` · ${it.statusLabel}` : ""}</span>
                 <span>{formatRupiah(it.askingPrice)}</span>
               </div>
+              <div className="text-[10px] text-black/60">Komisi toko: {it.commissionText}</div>
+              {it.sold && (
+                <div className="mt-0.5 space-y-0.5 rounded border border-dashed border-black/30 p-1 text-[10px]">
+                  <div className="flex justify-between"><span>Laku</span><span>{formatRupiah(it.sold.price)}</span></div>
+                  <div className="flex justify-between"><span>Komisi toko</span><span>-{formatRupiah(it.sold.commission)}</span></div>
+                  <div className="flex justify-between font-semibold">
+                    <span>Hak pemilik ({it.sold.paid ? "dibayar" : "belum"})</span>
+                    <span>{formatRupiah(it.sold.ownerShare)}</span>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -117,6 +132,13 @@ export function ConsignmentNotaView({ data, backHref }: { data: ConsignmentNotaD
           <span>{formatRupiah(data.askingTotal)}</span>
         </div>
         <p className="text-[10px] text-black/60">Total harga jual yang diinginkan pemilik ({data.items.length} barang)</p>
+        {data.owner && data.owner.total > 0 && (
+          <div className="mt-2 space-y-0.5 text-[11px]">
+            <div className="flex justify-between"><span>Hak pemilik (barang laku)</span><span>{formatRupiah(data.owner.total)}</span></div>
+            <div className="flex justify-between"><span>Sudah dibayar</span><span>{formatRupiah(data.owner.paid)}</span></div>
+            <div className="flex justify-between font-bold"><span>Belum dibayar</span><span>{formatRupiah(data.owner.owed)}</span></div>
+          </div>
+        )}
         {data.note && <p className="mt-1 whitespace-pre-line text-[10px] leading-tight"><span className="font-semibold">Catatan:</span> {data.note}</p>}
 
         <div className="my-2 border-t border-dashed" />

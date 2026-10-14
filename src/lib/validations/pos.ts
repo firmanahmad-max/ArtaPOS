@@ -6,8 +6,16 @@ export const saleItemSchema = z.object({
   discount: z.number().int().min(0).default(0),
 });
 
-export const saleSchema = z.object({
-  items: z.array(saleItemSchema).min(1, "Keranjang masih kosong"),
+/** Baris barang TITIPAN (titip jual) — selalu 1 unit; harga dari DB. */
+export const saleConsignmentItemSchema = z.object({
+  consignmentItemId: z.string().min(1),
+  discount: z.number().int().min(0).default(0),
+});
+
+export const saleSchema = z
+  .object({
+  items: z.array(saleItemSchema).default([]),
+  consignmentItems: z.array(saleConsignmentItemSchema).max(50).default([]),
   customerId: z.string().min(1).optional().nullable(),
   discount: z.number().int().min(0).default(0),
   // Biaya lain/jasa (mis. jasa setup/instal aplikasi) — menambah total, tanpa HPP.
@@ -22,7 +30,11 @@ export const saleSchema = z.object({
   // bukan saat tersinkron).
   clientOpId: z.string().min(8).max(64).optional(),
   clientCreatedAt: z.string().datetime().optional(),
-});
+  })
+  .refine((s) => s.items.length + s.consignmentItems.length > 0, {
+    message: "Keranjang masih kosong",
+    path: ["items"],
+  });
 export type SaleInput = z.infer<typeof saleSchema>;
 
 export const salePaymentSchema = z.object({

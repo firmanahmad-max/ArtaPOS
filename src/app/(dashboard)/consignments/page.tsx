@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Plus, Handshake, ChevronRight, Search, Package, Wallet, BadgeCheck } from "lucide-react";
+import { Plus, Handshake, ChevronRight, Search, Package, Wallet, BadgeCheck, Coins } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { listConsignments } from "@/server/consignment/service";
@@ -42,15 +42,18 @@ export default async function ConsignmentsPage({
 
   const active = matched.filter((c) => !c.sum.done);
   const done = matched.filter((c) => c.sum.done);
-  const shown = filter === "done" ? done : filter === "all" ? matched : active;
+  const owed = matched.filter((c) => c.sum.ownerOwed > 0);
+  const shown = filter === "done" ? done : filter === "owed" ? owed : filter === "all" ? matched : active;
 
   const totals = rows.reduce(
     (t, c) => ({
       items: t.items + c.sum.available,
       value: t.value + c.sum.availableValue,
       sold: t.sold + c.sum.sold,
+      owed: t.owed + c.sum.ownerOwed,
+      commission: t.commission + c.sum.commissionTotal,
     }),
-    { items: 0, value: 0, sold: 0 },
+    { items: 0, value: 0, sold: 0, owed: 0, commission: 0 },
   );
 
   return (
@@ -67,10 +70,17 @@ export default async function ConsignmentsPage({
         </Link>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Barang dititipkan" value={totals.items} icon={Package} tone="violet" />
-        <StatCard label="Nilai titipan aktif" value={formatRupiah(totals.value)} icon={Wallet} tone="amber" />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Barang dititipkan" value={totals.items} icon={Package} tone="violet" hint={formatRupiah(totals.value)} />
         <StatCard label="Barang terjual" value={totals.sold} icon={BadgeCheck} tone="emerald" />
+        <StatCard label="Komisi toko" value={formatRupiah(totals.commission)} icon={Coins} tone="blue" />
+        <StatCard
+          label="Hak pemilik belum dibayar"
+          value={formatRupiah(totals.owed)}
+          icon={Wallet}
+          tone={totals.owed > 0 ? "amber" : "slate"}
+          href={totals.owed > 0 ? "/consignments?filter=owed" : undefined}
+        />
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -78,6 +88,7 @@ export default async function ConsignmentsPage({
           defaultValue="active"
           chips={[
             { value: "active", label: "Aktif", count: active.length },
+            { value: "owed", label: "Hak belum dibayar", count: owed.length, tone: "warning" },
             { value: "done", label: "Selesai", count: done.length, tone: "success" },
             { value: "all", label: "Semua", count: matched.length },
           ]}
@@ -116,6 +127,7 @@ export default async function ConsignmentsPage({
                       <Badge variant="default">{c.sum.available} dititipkan</Badge>
                     )}
                     {c.sum.sold > 0 && <Badge variant="success">{c.sum.sold} terjual</Badge>}
+                    {c.sum.ownerOwed > 0 && <Badge variant="warning">Hak {formatRupiah(c.sum.ownerOwed)}</Badge>}
                   </div>
                   <p className="mt-1 truncate font-semibold">{c.customerName}</p>
                   <p className="truncate text-sm text-muted-foreground">

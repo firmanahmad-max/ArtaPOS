@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Plus, Trash2, Loader2, Save } from "lucide-react";
 import { createConsignmentAction } from "@/server/consignment/actions";
 import { formatRupiah } from "@/lib/utils";
+import { splitConsignment, type CommissionType } from "@/lib/consignment-calc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,6 +42,9 @@ export function ConsignmentForm({ customers }: { customers: CustomerOption[] }) 
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [note, setNote] = useState("");
+  // Komisi toko — berlaku untuk semua barang di titipan ini (bisa diubah per barang di detail).
+  const [commissionType, setCommissionType] = useState<CommissionType>("PERCENT");
+  const [commissionValue, setCommissionValue] = useState(10);
   // Key baris: baris awal statis; baris baru dari ref di event handler (bukan saat render).
   const seq = useRef(1);
   const [rows, setRows] = useState<Row[]>([blankRow("r0")]);
@@ -81,6 +85,8 @@ export function ConsignmentForm({ customers }: { customers: CustomerOption[] }) 
           serialNumber: r.serialNumber,
           condition: r.condition,
           askingPrice: r.askingPrice,
+          commissionType,
+          commissionValue,
         })),
       });
       if (r.ok) {
@@ -113,6 +119,48 @@ export function ConsignmentForm({ customers }: { customers: CustomerOption[] }) 
             <Input id="cs-phone" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="08…" maxLength={30} inputMode="tel" />
             <p className="text-xs text-muted-foreground">Dipakai untuk mengirim tanda titip jual.</p>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Komisi Toko</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="cs-ctype">Jenis komisi</Label>
+              <Select
+                id="cs-ctype"
+                value={commissionType}
+                onChange={(e) => {
+                  const t = e.target.value as CommissionType;
+                  setCommissionType(t);
+                  setCommissionValue(t === "PERCENT" ? 10 : 50_000);
+                }}
+                className="w-48"
+              >
+                <option value="PERCENT">Persen dari harga laku</option>
+                <option value="FIXED">Nominal tetap per barang</option>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="cs-cval">{commissionType === "PERCENT" ? "Persen (%)" : "Nominal"}</Label>
+              {commissionType === "PERCENT" ? (
+                <Input
+                  id="cs-cval"
+                  inputMode="numeric"
+                  className="w-28"
+                  value={String(commissionValue)}
+                  onChange={(e) => setCommissionValue(Math.min(100, Number(e.target.value.replace(/[^0-9]/g, "")) || 0))}
+                />
+              ) : (
+                <CurrencyInput id="cs-cval" className="w-40" value={commissionValue} onValueChange={setCommissionValue} />
+              )}
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Berlaku untuk semua barang di bawah. Saat laku di kasir, komisi jadi pendapatan toko dan sisanya tercatat sebagai
+            hak pemilik. Bisa diubah per barang di halaman detail selama belum laku.
+          </p>
         </CardContent>
       </Card>
 
@@ -156,6 +204,16 @@ export function ConsignmentForm({ customers }: { customers: CustomerOption[] }) 
                 <Label htmlFor={`cs-cond-${r.key}`}>Keterangan kondisi</Label>
                 <Textarea id={`cs-cond-${r.key}`} rows={2} value={r.condition} onChange={(e) => patchRow(r.key, { condition: e.target.value })} placeholder="mis. Normal, pemakaian 1 tahun, garansi resmi s/d Mar 2027, fullset box" maxLength={300} />
               </div>
+              {r.askingPrice > 0 && (() => {
+                const s = splitConsignment(r.askingPrice, commissionType, commissionValue);
+                return (
+                  <p className="text-xs text-muted-foreground">
+                    Bila laku {formatRupiah(r.askingPrice)}: komisi toko{" "}
+                    <span className="font-mono">{formatRupiah(s.commission)}</span> · hak pemilik{" "}
+                    <span className="font-mono font-medium text-foreground">{formatRupiah(s.ownerShare)}</span>
+                  </p>
+                );
+              })()}
             </div>
           ))}
           <Button type="button" variant="outline" onClick={addRow} disabled={rows.length >= 50}>

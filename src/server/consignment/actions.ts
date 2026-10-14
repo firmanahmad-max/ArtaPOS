@@ -1,9 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { revalidateReports } from "@/lib/revalidate";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
-import { consignmentSchema } from "@/lib/validations/consignment";
+import { consignmentSchema, commissionSchema } from "@/lib/validations/consignment";
 import type { ConsignmentItemStatus } from "@/generated/prisma/enums";
 import * as svc from "@/server/consignment/service";
 
@@ -16,6 +17,17 @@ async function guard() {
   const user = await getCurrentUser();
   return can(user.role, "inventory.manage") ? user : null;
 }
+
+function refresh(id?: string) {
+  if (id) revalidatePath(`/consignments/${id}`);
+  revalidatePath("/consignments");
+  revalidatePath("/pos");
+}
+
+const fail = (e: unknown, fallback: string): Result => ({
+  ok: false,
+  message: e instanceof Error ? e.message : fallback,
+});
 
 export type CreateResult =
   | { ok: true; id: string }
@@ -35,7 +47,7 @@ export async function createConsignmentAction(payload: unknown): Promise<CreateR
   }
   try {
     const c = await svc.createConsignment(user.tenantId, user.id, parsed.data);
-    revalidatePath("/consignments");
+    refresh();
     return { ok: true, id: c.id };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Gagal menyimpan titip jual." };
@@ -52,24 +64,57 @@ export async function setConsignmentItemStatusAction(
   if (!STATUSES.includes(status)) return { ok: false, message: "Status tidak valid." };
   try {
     const id = await svc.setItemStatus(user.tenantId, itemId, status, soldPrice);
-    revalidatePath(`/consignments/${id}`);
-    revalidatePath("/consignments");
+    refresh(id);
     return { ok: true };
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Gagal mengubah status." };
+    return fail(e, "Gagal mengubah status.");
   }
 }
 
-export async function updateConsignmentItemPriceAction(itemId: string, askingPrice: number): Promise<Result> {
+export async function updateConsignmentItemTermsAction(
+  itemId: string,
+  terms: { askingPrice: number; commissionType: string; commissionValue: number },
+): Promise<Result> {
+  const user = await guard();
+  if (!user) return { ok: false, message: NO_PERM };
+  const parsed = commissionSchema.safeParse({
+    commissionType: terms.commissionType,
+    commissionValue: Math.round(Number(terms.commissionValue)),
+  });
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Komisi tidak valid." };
+  try {
+    const id = await svc.updateItemTerms(user.tenantId, itemId, {
+      askingPrice: Math.round(Number(terms.askingPrice)),
+      ...parsed.data,
+    });
+    refresh(id);
+    return { ok: true, message: "Harga & komisi diperbarui." };
+  } catch (e) {
+    return fail(e, "Gagal mengubah harga & komisi.");
+  }
+}
+
+export async function setOwnerPaidAction(itemId: string, paid: boolean): Promise<Result> {
   const user = await guard();
   if (!user) return { ok: false, message: NO_PERM };
   try {
-    const id = await svc.updateItemPrice(user.tenantId, itemId, Math.round(Number(askingPrice)));
-    revalidatePath(`/consignments/${id}`);
-    revalidatePath("/consignments");
-    return { ok: true, message: "Harga diperbarui." };
+    const id = await svc.setOwnerPaid(user.tenantId, itemId, paid);
+    refresh(id);
+    return { ok: true };
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Gagal mengubah harga." };
+    return fail(e, "Gagal mencatat pembayaran hak pemilik.");
+  }
+}
+
+export async function payAllOwnerAction(consignmentId: string): Promise<Result> {
+  const user = await guard();
+  if (!user) return { ok: false, message: NO_PERM };
+  try {
+    const n = await svc.payAllOwner(user.tenantId, consignmentId);
+    refresh(consignmentId);
+    return { ok: true, message: `${n} hak pemilik ditandai sudah dibayar.` };
+  } catch (e) {
+    return fail(e, "Gagal mencatat pembayaran hak pemilik.");
   }
 }
 
@@ -78,9 +123,10 @@ export async function deleteConsignmentAction(id: string): Promise<Result> {
   if (!user) return { ok: false, message: NO_PERM };
   try {
     await svc.deleteConsignment(user.tenantId, id);
-    revalidatePath("/consignments");
+    refresh();
+    revalidateReports();
     return { ok: true };
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Gagal menghapus." };
+    return fail(e, "Gagal menghapus.");
   }
 }

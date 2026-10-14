@@ -41,6 +41,7 @@ export async function createSaleAction(input: SaleInput): Promise<CheckoutResult
     );
     revalidatePath("/inventory");
     revalidatePath("/pos");
+    if (parsed.data.consignmentItems.length > 0) revalidatePath("/consignments", "layout");
     revalidateReports();
     return { ok: true, saleId: sale.id, number: sale.number, change: sale.change };
   } catch (e) {
@@ -61,6 +62,7 @@ export async function voidSaleAction(
     revalidatePath("/sales");
     revalidatePath(`/sales/${saleId}`);
     revalidatePath("/inventory");
+    revalidatePath("/consignments", "layout"); // barang titipan bisa kembali "Dititipkan"
     revalidateReports();
     return { ok: true, message: `Transaksi ${r.number} dibatalkan, stok dikembalikan.` };
   } catch (e) {
@@ -81,6 +83,7 @@ export async function createReturnAction(
     const r = await createReturn(user.tenantId, user.id, saleId, lines);
     revalidatePath(`/sales/${saleId}`);
     revalidatePath("/inventory");
+    revalidatePath("/consignments", "layout");
     revalidateReports();
     return { ok: true, number: r.number, refund: r.refund };
   } catch (e) {

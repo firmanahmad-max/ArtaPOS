@@ -4,8 +4,36 @@ import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 import { nextDocNumber } from "@/server/shared/numbering";
 import type { SaleInput } from "@/lib/validations/pos";
+import { splitConsignment } from "@/lib/consignment-calc";
 
 /** Service POS — checkout transaksional, ter-scope tenantId. */
+
+/**
+ * Kembalikan barang titipan yang dijual `saleId` ke status "Dititipkan" (void/retur).
+ * Ditolak bila hak pemilik sudah dibayarkan — uangnya sudah keluar ke pemilik,
+ * jadi pembayaran itu harus dibatalkan dulu agar catatan tetap konsisten.
+ */
+async function revertConsignmentSale(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  consignmentItemId: string,
+  saleId: string,
+) {
+  const ci = await tx.consignmentItem.findFirst({
+    where: { id: consignmentItemId, consignment: { tenantId } },
+    select: { id: true, name: true, status: true, saleId: true, ownerPaidAt: true },
+  });
+  if (!ci || ci.status !== "SOLD" || ci.saleId !== saleId) return; // sudah tak terkait penjualan ini
+  if (ci.ownerPaidAt) {
+    throw new Error(
+      `Hak pemilik untuk "${ci.name}" sudah dibayarkan. Batalkan pembayaran hak pemilik dulu di menu Titip Jual.`,
+    );
+  }
+  await tx.consignmentItem.update({
+    where: { id: ci.id },
+    data: { status: "AVAILABLE", soldPrice: null, storeCommission: null, ownerShare: null, saleId: null, statusAt: null },
+  });
+}
 
 export function listProductsForSale(tenantId: string) {
   return db.product.findMany({
@@ -95,7 +123,13 @@ export async function createReturn(
       const remaining = item.qty - item.returnedQty;
       if (line.qty > remaining) throw new Error(`Qty retur "${item.productName}" melebihi sisa (${remaining}).`);
 
-      const product = await tx.product.findFirst({ where: { id: item.productId, tenantId }, select: { id: true } });
+      // Barang titipan: kembali ke "Dititipkan" (bukan stok toko).
+      if (item.consignmentItemId) {
+        await revertConsignmentSale(tx, tenantId, item.consignmentItemId, sale.id);
+      }
+      const product = item.consignmentItemId
+        ? null
+        : await tx.product.findFirst({ where: { id: item.productId, tenantId }, select: { id: true } });
       if (product) {
         await moveStock(tx, {
           tenantId,
@@ -242,6 +276,11 @@ export async function voidSale(tenantId: string, userId: string, saleId: string)
       // sini akan menggandakan stok.
       const remaining = item.qty - item.returnedQty;
       if (remaining <= 0) continue;
+      // Barang titipan: kembali ke "Dititipkan" (bukan stok toko).
+      if (item.consignmentItemId) {
+        await revertConsignmentSale(tx, tenantId, item.consignmentItemId, sale.id);
+        continue;
+      }
       const product = await tx.product.findFirst({
         where: { id: item.productId, tenantId },
         select: { id: true },
@@ -330,6 +369,52 @@ export async function createSale(
       };
     });
 
+    // ── Barang TITIPAN (titip jual): unik 1 unit; harga & syarat komisi dari DB ──
+    // Komisi dihitung dari harga bersih baris (setelah diskon baris). Diskon tingkat
+    // transaksi ditanggung toko — hak pemilik tidak ikut terpotong.
+    const csInput = input.consignmentItems ?? [];
+    const csIds = csInput.map((c) => c.consignmentItemId);
+    if (new Set(csIds).size !== csIds.length) throw new Error("Barang titipan tercantum dua kali di keranjang.");
+    const csRows = csIds.length
+      ? await tx.consignmentItem.findMany({
+          where: { id: { in: csIds }, consignment: { tenantId } },
+          select: {
+            id: true,
+            category: true,
+            name: true,
+            serialNumber: true,
+            askingPrice: true,
+            status: true,
+            commissionType: true,
+            commissionValue: true,
+          },
+        })
+      : [];
+    const csMap = new Map(csRows.map((r) => [r.id, r]));
+    const csSplits: { id: string; soldPrice: number; commission: number; ownerShare: number }[] = [];
+    const consignmentItemsData = csInput.map((c) => {
+      const r = csMap.get(c.consignmentItemId);
+      if (!r) throw new Error("Barang titipan tidak ditemukan.");
+      if (r.status !== "AVAILABLE") throw new Error(`Barang titipan "${r.name}" sudah tidak tersedia.`);
+      const disc = Math.min(Math.max(0, c.discount ?? 0), r.askingPrice);
+      const net = r.askingPrice - disc;
+      const { commission, ownerShare } = splitConsignment(net, r.commissionType, r.commissionValue);
+      subtotal += net;
+      csSplits.push({ id: r.id, soldPrice: net, commission, ownerShare });
+      return {
+        // productId = id barang titipan (BUKAN produk) — lihat komentar model SaleItem.
+        productId: r.id,
+        consignmentItemId: r.id,
+        productName: `${r.category} ${r.name}`,
+        sku: r.serialNumber ?? null,
+        qty: 1,
+        price: r.askingPrice,
+        costPrice: ownerShare, // HPP = hak pemilik → laba kotor toko = komisi
+        discount: disc,
+        subtotal: net,
+      };
+    });
+
     const discount = Math.min(input.discount ?? 0, subtotal);
     // Biaya lain/jasa (mis. setup/instal) — menambah total, tanpa HPP.
     const serviceFee = Math.max(0, input.serviceFee ?? 0);
@@ -406,7 +491,7 @@ export async function createSale(
         clientOpId: input.clientOpId ?? null,
         // Penjualan offline bertanggal saat TERJADI di perangkat, bukan saat sinkron.
         ...(input.clientCreatedAt ? { createdAt: new Date(input.clientCreatedAt) } : {}),
-        items: { create: itemsData },
+        items: { create: [...itemsData, ...consignmentItemsData] },
         ...(isCredit && paid > 0
           ? { payments: { create: { tenantId, amount: paid, note: "Uang muka", createdById: cashier.id } } }
           : {}),
@@ -425,6 +510,24 @@ export async function createSale(
         note: `Penjualan ${number}`,
         userId: cashier.id,
       });
+    }
+
+    // Klaim barang titipan secara ATOMIK (hanya bila masih AVAILABLE) → dua kasir
+    // yang checkout bersamaan tak bisa menjual unit yang sama. Gagal → rollback.
+    for (const s of csSplits) {
+      const claimed = await tx.consignmentItem.updateMany({
+        where: { id: s.id, status: "AVAILABLE", consignment: { tenantId } },
+        data: {
+          status: "SOLD",
+          soldPrice: s.soldPrice,
+          storeCommission: s.commission,
+          ownerShare: s.ownerShare,
+          saleId: sale.id,
+          statusAt: new Date(),
+          ownerPaidAt: null,
+        },
+      });
+      if (claimed.count !== 1) throw new Error("Barang titipan baru saja terjual di transaksi lain.");
     }
 
     // Hitung pemakaian transaksi untuk enforcement lisensi/demo.

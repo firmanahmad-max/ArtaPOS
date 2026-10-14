@@ -92,6 +92,12 @@ export async function POST(req: Request) {
     }
     const data = dataParsed.data;
     const clientOpId = data.clientOpId;
+    // Barang titipan unik (1 unit fisik) → hanya boleh dijual ONLINE; antrean offline
+    // bisa menjual barang yang sama dua kali. Klien sudah mencegah; ini jaring pengaman.
+    if (type === "sale" && ((data as z.infer<typeof saleSchema>).consignmentItems?.length ?? 0) > 0) {
+      results.push({ clientOpId, type, ok: false, status: "error", message: "Barang titipan tidak bisa dijual offline." });
+      continue;
+    }
     try {
       const r =
         type === "sale"

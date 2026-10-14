@@ -8,13 +8,30 @@ const opt = (max: number) =>
     .optional()
     .transform((v) => (v ? v : undefined));
 
-export const consignmentItemSchema = z.object({
-  category: z.string().trim().min(1, "Jenis komponen wajib diisi").max(40),
-  name: z.string().trim().min(1, "Nama/tipe barang wajib diisi").max(120),
-  serialNumber: opt(60),
-  condition: opt(300),
-  askingPrice: z.number().int().min(0, "Harga tidak boleh negatif"),
-});
+export const commissionSchema = z
+  .object({
+    commissionType: z.enum(["PERCENT", "FIXED"]).default("PERCENT"),
+    commissionValue: z.number().int().min(0, "Komisi tidak boleh negatif").default(0),
+  })
+  .refine((c) => c.commissionType !== "PERCENT" || c.commissionValue <= 100, {
+    message: "Komisi persen maksimal 100%",
+    path: ["commissionValue"],
+  });
+
+export const consignmentItemSchema = z
+  .object({
+    category: z.string().trim().min(1, "Jenis komponen wajib diisi").max(40),
+    name: z.string().trim().min(1, "Nama/tipe barang wajib diisi").max(120),
+    serialNumber: opt(60),
+    condition: opt(300),
+    askingPrice: z.number().int().min(0, "Harga tidak boleh negatif"),
+    commissionType: z.enum(["PERCENT", "FIXED"]).default("PERCENT"),
+    commissionValue: z.number().int().min(0, "Komisi tidak boleh negatif").default(0),
+  })
+  .refine((c) => c.commissionType !== "PERCENT" || c.commissionValue <= 100, {
+    message: "Komisi persen maksimal 100%",
+    path: ["commissionValue"],
+  });
 
 export const consignmentSchema = z.object({
   customerId: z.string().min(1).optional().nullable(),

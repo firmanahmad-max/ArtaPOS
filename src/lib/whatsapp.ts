@@ -136,9 +136,15 @@ export function buildConsignmentText(n: {
     condition?: string | null;
     askingPrice: number;
     statusLabel?: string;
+    /** Syarat komisi toko, mis. "10%" / "Rp 50.000". */
+    commissionText?: string;
+    /** Diisi bila terjual: bagi hasil & status pembayaran hak pemilik. */
+    sold?: { price: number; commission: number; ownerShare: number; paid: boolean } | null;
   }[];
   askingTotal: number;
   note?: string | null;
+  /** Ringkasan hak pemilik (bila ada yang terjual). */
+  owner?: { total: number; paid: number; owed: number } | null;
 }): string {
   const line = "────────────────";
   const rows = [
@@ -154,9 +160,19 @@ export function buildConsignmentText(n: {
     if (it.serialNumber) rows.push(`   SN: ${it.serialNumber}`);
     if (it.condition) rows.push(`   Kondisi: ${it.condition}`);
     rows.push(`   Harga jual: ${formatRupiah(it.askingPrice)}${it.statusLabel ? ` · ${it.statusLabel}` : ""}`);
+    if (it.commissionText) rows.push(`   Komisi toko: ${it.commissionText}`);
+    if (it.sold) {
+      rows.push(`   Laku ${formatRupiah(it.sold.price)} − komisi ${formatRupiah(it.sold.commission)}`);
+      rows.push(`   Hak Anda: *${formatRupiah(it.sold.ownerShare)}* (${it.sold.paid ? "sudah dibayar" : "belum dibayar"})`);
+    }
   });
   rows.push(line);
   rows.push(`*Total harga diinginkan: ${formatRupiah(n.askingTotal)}*`);
+  if (n.owner && n.owner.total > 0) {
+    rows.push(`Hak pemilik dari barang laku: ${formatRupiah(n.owner.total)}`);
+    rows.push(`• Sudah dibayar: ${formatRupiah(n.owner.paid)}`);
+    rows.push(`• *Belum dibayar: ${formatRupiah(n.owner.owed)}*`);
+  }
   if (n.note) rows.push(`Catatan: ${n.note}`);
   rows.push(line);
   rows.push("Simpan tanda titip ini sebagai bukti. Hubungi kami untuk perubahan harga atau pengambilan barang.");
