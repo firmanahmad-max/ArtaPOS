@@ -23,6 +23,7 @@ import {
   Printer,
   Search,
   Images,
+  Handshake,
   type LucideIcon,
 } from "lucide-react";
 
@@ -162,6 +163,19 @@ const SECTIONS: Section[] = [
       "Pelanggan menekan 'Saya Berminat (Chat WA)' → langsung chat WhatsApp berisi nama produk; atau 'Bagikan' untuk meneruskan ke orang lain.",
     ],
     example: "Pajang 'SSD 1TB NVMe' dengan label Promo + foto → bagikan tautan galeri ke status WA → pelanggan klik Chat WA dan transaksi dimulai.",
+  },
+  {
+    icon: Handshake,
+    title: "Titip Jual (Barang Titipan Pelanggan)",
+    desc: "Catat barang/komponen milik pelanggan yang dititipkan untuk ditawarkan di toko, lalu kirim tanda titip jual ke WhatsApp mereka.",
+    steps: [
+      "Buka Inventaris → Titip Jual → Titipan Baru. Pilih pelanggan terdaftar (nama & No. WA terisi otomatis) atau isi manual.",
+      "Tambah barang: jenis komponen (mis. VGA, RAM), merk/tipe, no. seri (opsional, sebagai bukti identitas barang), keterangan kondisi, dan harga jual yang diinginkan pemilik.",
+      "Simpan → tanda titip jual (TJ-xxxxx) langsung tampil: kirim ke WhatsApp pemilik sebagai gambar atau teks, atau cetak.",
+      "Di detail titipan: Ubah harga bila pemilik setuju turun harga, tandai Terjual (isi harga terjual aktual) atau Diambil kembali. Semua bisa dibatalkan.",
+      "Barang titipan BUKAN stok toko — tidak memotong inventory dan tidak masuk laporan keuangan.",
+    ],
+    example: "Pak Fajar menitip VGA RTX 3060 (Rp 3.500.000) & RAM 16GB (Rp 650.000) → kirim tanda titip TJ-00001 ke WA-nya → RAM laku Rp 600.000, tandai Terjual.",
   },
   {
     icon: Truck,

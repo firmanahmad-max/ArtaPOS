@@ -1,0 +1,187 @@
+"use client";
+
+import { useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { Plus, Trash2, Loader2, Save } from "lucide-react";
+import { createConsignmentAction } from "@/server/consignment/actions";
+import { formatRupiah } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { CurrencyInput } from "@/components/ui/currency-input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CONSIGNMENT_CATEGORIES } from "./status-config";
+
+interface CustomerOption {
+  id: string;
+  name: string;
+  phone: string | null;
+}
+
+interface Row {
+  key: string;
+  category: string;
+  name: string;
+  serialNumber: string;
+  condition: string;
+  askingPrice: number;
+}
+
+const blankRow = (key: string): Row => ({ key, category: "", name: "", serialNumber: "", condition: "", askingPrice: 0 });
+
+export function ConsignmentForm({ customers }: { customers: CustomerOption[] }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const [customerId, setCustomerId] = useState("");
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [note, setNote] = useState("");
+  // Key baris: baris awal statis; baris baru dari ref di event handler (bukan saat render).
+  const seq = useRef(1);
+  const [rows, setRows] = useState<Row[]>([blankRow("r0")]);
+
+  const total = rows.reduce((s, r) => s + (r.askingPrice || 0), 0);
+
+  function onLink(id: string) {
+    setCustomerId(id);
+    const c = customers.find((x) => x.id === id);
+    if (c) {
+      setCustomerName(c.name);
+      setCustomerPhone(c.phone ?? "");
+    }
+  }
+
+  function patchRow(key: string, p: Partial<Row>) {
+    setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...p } : r)));
+  }
+  function addRow() {
+    const key = `r${seq.current++}`;
+    setRows((rs) => [...rs, blankRow(key)]);
+  }
+  function removeRow(key: string) {
+    setRows((rs) => (rs.length > 1 ? rs.filter((r) => r.key !== key) : rs));
+  }
+
+  function submit() {
+    setError(null);
+    start(async () => {
+      const r = await createConsignmentAction({
+        customerId: customerId || null,
+        customerName,
+        customerPhone,
+        note,
+        items: rows.map((r) => ({
+          category: r.category,
+          name: r.name,
+          serialNumber: r.serialNumber,
+          condition: r.condition,
+          askingPrice: r.askingPrice,
+        })),
+      });
+      if (r.ok) {
+        toast.success("Titipan tersimpan");
+        router.push(`/consignments/${r.id}/nota`);
+      } else {
+        setError(r.message ?? "Gagal menyimpan.");
+      }
+    });
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader><CardTitle>Pemilik Barang</CardTitle></CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-2 sm:col-span-2">
+            <Label htmlFor="cs-customer">Tautkan pelanggan terdaftar (opsional)</Label>
+            <Select id="cs-customer" value={customerId} onChange={(e) => onLink(e.target.value)}>
+              <option value="">— Tidak ditautkan —</option>
+              {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="cs-name">Nama Pemilik *</Label>
+            <Input id="cs-name" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Nama" maxLength={100} />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="cs-phone">No. WhatsApp</Label>
+            <Input id="cs-phone" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="08…" maxLength={30} inputMode="tel" />
+            <p className="text-xs text-muted-foreground">Dipakai untuk mengirim tanda titip jual.</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Barang yang Dititipkan</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <datalist id="cs-categories">
+            {CONSIGNMENT_CATEGORIES.map((c) => <option key={c} value={c} />)}
+          </datalist>
+          {rows.map((r, i) => (
+            <div key={r.key} className="space-y-3 rounded-xl border p-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold">Barang {i + 1}</span>
+                {rows.length > 1 && (
+                  <Button type="button" variant="ghost" size="icon" className="text-destructive" onClick={() => removeRow(r.key)} aria-label={`Hapus barang ${i + 1}`}>
+                    <Trash2 className="size-4" />
+                  </Button>
+                )}
+              </div>
+              <div className="grid gap-3 sm:grid-cols-[180px_1fr]">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor={`cs-cat-${r.key}`}>Jenis komponen *</Label>
+                  <Input id={`cs-cat-${r.key}`} list="cs-categories" value={r.category} onChange={(e) => patchRow(r.key, { category: e.target.value })} placeholder="mis. VGA" maxLength={40} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor={`cs-nm-${r.key}`}>Merk / tipe *</Label>
+                  <Input id={`cs-nm-${r.key}`} value={r.name} onChange={(e) => patchRow(r.key, { name: e.target.value })} placeholder="mis. MSI RTX 3060 Ventus 2X 12GB" maxLength={120} />
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-[1fr_180px]">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor={`cs-sn-${r.key}`}>No. seri (opsional)</Label>
+                  <Input id={`cs-sn-${r.key}`} value={r.serialNumber} onChange={(e) => patchRow(r.key, { serialNumber: e.target.value })} placeholder="Bukti identitas barang" maxLength={60} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor={`cs-pr-${r.key}`}>Harga jual diinginkan *</Label>
+                  <CurrencyInput id={`cs-pr-${r.key}`} value={r.askingPrice} onValueChange={(v) => patchRow(r.key, { askingPrice: v })} />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor={`cs-cond-${r.key}`}>Keterangan kondisi</Label>
+                <Textarea id={`cs-cond-${r.key}`} rows={2} value={r.condition} onChange={(e) => patchRow(r.key, { condition: e.target.value })} placeholder="mis. Normal, pemakaian 1 tahun, garansi resmi s/d Mar 2027, fullset box" maxLength={300} />
+              </div>
+            </div>
+          ))}
+          <Button type="button" variant="outline" onClick={addRow} disabled={rows.length >= 50}>
+            <Plus /> Tambah barang
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Catatan</CardTitle></CardHeader>
+        <CardContent>
+          <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Opsional — mis. harga boleh nego, hubungi pemilik dulu" maxLength={500} />
+        </CardContent>
+      </Card>
+
+      {error && <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm">
+          <span className="text-muted-foreground">{rows.length} barang · Total harga diinginkan </span>
+          <span className="font-mono font-bold tabular-nums">{formatRupiah(total)}</span>
+        </p>
+        <Button onClick={submit} disabled={pending} size="lg">
+          {pending ? <Loader2 className="animate-spin" /> : <Save />} Simpan &amp; Buat Tanda Titip
+        </Button>
+      </div>
+    </div>
+  );
+}

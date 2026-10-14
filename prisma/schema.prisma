@@ -84,6 +84,7 @@ model Tenant {
   rmaClaims      RmaClaim[]
   promoRedemptions PromoRedemption[]
   galleryItems   GalleryItem[]
+  consignments   Consignment[]
 
   @@map("tenants")
 }
@@ -737,6 +738,55 @@ model GalleryItem {
 
   @@index([tenantId])
   @@map("gallery_items")
+}
+
+/// Status barang titip jual.
+enum ConsignmentItemStatus {
+  AVAILABLE // dititipkan, sedang ditawarkan
+  SOLD // terjual
+  RETURNED // diambil kembali oleh pemilik
+}
+
+/// Titip jual: barang/komponen MILIK PELANGGAN yang ditawarkan toko.
+/// BUKAN stok toko — tak menyentuh inventory/StockMovement maupun keuangan.
+model Consignment {
+  id            String   @id @default(cuid())
+  tenantId      String
+  number        String // TJ-00001
+  customerId    String? // opsional: tautan pelanggan terdaftar
+  customerName  String
+  customerPhone String?
+  note          String?
+  createdById   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items  ConsignmentItem[]
+
+  @@unique([tenantId, number])
+  @@index([tenantId])
+  @@map("consignments")
+}
+
+/// Satu barang dalam titip jual. Diakses lewat induk (ter-scope tenant via Consignment).
+model ConsignmentItem {
+  id            String                @id @default(cuid())
+  consignmentId String
+  category      String // jenis komponen: VGA, RAM, Prosesor, …
+  name          String // merk / tipe
+  serialNumber  String? // no. seri — bukti identitas barang saat diambil kembali
+  condition     String? // keterangan kondisi
+  askingPrice   Int // harga jual yang diinginkan pemilik (rupiah)
+  status        ConsignmentItemStatus @default(AVAILABLE)
+  soldPrice     Int? // harga terjual aktual (opsional)
+  statusAt      DateTime? // kapan status terakhir diubah (terjual/diambil)
+  sortOrder     Int                   @default(0)
+
+  consignment Consignment @relation(fields: [consignmentId], references: [id], onDelete: Cascade)
+
+  @@index([consignmentId])
+  @@map("consignment_items")
 }
 
 /// Baris pada tiket servis: sparepart (productId terisi) atau jasa/lainnya.

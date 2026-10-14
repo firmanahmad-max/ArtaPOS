@@ -123,6 +123,47 @@ export function buildServiceNotaText(n: {
   return rows.join("\n");
 }
 
+/** Tanda titip jual (barang pelanggan yang ditawarkan toko) sebagai teks WA. */
+export function buildConsignmentText(n: {
+  storeName: string;
+  number: string;
+  dateText: string;
+  customerName: string;
+  items: {
+    category: string;
+    name: string;
+    serialNumber?: string | null;
+    condition?: string | null;
+    askingPrice: number;
+    statusLabel?: string;
+  }[];
+  askingTotal: number;
+  note?: string | null;
+}): string {
+  const line = "────────────────";
+  const rows = [
+    `*${n.storeName}*`,
+    "TANDA TITIP JUAL",
+    `No: ${n.number}`,
+    `Tgl: ${n.dateText}`,
+    `Pemilik: ${n.customerName}`,
+    line,
+  ];
+  n.items.forEach((it, i) => {
+    rows.push(`${i + 1}. *${it.category}* — ${it.name}`);
+    if (it.serialNumber) rows.push(`   SN: ${it.serialNumber}`);
+    if (it.condition) rows.push(`   Kondisi: ${it.condition}`);
+    rows.push(`   Harga jual: ${formatRupiah(it.askingPrice)}${it.statusLabel ? ` · ${it.statusLabel}` : ""}`);
+  });
+  rows.push(line);
+  rows.push(`*Total harga diinginkan: ${formatRupiah(n.askingTotal)}*`);
+  if (n.note) rows.push(`Catatan: ${n.note}`);
+  rows.push(line);
+  rows.push("Simpan tanda titip ini sebagai bukti. Hubungi kami untuk perubahan harga atau pengambilan barang.");
+  rows.push("Terima kasih 🙏");
+  return rows.join("\n");
+}
+
 /** Struk penjualan (POS) sebagai teks WhatsApp (wa.me hanya dukung teks). */
 export function buildSaleReceiptText(r: {
   storeName: string;
