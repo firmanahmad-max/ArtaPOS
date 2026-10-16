@@ -5,6 +5,7 @@ import { ArrowLeft, Printer } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { getTicket, listProductsForService } from "@/server/service-jobs/service";
+import { getTrackExtras } from "@/server/public/track-info";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TicketDetail } from "../ticket-detail";
@@ -23,9 +24,10 @@ export default async function TicketDetailPage({
   if (!can(user.role, "service.manage")) {
     return <Card className="p-8 text-center text-sm text-muted-foreground">Tidak punya izin.</Card>;
   }
-  const [ticket, products] = await Promise.all([
+  const [ticket, products, track] = await Promise.all([
     getTicket(user.tenantId, id),
     listProductsForService(user.tenantId),
+    getTrackExtras(user.tenantId),
   ]);
   if (!ticket) notFound();
 
@@ -83,6 +85,7 @@ export default async function TicketDetailPage({
         device={[ticket.deviceType, ticket.deviceBrand].filter(Boolean).join(" ")}
         customerPhone={ticket.customerPhone}
         storeName={user.tenant.name}
+        track={track}
       />
 
       <ServicePhotos

@@ -18,6 +18,7 @@ import {
 import { clampQty, formatRupiah } from "@/lib/utils";
 import { formatLocalDateTime } from "@/lib/timezone";
 import { buildServiceStatusText, waLink } from "@/lib/whatsapp";
+import { buildTrackUrl, type TrackExtras } from "@/lib/track-link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -70,6 +71,7 @@ export function TicketDetail({
   device,
   customerPhone,
   storeName,
+  track,
 }: {
   ticket: TicketData;
   products: ServiceProduct[];
@@ -77,6 +79,8 @@ export function TicketDetail({
   device: string;
   customerPhone: string | null;
   storeName: string;
+  /** Slug toko + ketersediaan promo/galeri di halaman lacak. */
+  track?: ({ slug: string | null } & TrackExtras) | null;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -171,7 +175,8 @@ export function TicketDetail({
                   device,
                   statusLabel: meta.label,
                   statusNote: ticket.statusNote,
-                  trackUrl: `${window.location.origin}/lacak?no=${encodeURIComponent(number)}`,
+                  trackUrl: buildTrackUrl(window.location.origin, number, track?.slug),
+                  trackExtras: track,
                 });
                 window.open(waLink(text, customerPhone), "_blank", "noopener,noreferrer");
               }}

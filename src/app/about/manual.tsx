@@ -221,6 +221,7 @@ const SECTIONS: Section[] = [
     desc: "Halaman publik agar pelanggan memantau status sendiri tanpa login.",
     steps: [
       "Bagikan tautan /lacak ke pelanggan (atau lewat tombol WhatsApp).",
+      "Halaman lacak juga menampilkan promo (diatur di Pengaturan) & tombol Galeri Publik toko Anda. Pesan WhatsApp status/nota servis & klaim RMA otomatis mengajak pelanggan melihatnya — hanya bila memang ada promo/galeri.",
       "Pelanggan pilih tab Servis atau Klaim Garansi, masukkan nomor + No. HP → lihat status & estimasi/total biaya.",
     ],
   },

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, PackageCheck, PackageX, Undo2, Save, MessageCircle } from "lucide-react";
 import { receiveRmaAction, rejectRmaAction, reopenRmaAction, updateRmaNoteAction } from "@/server/rma/actions";
 import { buildRmaStatusText, waLink } from "@/lib/whatsapp";
+import { buildTrackUrl, type TrackExtras } from "@/lib/track-link";
 import type { RmaStatus } from "@/generated/prisma/enums";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,7 @@ export function RmaDetail({
   storeName,
   customerPhone,
   publicStatusLabel,
+  track,
 }: {
   claimId: string;
   number: string;
@@ -36,6 +38,8 @@ export function RmaDetail({
   storeName: string;
   customerPhone: string | null;
   publicStatusLabel: string;
+  /** Slug toko + ketersediaan promo/galeri di halaman lacak. */
+  track?: ({ slug: string | null } & TrackExtras) | null;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -66,7 +70,8 @@ export function RmaDetail({
       number,
       productName,
       statusLabel: publicStatusLabel,
-      trackUrl: `${window.location.origin}/lacak?no=${encodeURIComponent(number)}`,
+      trackUrl: buildTrackUrl(window.location.origin, number, track?.slug),
+      trackExtras: track,
     });
     window.open(waLink(text, customerPhone), "_blank", "noopener,noreferrer");
   };

@@ -18,10 +18,11 @@ export const metadata: Metadata = { title: "Lacak Servis & Garansi" };
 export default async function LacakPage({
   searchParams,
 }: {
-  searchParams: Promise<{ no?: string }>;
+  searchParams: Promise<{ no?: string; t?: string }>;
 }) {
-  const { no } = await searchParams;
-  const { storeName, promo, promoImage, slug, hasGallery } = await getTrackPagePromo();
+  const { no, t } = await searchParams;
+  // `t` = slug toko pengirim tautan WA → tampilkan promo & galeri toko itu.
+  const { storeName, promo, promoImage, slug, hasGallery } = await getTrackPagePromo(t);
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
       <div className="absolute right-4 top-4">

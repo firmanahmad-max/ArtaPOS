@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { getRmaClaim } from "@/server/rma/service";
+import { getTrackExtras } from "@/server/public/track-info";
 import { formatLocalDate } from "@/lib/timezone";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +26,7 @@ export default async function RmaDetailPage({
   if (!can(user.role, "inventory.manage")) {
     return <Card className="p-8 text-center text-sm text-muted-foreground">Tidak punya izin.</Card>;
   }
-  const claim = await getRmaClaim(user.tenantId, id);
+  const [claim, track] = await Promise.all([getRmaClaim(user.tenantId, id), getTrackExtras(user.tenantId)]);
   if (!claim) notFound();
 
   const s = RMA_STATUS_META[claim.status];
@@ -115,6 +116,7 @@ export default async function RmaDetailPage({
         storeName={user.tenant.name}
         customerPhone={claim.customerPhone}
         publicStatusLabel={rmaPublicStatusLabel(claim.status, claim.resolution)}
+        track={track}
       />
 
       <RmaPhotos

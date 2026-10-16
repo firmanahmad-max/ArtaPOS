@@ -7,6 +7,7 @@ import { Printer, ArrowLeft, MessageCircle, Image as ImageIcon, Loader2 } from "
 import { Button, buttonVariants } from "@/components/ui/button";
 import { formatRupiah } from "@/lib/utils";
 import { buildServiceNotaText, waLink } from "@/lib/whatsapp";
+import { buildTrackUrl, type TrackExtras } from "@/lib/track-link";
 import { shareNodeAsImage } from "@/lib/share-image";
 
 export interface NotaItem {
@@ -48,7 +49,16 @@ const METHOD_LABEL: Record<string, string> = {
   CREDIT: "Kredit/Tempo",
 };
 
-export function ServiceNotaView({ data, backHref }: { data: ServiceNotaData; backHref: string }) {
+export function ServiceNotaView({
+  data,
+  backHref,
+  track,
+}: {
+  data: ServiceNotaData;
+  backHref: string;
+  /** Slug toko + ketersediaan promo/galeri di halaman lacak. */
+  track?: ({ slug: string | null } & TrackExtras) | null;
+}) {
   const notaRef = useRef<HTMLDivElement>(null);
   const [sharing, setSharing] = useState(false);
   const outstanding = Math.max(0, data.total - data.paid);
@@ -75,7 +85,7 @@ export function ServiceNotaView({ data, backHref }: { data: ServiceNotaData; bac
   }
 
   function sendWhatsApp() {
-    const trackUrl = `${window.location.origin}/lacak?no=${encodeURIComponent(data.number)}`;
+    const trackUrl = buildTrackUrl(window.location.origin, data.number, track?.slug);
     const text = buildServiceNotaText({
       storeName: data.storeName,
       number: data.number,
@@ -90,6 +100,7 @@ export function ServiceNotaView({ data, backHref }: { data: ServiceNotaData; bac
       paid: data.paid,
       paymentMethodLabel: methodLabel ?? undefined,
       trackUrl,
+      trackExtras: track,
     });
     window.open(waLink(text, data.customerPhone ?? undefined), "_blank", "noopener,noreferrer");
   }

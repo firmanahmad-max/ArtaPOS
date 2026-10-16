@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { getTicket } from "@/server/service-jobs/service";
 import { getReceiptStoreInfo } from "@/server/users/service";
+import { getTrackExtras } from "@/server/public/track-info";
 import { Card } from "@/components/ui/card";
 import { SERVICE_STATUS_META } from "../../status-config";
 import { ServiceNotaView } from "./service-nota-view";
@@ -21,9 +22,10 @@ export default async function ServiceNotaPage({
   if (!can(user.role, "service.manage")) {
     return <Card className="p-8 text-center text-sm text-muted-foreground">Tidak punya izin.</Card>;
   }
-  const [ticket, store] = await Promise.all([
+  const [ticket, store, track] = await Promise.all([
     getTicket(user.tenantId, id),
     getReceiptStoreInfo(user.tenantId),
+    getTrackExtras(user.tenantId),
   ]);
   if (!ticket) notFound();
 
@@ -31,6 +33,7 @@ export default async function ServiceNotaPage({
     <div className="py-4">
       <ServiceNotaView
         backHref={`/service/${ticket.id}`}
+        track={track}
         data={{
           storeName: user.tenant.name,
           storeLogo: store.logo,

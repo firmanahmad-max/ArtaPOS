@@ -1,5 +1,6 @@
 import { formatRupiah } from "@/lib/utils";
 import type { FinanceReport } from "@/server/finance/service";
+import { trackExtrasLine, type TrackExtras } from "./track-link";
 
 /**
  * WhatsApp — arsitektur PLUGGABLE.
@@ -44,6 +45,8 @@ export function buildServiceStatusText(args: {
   statusLabel: string;
   statusNote?: string | null;
   trackUrl?: string;
+  /** Info promo/galeri toko yang ikut tampil di halaman lacak. */
+  trackExtras?: TrackExtras | null;
 }): string {
   const lines = [
     `Halo, berikut update servis Anda di *${args.storeName}*:`,
@@ -52,9 +55,17 @@ export function buildServiceStatusText(args: {
     `Status: *${args.statusLabel}*`,
   ];
   if (args.statusNote) lines.push(`Keterangan: ${args.statusNote}`);
-  if (args.trackUrl) lines.push(`Cek status: ${args.trackUrl}`);
+  pushTrackLink(lines, "Cek status", args.trackUrl, args.trackExtras);
   lines.push("Terima kasih 🙏");
   return lines.join("\n");
+}
+
+/** Baris tautan lacak + (bila ada) ajakan melihat promo/galeri di halaman yang sama. */
+function pushTrackLink(rows: string[], label: string, url?: string, extras?: TrackExtras | null) {
+  if (!url) return;
+  rows.push(`${label}: ${url}`);
+  const extra = trackExtrasLine(extras);
+  if (extra) rows.push(extra);
 }
 
 /** Pesan WhatsApp status klaim RMA (garansi) untuk pelanggan. */
@@ -64,6 +75,7 @@ export function buildRmaStatusText(args: {
   productName: string;
   statusLabel: string;
   trackUrl?: string;
+  trackExtras?: TrackExtras | null;
 }): string {
   const lines = [
     `Halo, berikut update klaim garansi Anda di *${args.storeName}*:`,
@@ -71,7 +83,7 @@ export function buildRmaStatusText(args: {
     `Produk: ${args.productName}`,
     `Status: *${args.statusLabel}*`,
   ];
-  if (args.trackUrl) lines.push(`Cek status: ${args.trackUrl}`);
+  pushTrackLink(lines, "Cek status", args.trackUrl, args.trackExtras);
   lines.push("Terima kasih 🙏");
   return lines.join("\n");
 }
@@ -91,6 +103,7 @@ export function buildServiceNotaText(n: {
   paid: number;
   paymentMethodLabel?: string;
   trackUrl?: string;
+  trackExtras?: TrackExtras | null;
 }): string {
   const line = "────────────────";
   const rows = [
@@ -117,7 +130,7 @@ export function buildServiceNotaText(n: {
   rows.push(`Sisa: ${formatRupiah(Math.max(0, n.total - n.paid))}`);
   if (n.trackUrl) {
     rows.push(line);
-    rows.push(`Lacak status: ${n.trackUrl}`);
+    pushTrackLink(rows, "Lacak status", n.trackUrl, n.trackExtras);
   }
   rows.push("Terima kasih 🙏");
   return rows.join("\n");
