@@ -77,6 +77,7 @@ const SECTIONS: Section[] = [
       "Buka menu Penjualan (POS). Cari produk lewat ketik nama/SKU atau scan barcode (kamera/USB scanner).",
       "Klik produk untuk menambah ke keranjang; atur qty dan diskon per item bila perlu.",
       "Pilih pelanggan (opsional, untuk poin & kredit), tambahkan diskon transaksi bila ada.",
+      "Pelanggan punya poin? Saldo & nilainya tampil di bawah pilihan pelanggan — tekan \"Pakai poin\" untuk menukarnya sebagai potongan (bisa diubah jumlahnya). Hanya saat online.",
       "Pilih metode bayar: Tunai, Transfer, QRIS, atau Kredit/Tempo. Masukkan jumlah bayar → sistem hitung kembalian.",
       "Klik Bayar → stok terpotong otomatis, struk (INV-xxxxx) siap dicetak/dibagikan.",
     ],
@@ -220,8 +221,11 @@ const SECTIONS: Section[] = [
     desc: "Kelola kontak supplier dan data pelanggan beserta poin.",
     steps: [
       "Tambah/edit Supplier & Pelanggan lewat menu masing-masing.",
-      "Pelanggan mengumpulkan poin otomatis dari belanja (1 poin per Rp 1.000).",
-      "Di halaman edit pelanggan: lihat saldo & riwayat poin, tukar/sesuaikan poin manual.",
+      "Pelanggan mengumpulkan poin otomatis dari belanja (1 poin per Rp 1.000 yang dibayar).",
+      "Atur nilai poin di Pengaturan → Program Poin Member (mis. 1 poin = Rp 10 = cashback 1%) & minimal tukar (mis. 100 poin). Nilai 0 = penukaran nonaktif.",
+      "Poin ditukar di kasir sebagai potongan belanja. Struk mencantumkan poin ditukar, poin didapat, saldo & nilainya; nota servis/rakit PC pelanggan terdaftar juga menampilkan saldo poinnya.",
+      "Halaman Pelanggan menampilkan total poin beserta nilai rupiahnya (kewajiban potongan toko) & pemegang poin terbanyak.",
+      "Di halaman edit pelanggan: lihat saldo, nilai & riwayat poin; tukar manual (mis. hadiah) atau sesuaikan poin. Void penjualan otomatis mengembalikan poin yang ditukar & menarik poin yang didapat.",
     ],
   },
   {

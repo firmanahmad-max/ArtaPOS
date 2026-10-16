@@ -7,6 +7,7 @@ import { Printer, ArrowLeft, MessageCircle, Image as ImageIcon, Loader2 } from "
 import { Button, buttonVariants } from "@/components/ui/button";
 import { formatRupiah } from "@/lib/utils";
 import { buildPcBuildNotaText, waLink } from "@/lib/whatsapp";
+import { LoyaltyNoteBlock } from "@/components/loyalty/loyalty-note-block";
 import { shareNodeAsImage } from "@/lib/share-image";
 
 export interface PcBuildNotaItem {
@@ -29,6 +30,8 @@ export interface PcBuildNotaData {
   items: PcBuildNotaItem[];
   subtotal: number; // nilai kotor (komponen + jasa) sebelum diskon
   total: number;
+  /** Saldo poin pelanggan terdaftar (kosong = tanpa pelanggan/program nonaktif). */
+  loyaltyLines?: string[];
 }
 
 export function PcBuildNotaView({ data, backHref }: { data: PcBuildNotaData; backHref: string }) {
@@ -67,6 +70,7 @@ export function PcBuildNotaView({ data, backHref }: { data: PcBuildNotaData; bac
       subtotal: data.subtotal,
       total: data.total,
       footer: data.receiptFooter,
+      loyaltyLines: data.loyaltyLines,
     });
     window.open(waLink(text, data.customerPhone ?? undefined), "_blank", "noopener,noreferrer");
   }
@@ -139,6 +143,8 @@ export function PcBuildNotaView({ data, backHref }: { data: PcBuildNotaData; bac
           <span>TOTAL RAKITAN</span>
           <span>{formatRupiah(data.total)}</span>
         </div>
+
+        <LoyaltyNoteBlock lines={data.loyaltyLines ?? []} />
 
         <div className="my-2 border-t border-dashed" />
         <p className="whitespace-pre-line text-center text-[10px]">

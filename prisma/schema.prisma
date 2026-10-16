@@ -59,6 +59,10 @@ model Tenant {
   logo          String? // logo toko (data URL PNG/JPEG, tampil di struk)
   trackPromo      String? // info/promo tampil di halaman publik lacak servis (/lacak)
   trackPromoImage String? // foto promo (data URL) tampil di kartu Info & Promo /lacak
+  // Program poin loyalitas: dapat 1 poin per Rp 1.000 belanja; poin ditukar sebagai
+  // potongan di kasir senilai pointValue rupiah/poin (0 = penukaran nonaktif).
+  pointValue      Int     @default(10)
+  pointMinRedeem  Int     @default(100) // minimal saldo poin agar bisa ditukar
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -419,7 +423,12 @@ model Sale {
   discount      Int           @default(0) // diskon tingkat transaksi (rupiah)
   serviceFee      Int         @default(0) // biaya lain/jasa (mis. setup/instal) — menambah total, TANPA HPP
   serviceFeeLabel String? // label biaya lain/jasa (mis. "Setup & instal aplikasi")
-  total         Int // subtotal - discount + serviceFee
+  total         Int // subtotal - discount - pointsDiscount + serviceFee
+  // Poin loyalitas (snapshot saat transaksi, tampil di struk):
+  pointsRedeemed Int  @default(0) // poin ditukar pada transaksi ini
+  pointsDiscount Int  @default(0) // potongan rupiah dari tukar poin
+  pointsEarned   Int  @default(0) // poin didapat dari transaksi ini
+  pointsBalance  Int? // saldo poin pelanggan SETELAH transaksi (null = tanpa pelanggan)
   paymentMethod PaymentMethod @default(CASH)
   paymentStatus PaymentStatus @default(PAID) // PAID utk tunai/transfer; kredit → UNPAID/PARTIAL
   paid          Int           @default(0) // jumlah dibayar/diterima (DP utk kredit)

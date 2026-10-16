@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import type { ContactInput } from "@/lib/validations/contacts";
+import { loyaltyNoteLines, type LoyaltyConfig } from "@/lib/loyalty";
 
 /** Service Customer — semua query ter-scope tenantId. */
 
@@ -78,6 +79,48 @@ export async function deactivateCustomer(tenantId: string, id: string) {
 }
 
 // ── Poin loyalitas ─────────────────────────────────────────────────────────
+/** Aturan tukar poin toko. Defensif: kolom belum ada (migrasi) → penukaran nonaktif. */
+export async function getLoyaltyConfig(tenantId: string): Promise<LoyaltyConfig> {
+  try {
+    const t = await db.tenant.findUnique({ where: { id: tenantId }, select: { pointValue: true, pointMinRedeem: true } });
+    return { pointValue: t?.pointValue ?? 0, minRedeem: t?.pointMinRedeem ?? 0 };
+  } catch {
+    return { pointValue: 0, minRedeem: 0 };
+  }
+}
+
+/**
+ * Baris info poin untuk nota servis/rakit PC: saldo pelanggan terdaftar SAAT INI
+ * + ajakan menukar. Kosong bila tanpa pelanggan / program nonaktif.
+ */
+export async function customerLoyaltyLines(tenantId: string, customerId: string | null | undefined): Promise<string[]> {
+  if (!customerId) return [];
+  try {
+    const [cfg, c] = await Promise.all([
+      getLoyaltyConfig(tenantId),
+      db.customer.findFirst({ where: { id: customerId, tenantId }, select: { points: true } }),
+    ]);
+    if (!c || cfg.pointValue <= 0) return [];
+    return loyaltyNoteLines({ earned: 0, redeemed: 0, balance: c.points }, cfg);
+  } catch {
+    return [];
+  }
+}
+
+/** Total saldo poin semua pelanggan aktif (kewajiban potongan). */
+export async function totalCustomerPoints(tenantId: string): Promise<number> {
+  const agg = await db.customer.aggregate({ where: { tenantId, isActive: true }, _sum: { points: true } });
+  return agg._sum.points ?? 0;
+}
+
+/** Ubah aturan tukar poin (Pengaturan). */
+export async function updateLoyaltyConfig(tenantId: string, cfg: LoyaltyConfig) {
+  await db.tenant.update({
+    where: { id: tenantId },
+    data: { pointValue: cfg.pointValue, pointMinRedeem: cfg.minRedeem },
+  });
+}
+
 export function listPointEntries(tenantId: string, customerId: string, limit = 50) {
   return db.pointEntry.findMany({
     where: { tenantId, customerId },

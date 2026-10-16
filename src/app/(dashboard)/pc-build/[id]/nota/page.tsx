@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { getBuildForNota } from "@/server/pcbuild/service";
 import { getReceiptStoreInfo } from "@/server/users/service";
+import { customerLoyaltyLines } from "@/server/customers/service";
 import { Card } from "@/components/ui/card";
 import { BUILD_STATUS_META } from "../../build-status";
 import { PcBuildNotaView } from "./pc-build-nota-view";
@@ -23,6 +24,7 @@ export default async function PcBuildNotaPage({ params }: { params: Promise<{ id
   ]);
   if (!result) notFound();
   const { build, customerPhone } = result;
+  const loyaltyLines = await customerLoyaltyLines(user.tenantId, build.customerId);
 
   return (
     <div className="py-4">
@@ -46,6 +48,7 @@ export default async function PcBuildNotaPage({ params }: { params: Promise<{ id
           // tersimpan > gross (mis. komponen dikurangi setelah diskon diisi).
           subtotal: build.componentsCost + build.buildFee,
           total: build.total,
+          loyaltyLines,
         }}
       />
     </div>

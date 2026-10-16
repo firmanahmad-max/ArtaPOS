@@ -9,6 +9,7 @@ import { formatRupiah } from "@/lib/utils";
 import { buildServiceNotaText, waLink } from "@/lib/whatsapp";
 import { buildTrackUrl, type TrackExtras } from "@/lib/track-link";
 import { shareNodeAsImage } from "@/lib/share-image";
+import { LoyaltyNoteBlock } from "@/components/loyalty/loyalty-note-block";
 
 export interface NotaItem {
   name: string;
@@ -40,6 +41,8 @@ export interface ServiceNotaData {
   total: number;
   paid: number;
   paymentMethod: string | null;
+  /** Saldo poin pelanggan terdaftar (kosong = tanpa pelanggan/program nonaktif). */
+  loyaltyLines?: string[];
 }
 
 const METHOD_LABEL: Record<string, string> = {
@@ -101,6 +104,7 @@ export function ServiceNotaView({
       paymentMethodLabel: methodLabel ?? undefined,
       trackUrl,
       trackExtras: track,
+      loyaltyLines: data.loyaltyLines,
     });
     window.open(waLink(text, data.customerPhone ?? undefined), "_blank", "noopener,noreferrer");
   }
@@ -186,6 +190,8 @@ export function ServiceNotaView({
           <div className="flex justify-between"><span>Dibayar{methodLabel ? ` (${methodLabel})` : ""}</span><span>{formatRupiah(data.paid)}</span></div>
           <div className="flex justify-between font-semibold"><span>Sisa</span><span>{formatRupiah(outstanding)}</span></div>
         </div>
+
+        <LoyaltyNoteBlock lines={data.loyaltyLines ?? []} />
 
         <div className="my-2 border-t border-dashed" />
         <p className="whitespace-pre-line text-center text-[10px]">

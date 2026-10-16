@@ -28,6 +28,8 @@ export const saleSchema = z
   // Biaya lain/jasa (mis. jasa setup/instal aplikasi) — menambah total, tanpa HPP.
   serviceFee: z.number().int().min(0).default(0),
   serviceFeeLabel: z.string().max(60).optional(),
+  // Tukar poin loyalitas sebagai potongan (wajib pelanggan terdaftar; nilai dari DB).
+  redeemPoints: z.number().int().min(0).max(100_000_000).default(0),
   paymentMethod: z.enum(["CASH", "TRANSFER", "QRIS", "CREDIT"]).default("CASH"),
   paid: z.number().int().min(0).default(0),
   dueDate: z.string().min(1).optional().nullable(),

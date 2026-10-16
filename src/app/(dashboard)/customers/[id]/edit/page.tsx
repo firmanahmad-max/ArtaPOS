@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getAuthContext } from "@/lib/auth/guard";
-import { getCustomer, listPointEntries } from "@/server/customers/service";
+import { getCustomer, getLoyaltyConfig, listPointEntries } from "@/server/customers/service";
 import { updateCustomerAction } from "@/server/customers/actions";
 import { buttonVariants } from "@/components/ui/button";
 import { ContactForm } from "@/components/contacts/contact-form";
@@ -20,7 +20,7 @@ export default async function EditCustomerPage({
   const { tenantId } = await getAuthContext();
   const customer = await getCustomer(tenantId, id);
   if (!customer) notFound();
-  const entries = await listPointEntries(tenantId, id);
+  const [entries, loyalty] = await Promise.all([listPointEntries(tenantId, id), getLoyaltyConfig(tenantId)]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -43,6 +43,7 @@ export default async function EditCustomerPage({
       <PointsManager
         customerId={customer.id}
         balance={customer.points}
+        loyalty={loyalty}
         entries={entries.map((e) => ({
           id: e.id,
           points: e.points,

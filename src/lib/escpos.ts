@@ -29,10 +29,15 @@ export interface EscposReceipt {
   discount: number;
   serviceFee?: number;
   serviceFeeLabel?: string | null;
+  /** Potongan dari tukar poin loyalitas. */
+  pointsRedeemed?: number;
+  pointsDiscount?: number;
   total: number;
   methodLabel: string;
   paid: number;
   change: number;
+  /** Info poin pelanggan (didapat/saldo/ajakan) — lihat loyaltyNoteLines. */
+  loyaltyLines?: string[];
   footer?: string;
 }
 
@@ -147,10 +152,16 @@ export function buildReceiptEscpos(r: EscposReceipt, width = 32): Uint8Array {
   if (r.discount > 0) b.leftRight("Diskon", "-" + rupiah(r.discount));
   if (r.serviceFee && r.serviceFee > 0)
     b.leftRight(r.serviceFeeLabel || "Biaya lain/jasa", "+" + rupiah(r.serviceFee));
+  if (r.pointsDiscount && r.pointsDiscount > 0)
+    b.leftRight(`Tukar poin (${r.pointsRedeemed ?? 0})`, "-" + rupiah(r.pointsDiscount));
   b.bold(true).double(true).leftRight("TOTAL", rupiah(r.total)).double(false).bold(false);
   b.leftRight(`Bayar (${r.methodLabel})`, rupiah(r.paid));
   b.leftRight("Kembali", rupiah(r.change));
   b.line();
+  if (r.loyaltyLines && r.loyaltyLines.length > 0) {
+    for (const ln of r.loyaltyLines) b.text(ln).newline();
+    b.line();
+  }
 
   b.align("center").text(r.footer || "Terima kasih").newline();
   b.feedCut();

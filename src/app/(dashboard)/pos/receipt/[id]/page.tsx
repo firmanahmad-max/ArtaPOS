@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { getSale } from "@/server/pos/service";
 import { getReceiptStoreInfo } from "@/server/users/service";
-import { getCustomer } from "@/server/customers/service";
+import { getCustomer, getLoyaltyConfig } from "@/server/customers/service";
 import { getTrackExtras } from "@/server/public/track-info";
+import { loyaltyNoteLines } from "@/lib/loyalty";
 import { ReceiptView } from "./receipt-view";
 
 export const metadata: Metadata = { title: "Struk" };
@@ -16,10 +17,11 @@ export default async function ReceiptPage({
 }) {
   const { id } = await params;
   const user = await getCurrentUser();
-  const [sale, store, track] = await Promise.all([
+  const [sale, store, track, loyalty] = await Promise.all([
     getSale(user.tenantId, id),
     getReceiptStoreInfo(user.tenantId),
     getTrackExtras(user.tenantId),
+    getLoyaltyConfig(user.tenantId),
   ]);
   if (!sale) notFound();
 
@@ -46,6 +48,15 @@ export default async function ReceiptPage({
           discount: sale.discount,
           serviceFee: sale.serviceFee,
           serviceFeeLabel: sale.serviceFeeLabel,
+          pointsRedeemed: sale.pointsRedeemed,
+          pointsDiscount: sale.pointsDiscount,
+          // Info poin (didapat/saldo/ajakan) — hanya untuk pelanggan terdaftar.
+          loyaltyLines: sale.customerId
+            ? loyaltyNoteLines(
+                { earned: sale.pointsEarned, redeemed: sale.pointsRedeemed, balance: sale.pointsBalance },
+                loyalty,
+              )
+            : [],
           total: sale.total,
           paymentMethod: sale.paymentMethod,
           paid: sale.paid,

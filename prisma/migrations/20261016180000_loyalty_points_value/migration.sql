@@ -1,0 +1,10 @@
+-- AlterTable
+ALTER TABLE "sales" ADD COLUMN     "pointsBalance" INTEGER,
+ADD COLUMN     "pointsDiscount" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "pointsEarned" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "pointsRedeemed" INTEGER NOT NULL DEFAULT 0;
+
+-- AlterTable
+ALTER TABLE "tenants" ADD COLUMN     "pointMinRedeem" INTEGER NOT NULL DEFAULT 100,
+ADD COLUMN     "pointValue" INTEGER NOT NULL DEFAULT 10;
+

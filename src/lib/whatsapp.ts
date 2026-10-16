@@ -104,6 +104,8 @@ export function buildServiceNotaText(n: {
   paymentMethodLabel?: string;
   trackUrl?: string;
   trackExtras?: TrackExtras | null;
+  /** Info poin pelanggan (loyaltyNoteLines). */
+  loyaltyLines?: string[];
 }): string {
   const line = "────────────────";
   const rows = [
@@ -131,6 +133,10 @@ export function buildServiceNotaText(n: {
   if (n.trackUrl) {
     rows.push(line);
     pushTrackLink(rows, "Lacak status", n.trackUrl, n.trackExtras);
+  }
+  if (n.loyaltyLines && n.loyaltyLines.length > 0) {
+    rows.push(line);
+    rows.push(`⭐ ${n.loyaltyLines.join("\n")}`);
   }
   rows.push("Terima kasih 🙏");
   return rows.join("\n");
@@ -208,10 +214,14 @@ export function buildSaleReceiptText(r: {
   discount: number;
   serviceFee?: number;
   serviceFeeLabel?: string | null;
+  pointsRedeemed?: number;
+  pointsDiscount?: number;
   total: number;
   methodLabel: string;
   paid: number;
   change: number;
+  /** Info poin pelanggan (loyaltyNoteLines). */
+  loyaltyLines?: string[];
   footer?: string;
   /** Tautan Galeri Publik toko (hanya bila ada pajangan aktif). */
   galleryUrl?: string | null;
@@ -229,10 +239,16 @@ export function buildSaleReceiptText(r: {
   if (r.discount > 0) rows.push(`Diskon: -${formatRupiah(r.discount)}`);
   if (r.serviceFee && r.serviceFee > 0)
     rows.push(`${r.serviceFeeLabel || "Biaya lain/jasa"}: +${formatRupiah(r.serviceFee)}`);
+  if (r.pointsDiscount && r.pointsDiscount > 0)
+    rows.push(`Tukar poin (${r.pointsRedeemed ?? 0}): -${formatRupiah(r.pointsDiscount)}`);
   rows.push(`*TOTAL: ${formatRupiah(r.total)}*`);
   rows.push(`Bayar (${r.methodLabel}): ${formatRupiah(r.paid)}`);
   if (r.change > 0) rows.push(`Kembali: ${formatRupiah(r.change)}`);
   rows.push(line);
+  if (r.loyaltyLines && r.loyaltyLines.length > 0) {
+    rows.push(`⭐ ${r.loyaltyLines.join("\n")}`);
+    rows.push(line);
+  }
   rows.push(r.footer || "Terima kasih telah berbelanja 🙏");
   if (r.galleryUrl) rows.push(`🛍️ Lihat produk pilihan kami lainnya: ${r.galleryUrl}`);
   return rows.join("\n");
@@ -253,6 +269,8 @@ export function buildPcBuildNotaText(n: {
   subtotal?: number; // nilai kotor sebelum diskon; bila > total → baris diskon tampil
   total: number;
   footer?: string | null;
+  /** Info poin pelanggan (loyaltyNoteLines). */
+  loyaltyLines?: string[];
 }): string {
   const line = "────────────────";
   const rows = [
@@ -273,6 +291,11 @@ export function buildPcBuildNotaText(n: {
     rows.push(`Diskon: -${formatRupiah(n.subtotal - n.total)}`);
   }
   rows.push(`*TOTAL RAKITAN: ${formatRupiah(n.total)}*`);
+  if (n.loyaltyLines && n.loyaltyLines.length > 0) {
+    rows.push(line);
+    rows.push(`⭐ ${n.loyaltyLines.join("\n")}`);
+    rows.push(line);
+  }
   rows.push(n.footer || "Terima kasih 🙏");
   return rows.join("\n");
 }

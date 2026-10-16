@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Plus, Minus, Trash2, ShoppingCart, Loader2, X, Pause, RotateCcw, Cloud, CloudOff, RefreshCw, AlertTriangle, Banknote, ArrowLeftRight, QrCode, CreditCard, Delete, ChevronUp } from "lucide-react";
+import { Search, Plus, Minus, Trash2, ShoppingCart, Loader2, X, Pause, RotateCcw, Cloud, CloudOff, RefreshCw, AlertTriangle, Banknote, ArrowLeftRight, QrCode, CreditCard, Delete, ChevronUp, Star } from "lucide-react";
 import { toast } from "sonner";
 import { createSaleAction } from "@/server/pos/actions";
 import { cn, formatRupiah } from "@/lib/utils";
+import { maxRedeemablePoints, pointsWorth, type LoyaltyConfig } from "@/lib/loyalty";
 import { enqueueOutbox } from "@/lib/offline/db";
 import { effectiveCatalog } from "@/lib/offline/catalog";
 import { newOpId } from "@/lib/offline/enqueue";
@@ -35,6 +36,8 @@ export interface PosProduct {
 export interface PosCustomer {
   id: string;
   name: string;
+  /** Saldo poin loyalitas (untuk ditukar sebagai potongan). */
+  points?: number;
 }
 
 interface CartLine {
@@ -78,6 +81,7 @@ export function PosTerminal({
   customers,
   consignmentItems = [],
   usedItems = [],
+  loyalty = { pointValue: 0, minRedeem: 0 },
 }: {
   products: PosProduct[];
   customers: PosCustomer[];
@@ -85,6 +89,8 @@ export function PosTerminal({
   consignmentItems?: PosProduct[];
   /** Barang bekas yang tersedia (tak masuk cache offline). */
   usedItems?: PosProduct[];
+  /** Aturan tukar poin toko (nilai/poin & minimal). */
+  loyalty?: LoyaltyConfig;
 }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -97,6 +103,7 @@ export function PosTerminal({
   const [paid, setPaid] = useState(0);
   const [dueDate, setDueDate] = useState("");
   const [customerId, setCustomerId] = useState("");
+  const [redeemPoints, setRedeemPoints] = useState(0); // poin yang ingin ditukar
   const [error, setError] = useState<string | null>(null);
   const [pending, startCheckout] = useTransition();
   const [held, setHeld] = useState<HeldSale[]>(() => loadHeld());
@@ -144,7 +151,15 @@ export function PosTerminal({
   const lines = [...cart.values()];
   const lineNet = (l: CartLine) => Math.max(0, l.product.sellPrice * l.qty - l.discount);
   const subtotal = lines.reduce((s, l) => s + lineNet(l), 0);
-  const total = Math.max(0, subtotal - discount) + Math.max(0, serviceFee);
+  const payableBeforePoints = Math.max(0, subtotal - discount) + Math.max(0, serviceFee);
+  // Tukar poin: dibatasi saldo pelanggan & total (dihitung ulang tiap render, jadi
+  // otomatis menyesuaikan bila keranjang/pelanggan berubah). Server memvalidasi ulang.
+  const selectedCustomer = customers.find((c) => c.id === customerId);
+  const pointBalance = selectedCustomer?.points ?? 0;
+  const maxPoints = maxRedeemablePoints(pointBalance, payableBeforePoints, loyalty);
+  const usedPoints = Math.min(redeemPoints, maxPoints);
+  const pointsDiscount = usedPoints * loyalty.pointValue;
+  const total = payableBeforePoints - pointsDiscount;
   const change = Math.max(0, paid - total);
   // Barang titipan & bekas = unit tunggal → hanya bisa dijual online (cegah terjual ganda).
   const isUnit = (p: PosProduct) => !!(p.consignment || p.used);
@@ -217,6 +232,7 @@ export function PosTerminal({
     setServiceFeeLabel("");
     setPaid(0);
     setCustomerId("");
+    setRedeemPoints(0);
     setDueDate("");
     setPaymentMethod("CASH");
     setError(null);
@@ -324,12 +340,17 @@ export function PosTerminal({
       paid: effectivePaid,
       customerId: customerId || undefined,
       dueDate: isCredit && dueDate ? dueDate : undefined,
+      redeemPoints: usedPoints,
     };
 
     // Offline → langsung antre (tanpa memanggil server). Barang titipan tak boleh antre.
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       if (hasConsignment) {
         setError(CONSIGNMENT_OFFLINE);
+        return;
+      }
+      if (usedPoints > 0) {
+        setError("Tukar poin hanya bisa saat online (saldo poin harus dicek ke server).");
         return;
       }
       void queueOffline(clientOpId, payload);
@@ -351,8 +372,8 @@ export function PosTerminal({
       } catch {
         // Server tak terjangkau (jaringan putus di tengah) → simpan offline,
         // kecuali ada barang titipan (unit tunggal; harus dikonfirmasi online).
-        if (hasConsignment) {
-          const msg = "Koneksi terputus. Penjualan berisi barang titipan/bekas — coba lagi saat online.";
+        if (hasConsignment || usedPoints > 0) {
+          const msg = "Koneksi terputus. Penjualan berisi barang titipan/bekas atau tukar poin — coba lagi saat online.";
           setError(msg);
           toast.error("Checkout gagal", { description: msg });
           return;
@@ -701,18 +722,78 @@ export function PosTerminal({
               className="h-8 text-sm"
             />
           )}
+          {pointsDiscount > 0 && (
+            <div className="flex justify-between text-amber-700 dark:text-amber-300">
+              <span>Tukar poin ({usedPoints.toLocaleString("id-ID")})</span>
+              <span className="font-mono tabular-nums">-{formatRupiah(pointsDiscount)}</span>
+            </div>
+          )}
           {/* Total — blok tint violet, angka mono besar */}
           <div className="flex items-center justify-between rounded-xl bg-primary/10 px-3 py-2.5">
             <span className="text-sm font-semibold">Total</span>
             <span className="font-mono text-[22px] font-bold tabular-nums text-primary">{formatRupiah(total)}</span>
           </div>
 
-          <Select value={customerId} onChange={(e) => setCustomerId(e.target.value)} className="h-9">
+          <Select
+            value={customerId}
+            onChange={(e) => {
+              setCustomerId(e.target.value);
+              setRedeemPoints(0); // poin milik pelanggan lain tak boleh terbawa
+            }}
+            className="h-9"
+          >
             <option value="">Pelanggan: Umum</option>
             {customers.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+              <option key={c.id} value={c.id}>
+                {c.name}
+                {c.points ? ` · ${c.points.toLocaleString("id-ID")} poin` : ""}
+              </option>
             ))}
           </Select>
+
+          {/* Poin loyalitas pelanggan terpilih: saldo, nilai & tukar sebagai potongan */}
+          {selectedCustomer && loyalty.pointValue > 0 && (
+            <div className="space-y-1.5 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs">
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5">
+                  <Star className="size-3.5 fill-amber-400 text-amber-500" />
+                  <span className="font-mono font-semibold tabular-nums">{pointBalance.toLocaleString("id-ID")}</span> poin
+                  <span className="text-muted-foreground">
+                    · senilai {formatRupiah(pointsWorth(pointBalance, loyalty))}
+                  </span>
+                </span>
+                {maxPoints > 0 &&
+                  (usedPoints > 0 ? (
+                    <button type="button" onClick={() => setRedeemPoints(0)} className="font-medium text-muted-foreground hover:underline">
+                      Batal tukar
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => setRedeemPoints(maxPoints)} className="font-semibold text-amber-700 hover:underline dark:text-amber-300">
+                      Pakai poin
+                    </button>
+                  ))}
+              </div>
+              {usedPoints > 0 && (
+                <div className="flex items-center gap-2">
+                  <Input
+                    inputMode="numeric"
+                    aria-label="Poin yang ditukar"
+                    value={String(redeemPoints)}
+                    onChange={(e) => setRedeemPoints(Number(e.target.value.replace(/[^0-9]/g, "")) || 0)}
+                    className="h-7 w-24 text-xs"
+                  />
+                  <span className="text-muted-foreground">
+                    dari maks. {maxPoints.toLocaleString("id-ID")} → potongan {formatRupiah(pointsDiscount)}
+                  </span>
+                </div>
+              )}
+              {maxPoints === 0 && pointBalance < loyalty.minRedeem && (
+                <p className="text-muted-foreground">
+                  Bisa ditukar mulai {loyalty.minRedeem.toLocaleString("id-ID")} poin.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Metode bayar — tombol besar (ganti dropdown, hemat satu interaksi) */}
           <div className="grid grid-cols-4 gap-1.5">

@@ -134,6 +134,12 @@ export default async function SaleDetailPage({
               <span>+{formatRupiah(sale.serviceFee)}</span>
             </div>
           )}
+          {sale.pointsDiscount > 0 && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Tukar poin ({sale.pointsRedeemed.toLocaleString("id-ID")})</span>
+              <span>-{formatRupiah(sale.pointsDiscount)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-base font-bold">
             <span>Total</span>
             <span>{formatRupiah(sale.total)}</span>
@@ -152,6 +158,12 @@ export default async function SaleDetailPage({
             <div className="flex justify-between font-medium">
               <span className="text-destructive">Sisa Piutang</span>
               <span className="text-destructive">{formatRupiah(outstanding)}</span>
+            </div>
+          )}
+          {sale.customerId && sale.pointsBalance != null && (
+            <div className="flex justify-between border-t pt-2 text-xs text-muted-foreground">
+              <span>Poin member: +{sale.pointsEarned.toLocaleString("id-ID")} didapat</span>
+              <span>saldo setelah transaksi {sale.pointsBalance.toLocaleString("id-ID")}</span>
             </div>
           )}
         </CardContent>

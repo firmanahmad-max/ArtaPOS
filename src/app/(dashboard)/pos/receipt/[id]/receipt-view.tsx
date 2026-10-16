@@ -12,6 +12,7 @@ import { imageToEscposRaster } from "@/lib/escpos-image";
 import { printViaBluetooth } from "@/lib/bluetooth-printer";
 import { shareNodeAsImage } from "@/lib/share-image";
 import { buildGalleryUrl } from "@/lib/track-link";
+import { LoyaltyNoteBlock } from "@/components/loyalty/loyalty-note-block";
 
 export interface ReceiptItem {
   productName: string;
@@ -36,6 +37,10 @@ export interface ReceiptData {
   discount: number;
   serviceFee: number;
   serviceFeeLabel?: string | null;
+  pointsRedeemed: number;
+  pointsDiscount: number;
+  /** Info poin pelanggan untuk nota (kosong = tanpa pelanggan terdaftar). */
+  loyaltyLines: string[];
   total: number;
   paymentMethod: string;
   paid: number;
@@ -106,10 +111,13 @@ export function ReceiptView({ data }: { data: ReceiptData }) {
         discount: data.discount,
         serviceFee: data.serviceFee,
         serviceFeeLabel: data.serviceFeeLabel,
+        pointsRedeemed: data.pointsRedeemed,
+        pointsDiscount: data.pointsDiscount,
         total: data.total,
         methodLabel: METHOD[data.paymentMethod] ?? data.paymentMethod,
         paid: data.paid,
         change: data.change,
+        loyaltyLines: data.loyaltyLines,
         footer: data.receiptFooter || "Terima kasih telah berbelanja",
       });
       await printViaBluetooth(buffer);
@@ -137,10 +145,13 @@ export function ReceiptView({ data }: { data: ReceiptData }) {
       discount: data.discount,
       serviceFee: data.serviceFee,
       serviceFeeLabel: data.serviceFeeLabel,
+      pointsRedeemed: data.pointsRedeemed,
+      pointsDiscount: data.pointsDiscount,
       total: data.total,
       methodLabel: METHOD[data.paymentMethod] ?? data.paymentMethod,
       paid: data.paid,
       change: data.change,
+      loyaltyLines: data.loyaltyLines,
       footer: data.receiptFooter || undefined,
       galleryUrl: galleryUrl(),
     });
@@ -204,10 +215,14 @@ export function ReceiptView({ data }: { data: ReceiptData }) {
           {data.serviceFee > 0 && (
             <div className="flex justify-between"><span>{data.serviceFeeLabel || "Biaya lain/jasa"}</span><span>+{formatRupiah(data.serviceFee)}</span></div>
           )}
+          {data.pointsDiscount > 0 && (
+            <div className="flex justify-between"><span>Tukar poin ({data.pointsRedeemed})</span><span>-{formatRupiah(data.pointsDiscount)}</span></div>
+          )}
           <div className="flex justify-between text-sm font-bold"><span>TOTAL</span><span>{formatRupiah(data.total)}</span></div>
           <div className="flex justify-between"><span>Bayar ({METHOD[data.paymentMethod] ?? data.paymentMethod})</span><span>{formatRupiah(data.paid)}</span></div>
           <div className="flex justify-between"><span>Kembali</span><span>{formatRupiah(data.change)}</span></div>
         </div>
+        <LoyaltyNoteBlock lines={data.loyaltyLines} />
         <div className="my-2 border-t border-dashed" />
         <p className="whitespace-pre-line text-center text-[10px]">
           {data.receiptFooter || "Terima kasih telah berbelanja 🙏"}

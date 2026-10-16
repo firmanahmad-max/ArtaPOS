@@ -5,6 +5,7 @@ import { can } from "@/lib/rbac";
 import { getTicket } from "@/server/service-jobs/service";
 import { getReceiptStoreInfo } from "@/server/users/service";
 import { getTrackExtras } from "@/server/public/track-info";
+import { customerLoyaltyLines } from "@/server/customers/service";
 import { Card } from "@/components/ui/card";
 import { SERVICE_STATUS_META } from "../../status-config";
 import { ServiceNotaView } from "./service-nota-view";
@@ -28,6 +29,7 @@ export default async function ServiceNotaPage({
     getTrackExtras(user.tenantId),
   ]);
   if (!ticket) notFound();
+  const loyaltyLines = await customerLoyaltyLines(user.tenantId, ticket.customerId);
 
   return (
     <div className="py-4">
@@ -65,6 +67,7 @@ export default async function ServiceNotaPage({
           total: ticket.total,
           paid: ticket.paid,
           paymentMethod: ticket.paymentMethod,
+          loyaltyLines,
         }}
       />
     </div>

@@ -4,6 +4,9 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Coins } from "lucide-react";
 import { adjustPointsAction } from "@/server/customers/actions";
+import { pointsWorth, redeemHint, type LoyaltyConfig } from "@/lib/loyalty";
+import { formatRupiah } from "@/lib/utils";
+import { formatLocalDate } from "@/lib/timezone";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -18,15 +21,18 @@ export interface PointEntryView {
 }
 
 const TYPE_LABEL: Record<string, string> = { EARN: "Belanja", REDEEM: "Tukar", ADJUST: "Penyesuaian" };
+const typeLabel = (e: PointEntryView) => (e.type === "REDEEM" && e.points > 0 ? "Pengembalian" : TYPE_LABEL[e.type] ?? e.type);
 
 export function PointsManager({
   customerId,
   balance,
   entries,
+  loyalty,
 }: {
   customerId: string;
   balance: number;
   entries: PointEntryView[];
+  loyalty: LoyaltyConfig;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -54,14 +60,20 @@ export function PointsManager({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><Coins className="size-5 text-amber-500" /> Poin Loyalitas</CardTitle>
-        <CardDescription>Saldo poin: <span className="text-lg font-bold text-foreground">{balance}</span></CardDescription>
+        <CardDescription>
+          Saldo poin: <span className="text-lg font-bold text-foreground">{balance.toLocaleString("id-ID")}</span>
+          {loyalty.pointValue > 0 && (
+            <> · senilai <span className="font-semibold text-foreground">{formatRupiah(pointsWorth(balance, loyalty))}</span> potongan di kasir</>
+          )}
+        </CardDescription>
+        {redeemHint(balance, loyalty) && <p className="text-xs text-muted-foreground">{redeemHint(balance, loyalty)}</p>}
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
           <div className="flex flex-col gap-1">
             <label className="text-xs text-muted-foreground">Aksi</label>
             <Select value={type} onChange={(e) => setType(e.target.value as "REDEEM" | "ADJUST")} className="h-9 sm:w-40">
-              <option value="REDEEM">Tukar Poin</option>
+              <option value="REDEEM">Tukar Poin (hadiah/manual)</option>
               <option value="ADJUST">Tambah/Sesuaikan</option>
             </Select>
           </div>
@@ -90,8 +102,8 @@ export function PointsManager({
               <tbody>
                 {entries.map((e) => (
                   <tr key={e.id} className="border-b last:border-0">
-                    <td className="p-2 text-muted-foreground">{new Date(e.createdAt).toLocaleDateString("id-ID", { dateStyle: "short" })}</td>
-                    <td className="p-2">{TYPE_LABEL[e.type] ?? e.type}</td>
+                    <td className="p-2 text-muted-foreground">{formatLocalDate(e.createdAt, { dateStyle: "short" })}</td>
+                    <td className="p-2">{typeLabel(e)}</td>
                     <td className="p-2 text-muted-foreground">{e.note || "—"}</td>
                     <td className={`p-2 text-right font-medium ${e.points >= 0 ? "text-success" : "text-destructive"}`}>
                       {e.points >= 0 ? "+" : ""}{e.points}

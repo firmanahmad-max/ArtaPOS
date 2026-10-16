@@ -98,6 +98,11 @@ export async function POST(req: Request) {
       results.push({ clientOpId, type, ok: false, status: "error", message: "Barang titipan tidak bisa dijual offline." });
       continue;
     }
+    // Tukar poin bergantung saldo terkini → hanya online (antrean bisa memakai poin ganda).
+    if (type === "sale" && ((data as z.infer<typeof saleSchema>).redeemPoints ?? 0) > 0) {
+      results.push({ clientOpId, type, ok: false, status: "error", message: "Tukar poin tidak bisa dilakukan offline." });
+      continue;
+    }
     // Barang bekas juga unit tunggal → sama: hanya online.
     if (type === "sale" && ((data as z.infer<typeof saleSchema>).usedItems?.length ?? 0) > 0) {
       results.push({ clientOpId, type, ok: false, status: "error", message: "Barang bekas tidak bisa dijual offline." });

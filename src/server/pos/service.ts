@@ -6,6 +6,7 @@ import { nextDocNumber } from "@/server/shared/numbering";
 import type { SaleInput } from "@/lib/validations/pos";
 import { splitConsignment } from "@/lib/consignment-calc";
 import { usedSaleName } from "@/lib/used-item";
+import { pointsEarnedFor, resolveRedemption } from "@/lib/loyalty";
 
 /** Service POS — checkout transaksional, ter-scope tenantId. */
 
@@ -90,7 +91,9 @@ async function reversePoints(
 ) {
   if (!customerId) return;
   const agg = await tx.pointEntry.aggregate({
-    where: { tenantId, saleId },
+    // Hanya poin yang DIDAPAT (EARN) & penarikannya (ADJUST). Poin yang DITUKAR (REDEEM)
+    // dikembalikan terpisah lewat refundRedeemedPoints.
+    where: { tenantId, saleId, type: { in: ["EARN", "ADJUST"] } },
     _sum: { points: true },
   });
   const outstanding = agg._sum.points ?? 0; // EARN positif, penarikan negatif
@@ -106,6 +109,26 @@ async function reversePoints(
   await tx.pointEntry.create({
     data: { tenantId, customerId: customer.id, points: -take, type: "ADJUST", note, saleId },
   });
+}
+
+/**
+ * Kembalikan poin yang DITUKAR pada penjualan (void): saldo REDEEM bersih untuk sale
+ * ini (negatif = belum dikembalikan) dibalik penuh. Idempoten — void kedua tak berefek.
+ */
+async function refundRedeemedPoints(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  saleId: string,
+  customerId: string | null,
+  note: string,
+) {
+  if (!customerId) return;
+  const agg = await tx.pointEntry.aggregate({ where: { tenantId, saleId, type: "REDEEM" }, _sum: { points: true } });
+  const owed = -(agg._sum.points ?? 0);
+  if (owed <= 0) return;
+  const r = await tx.customer.updateMany({ where: { id: customerId, tenantId }, data: { points: { increment: owed } } });
+  if (r.count === 0) return; // pelanggan sudah dihapus
+  await tx.pointEntry.create({ data: { tenantId, customerId, points: owed, type: "REDEEM", note, saleId } });
 }
 
 /** Retur penjualan sebagian/seluruh. Mengembalikan stok + catat dokumen retur. */
@@ -312,7 +335,8 @@ export async function voidSale(tenantId: string, userId: string, saleId: string)
       });
     }
 
-    // Tarik kembali poin loyalitas yang diberikan penjualan ini.
+    // Kembalikan poin yang ditukar, lalu tarik kembali poin yang didapat dari penjualan ini.
+    await refundRedeemedPoints(tx, tenantId, sale.id, sale.customerId, `Pengembalian poin tukar (void ${sale.number})`);
     await reversePoints(tx, tenantId, sale.id, sale.customerId, `Void ${sale.number}`);
 
     // Kembalikan kuota transaksi lisensi — transaksi yang dibatalkan tidak
@@ -480,7 +504,8 @@ export async function createSale(
     // Biaya lain/jasa (mis. setup/instal) — menambah total, tanpa HPP.
     const serviceFee = Math.max(0, input.serviceFee ?? 0);
     const serviceFeeLabel = serviceFee > 0 ? input.serviceFeeLabel?.trim() || null : null;
-    const total = subtotal - discount + serviceFee;
+    // Total sebelum tukar poin (potongan poin dihitung setelah pelanggan diverifikasi).
+    let total = subtotal - discount + serviceFee;
     const isCredit = input.paymentMethod === "CREDIT";
 
     // Pelanggan (wajib untuk kredit; opsional lainnya). Scoped tenant.
@@ -498,6 +523,26 @@ export async function createSale(
     }
     if (isCredit && !customerName) {
       throw new Error("Penjualan kredit wajib memilih pelanggan terdaftar.");
+    }
+
+    // Tukar poin loyalitas → potongan. Nilai & minimal dari pengaturan toko (DB),
+    // saldo dari DB; dipotong atomik setelah penjualan dibuat.
+    let pointsRedeemed = 0;
+    let pointsDiscount = 0;
+    if ((input.redeemPoints ?? 0) > 0) {
+      if (!input.customerId) throw new Error("Tukar poin wajib memilih pelanggan terdaftar.");
+      const [t, c] = await Promise.all([
+        tx.tenant.findUnique({ where: { id: tenantId }, select: { pointValue: true, pointMinRedeem: true } }),
+        tx.customer.findFirst({ where: { id: input.customerId, tenantId }, select: { points: true } }),
+      ]);
+      const r = resolveRedemption(input.redeemPoints ?? 0, c?.points ?? 0, total, {
+        pointValue: t?.pointValue ?? 0,
+        minRedeem: t?.pointMinRedeem ?? 0,
+      });
+      if (r.error) throw new Error(r.error);
+      pointsRedeemed = r.points;
+      pointsDiscount = r.discount;
+      total -= pointsDiscount;
     }
 
     // Logika pembayaran.
@@ -539,6 +584,8 @@ export async function createSale(
         discount,
         serviceFee,
         serviceFeeLabel,
+        pointsRedeemed,
+        pointsDiscount,
         total,
         paymentMethod: input.paymentMethod,
         paymentStatus,
@@ -606,9 +653,22 @@ export async function createSale(
       data: { transactionsUsed: { increment: 1 } },
     });
 
+    // Tukar poin: potong saldo ATOMIK (hanya bila saldo masih cukup) — dua kasir yang
+    // memakai poin pelanggan yang sama bersamaan tak bisa membuat saldo negatif.
+    if (input.customerId && pointsRedeemed > 0) {
+      const used = await tx.customer.updateMany({
+        where: { id: input.customerId, tenantId, points: { gte: pointsRedeemed } },
+        data: { points: { decrement: pointsRedeemed } },
+      });
+      if (used.count !== 1) throw new Error("Saldo poin pelanggan berubah — muat ulang lalu coba lagi.");
+      await tx.pointEntry.create({
+        data: { tenantId, customerId: input.customerId, points: -pointsRedeemed, type: "REDEEM", note: `Tukar di ${number}`, saleId: sale.id },
+      });
+    }
+
     // Poin loyalitas: 1 poin per Rp 1.000 belanja (jika ada pelanggan terdaftar).
     if (input.customerId) {
-      const earned = Math.floor(total / 1000);
+      const earned = pointsEarnedFor(total);
       if (earned > 0) {
         // updateMany + tenantId = lapis kedua isolasi tenant (customerId sudah
         // diverifikasi di atas, tapi jangan bergantung pada satu penjaga saja).
@@ -620,6 +680,12 @@ export async function createSale(
           data: { tenantId, customerId: input.customerId, points: earned, type: "EARN", note: `Belanja ${number}`, saleId: sale.id },
         });
       }
+      // Snapshot poin untuk struk: didapat & saldo SETELAH transaksi.
+      const after = await tx.customer.findFirst({ where: { id: input.customerId, tenantId }, select: { points: true } });
+      await tx.sale.update({
+        where: { id: sale.id },
+        data: { pointsEarned: earned, pointsBalance: after?.points ?? null },
+      });
     }
 
       return { id: sale.id, number: sale.number, total, change, duplicate: false };

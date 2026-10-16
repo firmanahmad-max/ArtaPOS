@@ -78,3 +78,31 @@ export async function adjustPointsAction(
     return { ok: false, message: e instanceof Error ? e.message : "Gagal." };
   }
 }
+
+/** Ubah aturan tukar poin toko (nilai rupiah per poin & minimal tukar). */
+export async function updateLoyaltyConfigAction(
+  pointValue: number,
+  minRedeem: number,
+): Promise<{ ok: boolean; message?: string }> {
+  const ctx = await getAuthContext();
+  if (!can(ctx.role, "settings.manage")) return { ok: false, message: "Tidak punya izin." };
+  if (!Number.isInteger(pointValue) || pointValue < 0 || pointValue > 1000) {
+    return { ok: false, message: "Nilai poin harus 0–1.000 rupiah." };
+  }
+  if (!Number.isInteger(minRedeem) || minRedeem < 0 || minRedeem > 1_000_000) {
+    return { ok: false, message: "Minimal tukar tidak valid." };
+  }
+  try {
+    await svc.updateLoyaltyConfig(ctx.tenantId, { pointValue, minRedeem });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/column|does not exist|P2022/i.test(msg)) {
+      return { ok: false, message: "Database produksi belum dimigrasi (kolom poin belum ada)." };
+    }
+    return { ok: false, message: msg || "Gagal menyimpan." };
+  }
+  revalidatePath("/settings");
+  revalidatePath("/customers");
+  revalidatePath("/pos");
+  return { ok: true, message: "Program poin disimpan." };
+}

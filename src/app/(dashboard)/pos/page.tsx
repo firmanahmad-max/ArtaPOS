@@ -6,6 +6,7 @@ import { listCustomers } from "@/server/customers/service";
 import { listConsignmentItemsForSale } from "@/server/consignment/service";
 import { listUsedItemsForSale } from "@/server/used-items/service";
 import { gradeMeta } from "@/lib/used-item";
+import { getLoyaltyConfig } from "@/server/customers/service";
 import { Card } from "@/components/ui/card";
 import { PosTerminal } from "./pos-terminal";
 
@@ -22,11 +23,12 @@ export default async function PosPage() {
     );
   }
 
-  const [products, customers, consignmentItems, usedItems] = await Promise.all([
+  const [products, customers, consignmentItems, usedItems, loyalty] = await Promise.all([
     listProductsForSale(user.tenantId),
     listCustomers(user.tenantId),
     listConsignmentItemsForSale(user.tenantId),
     listUsedItemsForSale(user.tenantId),
+    getLoyaltyConfig(user.tenantId),
   ]);
 
   return (
@@ -43,7 +45,8 @@ export default async function PosPage() {
           minStock: p.minStock,
           unit: p.unit,
         }))}
-        customers={customers.map((c) => ({ id: c.id, name: c.name }))}
+        customers={customers.map((c) => ({ id: c.id, name: c.name, points: c.points }))}
+        loyalty={loyalty}
         consignmentItems={consignmentItems.map((ci) => ({
           // Barang titipan tampil seperti produk 1 unit; barcode = no. seri (bisa di-scan).
           id: ci.id,
