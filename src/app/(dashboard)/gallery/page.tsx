@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { listGalleryAdmin } from "@/server/gallery/service";
+import { listConsignmentItemsForSale } from "@/server/consignment/service";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { GalleryManager, type GalleryRow } from "./gallery-client";
@@ -17,7 +18,7 @@ export default async function GalleryPage() {
     return <Card className="p-8 text-center text-sm text-muted-foreground">Tidak punya izin mengelola galeri.</Card>;
   }
 
-  const [items, products, tenant] = await Promise.all([
+  const [items, products, tenant, consignmentItems] = await Promise.all([
     listGalleryAdmin(user.tenantId),
     db.product.findMany({
       where: { tenantId: user.tenantId, isActive: true },
@@ -26,6 +27,7 @@ export default async function GalleryPage() {
       take: 500,
     }),
     db.tenant.findUnique({ where: { id: user.tenantId }, select: { slug: true, phone: true } }),
+    listConsignmentItemsForSale(user.tenantId),
   ]);
 
   const publicUrl = tenant ? `/galeri/${tenant.slug}` : null;
@@ -40,6 +42,10 @@ export default async function GalleryPage() {
     isActive: i.isActive,
     views: i.views,
     clicks: i.clicks,
+    consignmentItemId: i.consignmentItemId,
+    consignmentStatus: i.consignmentItem?.status ?? null,
+    consignmentNumber: i.consignmentItem?.consignment.number ?? null,
+    consignmentId: i.consignmentItem?.consignment.id ?? null,
   }));
 
   return (
@@ -63,7 +69,19 @@ export default async function GalleryPage() {
         </Card>
       )}
 
-      <GalleryManager items={rows} products={products} />
+      <GalleryManager
+        items={rows}
+        products={products}
+        consignments={consignmentItems.map((ci) => ({
+          id: ci.id,
+          label: `${ci.category} ${ci.name}`,
+          owner: ci.consignment.customerName,
+          number: ci.consignment.number,
+          askingPrice: ci.askingPrice,
+          condition: ci.condition,
+          inGallery: !!ci.galleryItem,
+        }))}
+      />
     </div>
   );
 }

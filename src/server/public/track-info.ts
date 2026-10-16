@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { publicGalleryWhere } from "@/server/gallery/service";
 
 /**
  * Info publik untuk halaman lacak servis (/lacak). Halaman ini tanpa konteks
@@ -36,7 +37,7 @@ export async function getTrackPagePromo(): Promise<{
     // Tabel gallery_items mungkin belum ada di produksi (migrasi belum jalan) → aman.
     let hasGallery = false;
     try {
-      hasGallery = (await db.galleryItem.count({ where: { tenantId: t.id, isActive: true } })) > 0;
+      hasGallery = (await db.galleryItem.count({ where: publicGalleryWhere(t.id) })) > 0;
     } catch {
       hasGallery = false;
     }

@@ -157,6 +157,7 @@ const SECTIONS: Section[] = [
     desc: "Pajang produk/promo pilihan di halaman publik yang bisa dibagikan — pelanggan lihat foto, spesifikasi & harga, lalu klik WhatsApp bila berminat.",
     steps: [
       "Buka Inventaris → Galeri Publik → Tambah Item. Pilih produk dari katalog (judul & harga terisi otomatis) atau isi manual.",
+      "Bisa juga memajang barang Titip Jual: pilih di \"tautkan barang titipan\". Harganya mengikuti Titip Jual dan otomatis disembunyikan saat barang laku/diambil pemilik.",
       "Lengkapi foto (otomatis dikompres), spesifikasi singkat, dan label opsional (Promo/Baru/Unggulan/Diskon/Terlaris).",
       "Simpan — item aktif langsung tampil di galeri publik toko Anda. Sembunyikan/Ubah/Hapus kapan pun.",
       "Bagikan tautan galeri (/galeri/<toko>) ke WhatsApp/sosmed; tombolnya juga muncul di halaman Lacak. Pastikan No. HP toko terisi di Pengaturan agar tombol 'Chat WA' aktif.",
@@ -176,6 +177,7 @@ const SECTIONS: Section[] = [
       "Jual dari Kasir: buka tab \"Titipan\" di POS (atau scan no. seri), tambahkan ke keranjang seperti produk biasa, lalu bayar. Hanya bisa saat online.",
       "Setelah laku: komisi otomatis jadi laba toko di laporan Keuangan, sisanya tercatat sebagai Hak Pemilik (belum dibayar). Bayar ke pemilik lalu tekan \"Bayar hak pemilik\" di detail titipan.",
       "Kirim ulang tanda titip ke pemilik sebagai laporan: berisi rincian laku, komisi, hak pemilik, dan status pembayarannya.",
+      "Pajang di Galeri Publik: tekan \"Tampilkan di Galeri\" pada barang yang masih dititipkan (atau pilih barang titipan di form Galeri untuk menambahkan foto). Harga mengikuti Titip Jual, dan barang otomatis hilang dari galeri saat laku atau diambil kembali.",
       "Void/retur penjualan mengembalikan barang ke \"Dititipkan\". Bila hak pemilik sudah dibayar, batalkan pembayarannya dulu.",
     ],
     example: "Pak Fajar menitip VGA Rp 3.500.000 dengan komisi 10% → laku di kasir (diskon Rp 100.000) seharga Rp 3.400.000 → komisi toko Rp 340.000, hak Pak Fajar Rp 3.060.000 → bayar & tandai dibayar.",

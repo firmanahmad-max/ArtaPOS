@@ -739,8 +739,13 @@ model GalleryItem {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  // Opsional: tautan barang TITIPAN (titip jual). Tampil di publik hanya selama
+  // barangnya masih "Dititipkan"; laku/diambil kembali → otomatis tersembunyi.
+  consignmentItemId String? @unique
+
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product         Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
+  consignmentItem ConsignmentItem? @relation(fields: [consignmentItemId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@map("gallery_items")
@@ -803,7 +808,8 @@ model ConsignmentItem {
   saleId          String? // penjualan kasir yang menjual barang ini (null = ditandai manual)
   ownerPaidAt     DateTime? // kapan hak pemilik dibayarkan (null = belum)
 
-  consignment Consignment @relation(fields: [consignmentId], references: [id], onDelete: Cascade)
+  consignment Consignment  @relation(fields: [consignmentId], references: [id], onDelete: Cascade)
+  galleryItem GalleryItem? // dipajang di Galeri Publik (opsional)
 
   @@index([consignmentId])
   @@map("consignment_items")

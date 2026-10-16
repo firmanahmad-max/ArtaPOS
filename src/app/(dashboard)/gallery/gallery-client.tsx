@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, ImagePlus, X, Eye, EyeOff, Loader2, MessageCircle } from "lucide-react";
@@ -29,15 +30,29 @@ export interface GalleryRow {
   isActive: boolean;
   views: number;
   clicks: number;
+  consignmentItemId: string | null;
+  consignmentStatus: "AVAILABLE" | "SOLD" | "RETURNED" | null;
+  consignmentNumber: string | null;
+  consignmentId: string | null;
 }
 interface ProductOpt {
   id: string;
   name: string;
   sellPrice: number;
 }
+interface ConsignmentOpt {
+  id: string;
+  label: string;
+  owner: string;
+  number: string;
+  askingPrice: number;
+  condition: string | null;
+  inGallery: boolean;
+}
 type Form = {
   id?: string;
   productId: string;
+  consignmentItemId: string;
   title: string;
   spec: string;
   price: number;
@@ -46,7 +61,7 @@ type Form = {
   isActive: boolean;
 };
 
-const BLANK: Form = { productId: "", title: "", spec: "", price: 0, photo: null, label: "", isActive: true };
+const BLANK: Form = { productId: "", consignmentItemId: "", title: "", spec: "", price: 0, photo: null, label: "", isActive: true };
 const LABELS = ["Promo", "Baru", "Unggulan", "Diskon", "Terlaris"];
 
 function compressImage(file: File, maxDim = 1000, quality = 0.72): Promise<string> {
@@ -82,9 +97,12 @@ function compressImage(file: File, maxDim = 1000, quality = 0.72): Promise<strin
 export function GalleryManager({
   items,
   products,
+  consignments = [],
 }: {
   items: GalleryRow[];
   products: ProductOpt[];
+  /** Barang titipan yang masih dititipkan (bisa dipajang). */
+  consignments?: ConsignmentOpt[];
 }) {
   const router = useRouter();
   const [form, setForm] = useState<Form | null>(null);
@@ -101,6 +119,7 @@ export function GalleryManager({
     setForm({
       id: it.id,
       productId: it.productId ?? "",
+      consignmentItemId: it.consignmentItemId ?? "",
       title: it.title,
       spec: it.spec ?? "",
       price: it.price,
@@ -117,10 +136,28 @@ export function GalleryManager({
     const p = products.find((x) => x.id === id);
     patch({
       productId: id,
+      consignmentItemId: "", // produk & barang titipan saling eksklusif
       ...(p && !form?.title ? { title: p.name } : {}),
       ...(p && (!form?.price || form.price === 0) ? { price: p.sellPrice } : {}),
     });
   }
+
+  function onPickConsignment(id: string) {
+    const c = consignments.find((x) => x.id === id);
+    patch({
+      consignmentItemId: id,
+      productId: "",
+      ...(c ? { price: c.askingPrice } : {}), // harga selalu mengikuti harga titipan
+      ...(c && !form?.title ? { title: c.label } : {}),
+      ...(c && !form?.spec && c.condition ? { spec: c.condition } : {}),
+    });
+  }
+
+  // Opsi barang titipan: yang belum dipajang + tautan item yang sedang diedit.
+  const consignmentChoices = consignments.filter((c) => !c.inGallery || c.id === form?.consignmentItemId);
+  const editingRow = form?.id ? items.find((i) => i.id === form.id) : undefined;
+  const linkedButGone =
+    !!form?.consignmentItemId && !consignmentChoices.some((c) => c.id === form.consignmentItemId);
 
   async function onPhoto(file?: File) {
     if (!file) return;
@@ -142,6 +179,7 @@ export function GalleryManager({
     const r = await saveGalleryItemAction({
       id: form.id,
       productId: form.productId || null,
+      consignmentItemId: form.consignmentItemId || null,
       title: form.title,
       spec: form.spec || null,
       price: form.price,
@@ -240,6 +278,28 @@ export function GalleryManager({
                 </Select>
                 <p className="text-xs text-muted-foreground">Memilih produk mengisi judul &amp; harga otomatis (masih bisa diubah).</p>
               </div>
+              {(consignments.length > 0 || form.consignmentItemId) && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="g-cons">…atau tautkan barang titipan (Titip Jual)</Label>
+                  <Select id="g-cons" value={form.consignmentItemId} onChange={(e) => onPickConsignment(e.target.value)}>
+                    <option value="">— Bukan barang titipan —</option>
+                    {consignmentChoices.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.label} · {formatRupiah(c.askingPrice)} · {c.owner} ({c.number})
+                      </option>
+                    ))}
+                    {linkedButGone && (
+                      <option value={form.consignmentItemId}>
+                        Barang titipan {editingRow?.consignmentNumber ?? ""} (sudah tidak dititipkan)
+                      </option>
+                    )}
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Tampil di galeri publik selama barang masih dititipkan — otomatis hilang saat laku atau diambil kembali.
+                    Harga mengikuti harga di Titip Jual.
+                  </p>
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label htmlFor="g-title">Judul</Label>
                 <Input id="g-title" value={form.title} onChange={(e) => patch({ title: e.target.value })} placeholder="mis. Laptop Asus VivoBook 14" />
@@ -253,7 +313,12 @@ export function GalleryManager({
                     value={form.price ? String(form.price) : ""}
                     onChange={(e) => patch({ price: Number(e.target.value.replace(/[^0-9]/g, "")) || 0 })}
                     placeholder="0 = Hubungi"
+                    disabled={!!form.consignmentItemId}
+                    title={form.consignmentItemId ? "Ubah harga lewat menu Titip Jual" : undefined}
                   />
+                  {form.consignmentItemId && (
+                    <p className="text-xs text-muted-foreground">Ubah harga lewat menu Titip Jual.</p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="g-label">Label/Badge</Label>
@@ -328,8 +393,11 @@ export function GalleryManager({
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((it) => (
-            <Card key={it.id} className={cn("flex flex-col overflow-hidden", !it.isActive && "opacity-60")}>
+          {items.map((it) => {
+            // Barang titipan yang laku/diambil kembali → tersembunyi otomatis dari publik.
+            const consignmentGone = !!it.consignmentItemId && it.consignmentStatus !== "AVAILABLE";
+            return (
+            <Card key={it.id} className={cn("flex flex-col overflow-hidden", (!it.isActive || consignmentGone) && "opacity-60")}>
               <div className="relative aspect-video bg-muted/40">
                 {it.photo ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -339,9 +407,22 @@ export function GalleryManager({
                 )}
                 {it.label && <Badge className="absolute left-2 top-2 gradient-brand text-primary-foreground">{it.label}</Badge>}
                 {!it.isActive && <span className="absolute right-2 top-2 rounded-full bg-background/90 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">Nonaktif</span>}
+                {consignmentGone && (
+                  <span className="absolute inset-x-2 bottom-2 rounded-md bg-background/90 px-2 py-1 text-center text-[11px] font-medium">
+                    {it.consignmentStatus === "SOLD" ? "Sudah laku" : "Diambil pemilik"} — otomatis disembunyikan
+                  </span>
+                )}
               </div>
               <div className="flex flex-1 flex-col gap-1 p-3">
                 <p className="line-clamp-1 font-semibold">{it.title}</p>
+                {it.consignmentItemId && it.consignmentId && (
+                  <Link
+                    href={`/consignments/${it.consignmentId}`}
+                    className="w-fit rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-semibold text-amber-700 hover:underline dark:text-amber-300"
+                  >
+                    Titipan {it.consignmentNumber}
+                  </Link>
+                )}
                 {it.spec && <p className="line-clamp-2 text-xs text-muted-foreground">{it.spec}</p>}
                 <p className="mt-1 font-mono font-bold tabular-nums text-primary">
                   {it.price > 0 ? formatRupiah(it.price) : "Hubungi"}
@@ -370,7 +451,8 @@ export function GalleryManager({
                 </div>
               </div>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

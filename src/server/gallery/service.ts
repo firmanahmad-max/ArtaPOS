@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 
 export interface GalleryInput {
   productId?: string | null;
+  /** Tautan barang titipan (titip jual) — saling eksklusif dengan productId. */
+  consignmentItemId?: string | null;
   title: string;
   spec?: string | null;
   price: number;
@@ -24,17 +26,33 @@ function cleanPhoto(photo: string | null | undefined): string | null {
   return photo;
 }
 
+/**
+ * Aturan TAMPIL di publik: aktif DAN (bukan barang titipan ATAU titipannya masih
+ * "Dititipkan"). Barang titipan yang laku/diambil kembali otomatis tersembunyi
+ * tanpa perlu diubah manual. Dipakai halaman publik, insight & tautan /lacak.
+ */
+export function publicGalleryWhere(tenantId: string) {
+  return {
+    tenantId,
+    isActive: true,
+    OR: [{ consignmentItemId: null }, { consignmentItem: { status: "AVAILABLE" as const } }],
+  };
+}
+
 export function listGalleryAdmin(tenantId: string) {
   return db.galleryItem.findMany({
     where: { tenantId },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+    include: {
+      consignmentItem: { select: { status: true, consignment: { select: { id: true, number: true } } } },
+    },
   });
 }
 
 /** Item aktif untuk halaman publik (tanpa field berat yang tak perlu). */
 export function listGalleryPublic(tenantId: string) {
   return db.galleryItem.findMany({
-    where: { tenantId, isActive: true },
+    where: publicGalleryWhere(tenantId),
     orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
     select: { id: true, title: true, spec: true, price: true, photo: true, label: true },
     // Batasi agar halaman publik (foto data URL) tak membengkak tak terbatas.
@@ -48,7 +66,7 @@ export function listGalleryPublic(tenantId: string) {
  */
 export function topGalleryItems(tenantId: string, limit = 3) {
   return db.galleryItem.findMany({
-    where: { tenantId, isActive: true, OR: [{ clicks: { gt: 0 } }, { views: { gt: 0 } }] },
+    where: { AND: [publicGalleryWhere(tenantId), { OR: [{ clicks: { gt: 0 } }, { views: { gt: 0 } }] }] },
     orderBy: [{ clicks: "desc" }, { views: "desc" }],
     select: { id: true, title: true, clicks: true, views: true },
     take: limit,
@@ -63,9 +81,18 @@ export function getGalleryStoreBySlug(slug: string) {
   });
 }
 
-async function resolveDefaults(tenantId: string, input: GalleryInput) {
+/**
+ * Validasi tautan & isi default. Barang titipan: harga SELALU mengikuti harga
+ * diinginkan di Titip Jual (disinkron saat harga titipan diubah). `keepLinkedId`
+ * = tautan lama item yang sedang diedit — boleh dipertahankan walau sudah laku
+ * (mis. hanya mengganti foto); tautan BARU wajib barang yang masih dititipkan.
+ */
+async function resolveDefaults(tenantId: string, input: GalleryInput, keepLinkedId?: string | null) {
   let title = input.title?.trim() || "";
   let price = input.price;
+  if (input.productId && input.consignmentItemId) {
+    throw new Error("Pilih salah satu: produk atau barang titipan.");
+  }
   if (input.productId) {
     const p = await db.product.findFirst({
       where: { id: input.productId, tenantId },
@@ -75,44 +102,92 @@ async function resolveDefaults(tenantId: string, input: GalleryInput) {
     if (!title) title = p.name;
     if (price == null) price = p.sellPrice;
   }
+  if (input.consignmentItemId) {
+    const ci = await db.consignmentItem.findFirst({
+      where: { id: input.consignmentItemId, consignment: { tenantId } },
+      select: { category: true, name: true, askingPrice: true, status: true },
+    });
+    if (!ci) throw new Error("Barang titipan tidak ditemukan.");
+    if (ci.status !== "AVAILABLE" && input.consignmentItemId !== keepLinkedId) {
+      throw new Error("Barang titipan ini sudah tidak dititipkan (laku/diambil kembali).");
+    }
+    if (!title) title = `${ci.category} ${ci.name}`;
+    price = ci.askingPrice;
+  }
   if (!title) throw new Error("Judul wajib diisi.");
   return { title, price: Math.max(0, Math.round(price || 0)) };
+}
+
+/** Pesan ramah untuk tautan ganda (consignmentItemId unik). */
+function friendlyGalleryError(e: unknown): never {
+  if ((e as { code?: string })?.code === "P2002") throw new Error("Barang titipan ini sudah ada di Galeri.");
+  throw e;
 }
 
 export async function createGalleryItem(tenantId: string, userId: string, input: GalleryInput) {
   const { title, price } = await resolveDefaults(tenantId, input);
   const photo = cleanPhoto(input.photo);
-  return db.galleryItem.create({
-    data: {
-      tenantId,
-      productId: input.productId || null,
-      title,
-      spec: input.spec?.trim() || null,
-      price,
-      photo,
-      label: input.label?.trim() || null,
-      isActive: input.isActive ?? true,
-      createdById: userId,
-    },
-  });
+  return db.galleryItem
+    .create({
+      data: {
+        tenantId,
+        productId: input.productId || null,
+        consignmentItemId: input.consignmentItemId || null,
+        title,
+        spec: input.spec?.trim() || null,
+        price,
+        photo,
+        label: input.label?.trim() || null,
+        isActive: input.isActive ?? true,
+        createdById: userId,
+      },
+    })
+    .catch(friendlyGalleryError);
 }
 
 export async function updateGalleryItem(tenantId: string, id: string, input: GalleryInput) {
-  const existing = await db.galleryItem.findFirst({ where: { id, tenantId }, select: { id: true } });
+  const existing = await db.galleryItem.findFirst({
+    where: { id, tenantId },
+    select: { id: true, consignmentItemId: true },
+  });
   if (!existing) throw new Error("Item galeri tidak ditemukan.");
-  const { title, price } = await resolveDefaults(tenantId, input);
-  return db.galleryItem.update({
-    where: { id },
-    data: {
-      productId: input.productId || null,
-      title,
-      spec: input.spec?.trim() || null,
-      price,
-      // photo: undefined = biarkan, null/string = ganti.
-      photo: input.photo === undefined ? undefined : cleanPhoto(input.photo),
-      label: input.label?.trim() || null,
-      isActive: input.isActive ?? true,
-    },
+  const { title, price } = await resolveDefaults(tenantId, input, existing.consignmentItemId);
+  return db.galleryItem
+    .update({
+      where: { id },
+      data: {
+        productId: input.productId || null,
+        consignmentItemId: input.consignmentItemId || null,
+        title,
+        spec: input.spec?.trim() || null,
+        price,
+        // photo: undefined = biarkan, null/string = ganti.
+        photo: input.photo === undefined ? undefined : cleanPhoto(input.photo),
+        label: input.label?.trim() || null,
+        isActive: input.isActive ?? true,
+      },
+    })
+    .catch(friendlyGalleryError);
+}
+
+/**
+ * Pajang satu barang titipan di Galeri (dari halaman Titip Jual). Judul, harga &
+ * deskripsi (kondisi) terisi otomatis; foto bisa ditambahkan kemudian di Galeri.
+ */
+export async function addConsignmentToGallery(tenantId: string, userId: string, consignmentItemId: string) {
+  const ci = await db.consignmentItem.findFirst({
+    where: { id: consignmentItemId, consignment: { tenantId } },
+    select: { condition: true },
+  });
+  if (!ci) throw new Error("Barang titipan tidak ditemukan.");
+  return createGalleryItem(tenantId, userId, {
+    consignmentItemId,
+    title: "",
+    spec: ci.condition,
+    price: 0,
+    photo: null,
+    label: null,
+    isActive: true,
   });
 }
 

@@ -22,6 +22,7 @@ function refresh(id?: string) {
   if (id) revalidatePath(`/consignments/${id}`);
   revalidatePath("/consignments");
   revalidatePath("/pos");
+  revalidatePath("/gallery"); // barang titipan yang dipajang ikut berubah (harga/visibilitas)
 }
 
 const fail = (e: unknown, fallback: string): Result => ({

@@ -84,6 +84,7 @@ export default async function ConsignmentDetailPage({ params }: { params: Promis
             saleId: i.saleId,
             saleNumber: i.saleId ? (saleNumbers.get(i.saleId) ?? null) : null,
             ownerPaidAtText: i.ownerPaidAt ? formatLocalDateTime(i.ownerPaidAt, { dateStyle: "medium" }) : null,
+            gallery: i.galleryItem ? { active: i.galleryItem.isActive } : null,
           };
         })}
       />

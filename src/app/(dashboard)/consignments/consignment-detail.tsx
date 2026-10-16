@@ -4,7 +4,8 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { BadgeCheck, Undo2, PackageX, Pencil, Check, X, Trash2, Wallet, Receipt } from "lucide-react";
+import { BadgeCheck, Undo2, PackageX, Pencil, Check, X, Trash2, Wallet, Receipt, Images } from "lucide-react";
+import { addConsignmentToGalleryAction } from "@/server/gallery/actions";
 import {
   setConsignmentItemStatusAction,
   updateConsignmentItemTermsAction,
@@ -39,6 +40,8 @@ export interface DetailItem {
   saleId: string | null;
   saleNumber: string | null;
   ownerPaidAtText: string | null;
+  /** Dipajang di Galeri Publik? (null = belum). */
+  gallery: { active: boolean } | null;
 }
 
 type Editing =
@@ -213,11 +216,34 @@ export function ConsignmentDetail({
                       >
                         <PackageX className="size-3.5" /> Diambil kembali
                       </Button>
+                      {it.gallery ? (
+                        <Link
+                          href="/gallery"
+                          className="inline-flex items-center gap-1 self-center px-2 text-xs font-medium text-success hover:underline"
+                        >
+                          <Images className="size-3.5" /> {it.gallery.active ? "Tampil di Galeri" : "Di Galeri (disembunyikan)"}
+                        </Link>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={pending}
+                          onClick={() => run(() => addConsignmentToGalleryAction(it.id))}
+                        >
+                          <Images className="size-3.5" /> Tampilkan di Galeri
+                        </Button>
+                      )}
                     </>
                   )}
                   {it.status === "SOLD" && it.saleId && (
                     <p className="text-xs text-muted-foreground">
                       Terjual lewat kasir — untuk membatalkan, lakukan void/retur pada penjualannya.
+                    </p>
+                  )}
+                  {it.status !== "AVAILABLE" && it.gallery && (
+                    <p className="w-full text-xs text-muted-foreground">
+                      <Images className="mr-1 inline size-3.5" />
+                      Otomatis disembunyikan dari Galeri Publik.
                     </p>
                   )}
                   {((it.status === "SOLD" && !it.saleId && !it.ownerPaidAtText) || it.status === "RETURNED") && (

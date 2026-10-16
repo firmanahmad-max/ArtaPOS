@@ -43,7 +43,7 @@ export function listConsignments(tenantId: string) {
 export function getConsignment(tenantId: string, id: string) {
   return db.consignment.findFirst({
     where: { id, tenantId },
-    include: { items: ITEM_ORDER },
+    include: { items: { ...ITEM_ORDER, include: { galleryItem: { select: { id: true, isActive: true } } } } },
   });
 }
 
@@ -59,7 +59,9 @@ export function listConsignmentItemsForSale(tenantId: string) {
       name: true,
       serialNumber: true,
       askingPrice: true,
+      condition: true,
       consignment: { select: { number: true, customerName: true } },
+      galleryItem: { select: { id: true } },
     },
   });
 }
@@ -183,10 +185,14 @@ export async function updateItemTerms(
   if (commissionType === "PERCENT" && commissionValue > 100) throw new Error("Komisi persen maksimal 100%.");
   const item = await ensureItem(tenantId, itemId);
   if (item.status !== "AVAILABLE") throw new Error("Harga & komisi hanya bisa diubah selama barang masih dititipkan.");
-  await db.consignmentItem.update({
-    where: { id: item.id },
-    data: { askingPrice, commissionType, commissionValue },
-  });
+  await db.$transaction([
+    db.consignmentItem.update({
+      where: { id: item.id },
+      data: { askingPrice, commissionType, commissionValue },
+    }),
+    // Harga di Galeri Publik selalu mengikuti harga titipan.
+    db.galleryItem.updateMany({ where: { consignmentItemId: item.id }, data: { price: askingPrice } }),
+  ]);
   return item.consignmentId;
 }
 
