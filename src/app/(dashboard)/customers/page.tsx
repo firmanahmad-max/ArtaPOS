@@ -82,9 +82,10 @@ export default async function CustomersPage() {
         <CardContent className="grid gap-4 lg:grid-cols-[1fr_1.2fr]">
           <ul className="space-y-2 text-sm">
             <li>
-              <span className="font-semibold">Dampak ke pelanggan:</span> poin jadi potongan langsung di kasir
+              <span className="font-semibold">Dampak ke pelanggan:</span> poin dari belanja, rakit PC &amp; servis (jasa servis
+              ×{loyalty.serviceMultiplier ?? 2}) jadi potongan langsung di kasir, servis atau rakit PC
               {active && <> — mis. 1.000 poin = {formatRupiah(pointsWorth(1000, loyalty))}</>}. Saldo &amp; poin yang didapat
-              tercetak di setiap struk, dan nota servis/rakit PC pelanggan terdaftar.
+              tercetak di setiap struk &amp; nota. Barang titip jual tidak menghasilkan poin.
             </li>
             <li>
               <span className="font-semibold">Dampak ke toko:</span> total poin beredar adalah kewajiban potongan

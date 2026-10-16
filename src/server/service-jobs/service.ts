@@ -6,6 +6,8 @@ import { assertPositiveInt, assertNonNegativeInt } from "@/lib/utils";
 import type { Prisma } from "@/generated/prisma/client";
 import type { ServiceStatus, PaymentMethod } from "@/generated/prisma/enums";
 import type { ServiceTicketInput } from "@/lib/validations/service";
+import { earnedPointsTarget, jobEligibleRupiah } from "@/lib/loyalty";
+import { awardPointsUpTo, loadLoyalty, redeemPointsOnJob, refundRedeemedOnJob } from "@/server/loyalty/service";
 
 /** Service Jasa Servis — ter-scope tenantId, mutasi stok transaksional. */
 
@@ -151,11 +153,66 @@ async function recompute(tx: Prisma.TransactionClient, ticketId: string) {
   // discount ter-clamp di sini akan MENGHILANGKAN diskon yang sudah diniatkan
   // bila item sempat dikurangi lalu ditambah lagi. Discount dibatasi saat DIISI
   // (updateDiscount) sehingga di sini cukup pakai nilai tersimpan.
-  const total = Math.max(0, gross - t.discount);
+  // Potongan dari TUKAR POIN juga mengurangi total (bukan pembayaran).
+  const total = Math.max(0, gross - t.discount - t.pointsDiscount);
   const paymentStatus = t.paid >= total && total > 0 ? "PAID" : t.paid > 0 ? "PARTIAL" : "UNPAID";
   await tx.serviceTicket.update({
     where: { id: ticketId },
     data: { partsCost, total, paymentStatus },
+  });
+}
+
+/** Rincian jasa vs sparepart sebuah tiket (dasar poin: jasa × pengali, sparepart × 1). */
+function laborAndParts(t: { laborCost: number; items: { subtotal: number; isPart: boolean }[] }) {
+  const parts = t.items.reduce((s, i) => s + (i.isPart ? i.subtotal : 0), 0);
+  const lines = t.items.reduce((s, i) => s + (i.isPart ? 0 : i.subtotal), 0); // baris jasa/lainnya
+  return { labor: t.laborCost + lines, parts };
+}
+
+/** Tukar poin pelanggan tiket ini sebagai potongan (maks. sisa tagihan). */
+export async function redeemTicketPoints(tenantId: string, ticketId: string, points: number) {
+  assertPositiveInt(points, "Jumlah poin");
+  return db.$transaction(async (tx) => {
+    const t = await tx.serviceTicket.findFirst({
+      where: { id: ticketId, tenantId },
+      select: { id: true, number: true, customerId: true, total: true, paid: true },
+    });
+    if (!t) throw new Error("Tiket tidak ditemukan.");
+    if (!t.customerId) throw new Error("Tukar poin hanya untuk tiket dengan pelanggan terdaftar.");
+    const r = await redeemPointsOnJob(tx, {
+      tenantId,
+      customerId: t.customerId,
+      requested: points,
+      outstanding: t.total - t.paid,
+      ref: { serviceTicketId: t.id },
+      note: `Tukar di servis ${t.number}`,
+    });
+    await tx.serviceTicket.update({
+      where: { id: t.id },
+      data: { pointsRedeemed: { increment: r.points }, pointsDiscount: { increment: r.discount } },
+    });
+    await recompute(tx, t.id);
+    return r;
+  });
+}
+
+/** Batalkan tukar poin pada tiket: poin kembali ke pelanggan, potongan dihapus. */
+export async function cancelTicketPoints(tenantId: string, ticketId: string) {
+  return db.$transaction(async (tx) => {
+    const t = await tx.serviceTicket.findFirst({
+      where: { id: ticketId, tenantId },
+      select: { id: true, number: true, customerId: true, pointsRedeemed: true },
+    });
+    if (!t) throw new Error("Tiket tidak ditemukan.");
+    if (t.pointsRedeemed <= 0) throw new Error("Tidak ada poin yang ditukar di tiket ini.");
+    await refundRedeemedOnJob(tx, {
+      tenantId,
+      customerId: t.customerId,
+      ref: { serviceTicketId: t.id },
+      note: `Batal tukar poin servis ${t.number}`,
+    });
+    await tx.serviceTicket.update({ where: { id: t.id }, data: { pointsRedeemed: 0, pointsDiscount: 0 } });
+    await recompute(tx, t.id);
   });
 }
 
@@ -345,7 +402,15 @@ export async function recordPayment(
   return db.$transaction(async (tx) => {
     const t = await tx.serviceTicket.findFirst({
       where: { id: ticketId, tenantId },
-      select: { id: true, total: true, paid: true },
+      select: {
+        id: true,
+        number: true,
+        total: true,
+        paid: true,
+        customerId: true,
+        laborCost: true,
+        items: { select: { subtotal: true, isPart: true } },
+      },
     });
     if (!t) throw new Error("Tiket tidak ditemukan.");
     const outstanding = t.total - t.paid;
@@ -360,6 +425,24 @@ export async function recordPayment(
     await tx.servicePayment.create({
       data: { tenantId, ticketId: t.id, amount, method, createdById: userId },
     });
+    // Poin servis per PEMBAYARAN (basis kas): jasa × pengali, sparepart × 1.
+    if (t.customerId) {
+      const cfg = await loadLoyalty(tx, tenantId);
+      if (cfg.started) {
+        const { labor, parts } = laborAndParts(t);
+        await awardPointsUpTo(tx, {
+          tenantId,
+          customerId: t.customerId,
+          target: earnedPointsTarget(
+            jobEligibleRupiah({ labor, parts, total: t.total, multiplier: cfg.serviceMultiplier ?? 2 }),
+            t.total,
+            newPaid,
+          ),
+          ref: { serviceTicketId: t.id },
+          note: `Servis ${t.number}`,
+        });
+      }
+    }
     return { paid: newPaid, outstanding: t.total - newPaid };
   });
 }

@@ -120,3 +120,33 @@ export async function recordBuildPaymentAction(buildId: string, amount: number):
     return { ok: false, message: e instanceof Error ? e.message : "Gagal." };
   }
 }
+
+/** Tukar poin pelanggan rakitan ini sebagai potongan. */
+export async function redeemBuildPointsAction(buildId: string, points: number): Promise<Result> {
+  const { user, allowed } = await ctx();
+  if (!allowed) return { ok: false, message: NO_PERM };
+  try {
+    const r = await svc.redeemBuildPoints(user.tenantId, buildId, points);
+    revalidatePath(`/pc-build/${buildId}`);
+    revalidatePath("/customers", "layout");
+    revalidateReports();
+    return { ok: true, message: `${r.points.toLocaleString("id-ID")} poin ditukar (potongan Rp ${r.discount.toLocaleString("id-ID")}).` };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Gagal menukar poin." };
+  }
+}
+
+/** Batalkan tukar poin pada rakitan (poin kembali ke pelanggan). */
+export async function cancelBuildPointsAction(buildId: string): Promise<Result> {
+  const { user, allowed } = await ctx();
+  if (!allowed) return { ok: false, message: NO_PERM };
+  try {
+    await svc.cancelBuildPoints(user.tenantId, buildId);
+    revalidatePath(`/pc-build/${buildId}`);
+    revalidatePath("/customers", "layout");
+    revalidateReports();
+    return { ok: true, message: "Tukar poin dibatalkan, poin dikembalikan ke pelanggan." };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Gagal." };
+  }
+}

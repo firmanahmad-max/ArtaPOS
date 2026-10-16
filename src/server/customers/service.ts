@@ -84,11 +84,12 @@ export async function getLoyaltyConfig(tenantId: string): Promise<LoyaltyConfig>
   try {
     const t = await db.tenant.findUnique({
       where: { id: tenantId },
-      select: { pointValue: true, pointMinRedeem: true, pointsStartAt: true },
+      select: { pointValue: true, pointMinRedeem: true, pointsStartAt: true, pointServiceMultiplier: true },
     });
     return {
       pointValue: t?.pointValue ?? 0,
       minRedeem: t?.pointMinRedeem ?? 0,
+      serviceMultiplier: t?.pointServiceMultiplier ?? 2,
       startsAt: t?.pointsStartAt?.toISOString() ?? null,
       // Dinilai di server (sumber waktu tunggal) → dikirim ke klien sebagai boolean.
       started: programStarted(t?.pointsStartAt),
@@ -132,18 +133,51 @@ export async function setLoyaltySchedule(tenantId: string, startAt: Date | null,
  * Baris info poin untuk nota servis/rakit PC: saldo pelanggan terdaftar SAAT INI
  * + ajakan menukar. Kosong bila tanpa pelanggan / program nonaktif.
  */
-export async function customerLoyaltyLines(tenantId: string, customerId: string | null | undefined): Promise<string[]> {
+export async function customerLoyaltyLines(
+  tenantId: string,
+  customerId: string | null | undefined,
+  /** Dokumen sumber (tiket/rakitan) → baris "Poin didapat/ditukar" dari dokumen itu. */
+  ref?: { serviceTicketId: string } | { pcBuildId: string },
+): Promise<string[]> {
   if (!customerId) return [];
   try {
-    const [cfg, c] = await Promise.all([
+    const [cfg, c, earned, redeemed] = await Promise.all([
       getLoyaltyConfig(tenantId),
       db.customer.findFirst({ where: { id: customerId, tenantId }, select: { points: true } }),
+      ref ? sumPoints(tenantId, ref, "EARN") : 0,
+      ref ? sumPoints(tenantId, ref, "REDEEM") : 0,
     ]);
     if (!c || cfg.pointValue <= 0) return [];
-    return loyaltyNoteLines({ earned: 0, redeemed: 0, balance: c.points }, cfg);
+    return loyaltyNoteLines({ earned, redeemed: Math.max(0, -redeemed), balance: c.points }, cfg);
   } catch {
     return [];
   }
+}
+
+async function sumPoints(
+  tenantId: string,
+  ref: { serviceTicketId: string } | { pcBuildId: string },
+  type: "EARN" | "REDEEM",
+) {
+  const agg = await db.pointEntry.aggregate({ where: { tenantId, type, ...ref }, _sum: { points: true } });
+  return agg._sum.points ?? 0;
+}
+
+/** Info poin untuk panel di detail tiket servis / rakit PC. */
+export async function jobLoyaltyInfo(
+  tenantId: string,
+  customerId: string | null | undefined,
+  ref: { serviceTicketId: string } | { pcBuildId: string },
+  doc: { pointsRedeemed: number; pointsDiscount: number },
+) {
+  const [cfg, customer, earned] = await Promise.all([
+    getLoyaltyConfig(tenantId),
+    customerId
+      ? db.customer.findFirst({ where: { id: customerId, tenantId }, select: { name: true, points: true } })
+      : null,
+    sumPoints(tenantId, ref, "EARN").catch(() => 0),
+  ]);
+  return { customer: customer ?? null, cfg, earned, pointsRedeemed: doc.pointsRedeemed, pointsDiscount: doc.pointsDiscount };
 }
 
 /** Jumlah pelanggan yang saldo poinnya ≠ 0 (untuk konfirmasi reset). */
@@ -161,7 +195,11 @@ export async function totalCustomerPoints(tenantId: string): Promise<number> {
 export async function updateLoyaltyConfig(tenantId: string, cfg: LoyaltyConfig) {
   await db.tenant.update({
     where: { id: tenantId },
-    data: { pointValue: cfg.pointValue, pointMinRedeem: cfg.minRedeem },
+    data: {
+      pointValue: cfg.pointValue,
+      pointMinRedeem: cfg.minRedeem,
+      ...(cfg.serviceMultiplier ? { pointServiceMultiplier: cfg.serviceMultiplier } : {}),
+    },
   });
 }
 

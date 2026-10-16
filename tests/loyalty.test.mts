@@ -9,6 +9,9 @@ import {
   loyaltyNoteLines,
   redeemHint,
   programStarted,
+  earnedPointsTarget,
+  saleEligibleRupiah,
+  jobEligibleRupiah,
 } from "../src/lib/loyalty.ts";
 
 const cfg = { pointValue: 10, minRedeem: 100 };
@@ -74,4 +77,29 @@ test("programStarted: berdasarkan waktu", () => {
   assert.equal(programStarted(null), true);
   assert.equal(programStarted(start, Date.parse("2026-10-31T23:59:00+07:00")), false);
   assert.equal(programStarted(start, Date.parse("2026-11-01T00:00:00+07:00")), true);
+});
+
+test("earnedPointsTarget: kumulatif sesuai porsi dibayar", () => {
+  assert.equal(earnedPointsTarget(8_000_000, 8_000_000, 8_000_000), 8_000);
+  assert.equal(earnedPointsTarget(8_000_000, 8_000_000, 2_000_000), 2_000); // DP 25%
+  assert.equal(earnedPointsTarget(8_000_000, 8_000_000, 9_000_000), 8_000); // lebih bayar dibatasi
+  assert.equal(earnedPointsTarget(0, 1_000_000, 1_000_000), 0);
+  // Cicilan 3x tanpa drift: total selisih = target penuh.
+  const steps = [333_333, 666_666, 1_000_000].map((p) => earnedPointsTarget(1_000_000, 1_000_000, p));
+  assert.deepEqual(steps, [333, 666, 1000]);
+});
+
+test("saleEligibleRupiah: titipan dikecualikan", () => {
+  assert.equal(saleEligibleRupiah(5_000_000, 3_500_000), 1_500_000);
+  assert.equal(saleEligibleRupiah(1_000_000, 2_000_000), 0);
+});
+
+test("jobEligibleRupiah: jasa ×2, sparepart ×1, diskon proporsional", () => {
+  // Servis: jasa 150rb + SSD 600rb = 300 + 600 = 900 poin
+  assert.equal(earnedPointsTarget(jobEligibleRupiah({ labor: 150_000, parts: 600_000, total: 750_000, multiplier: 2 }), 750_000, 750_000), 900);
+  // Diskon 75rb (10%) → 810 poin
+  assert.equal(earnedPointsTarget(jobEligibleRupiah({ labor: 150_000, parts: 600_000, total: 675_000, multiplier: 2 }), 675_000, 675_000), 810);
+  // Rakit PC (×1): sama dengan total
+  assert.equal(jobEligibleRupiah({ labor: 200_000, parts: 9_000_000, total: 9_200_000, multiplier: 1 }), 9_200_000);
+  assert.equal(jobEligibleRupiah({ labor: 0, parts: 0, total: 0, multiplier: 2 }), 0);
 });

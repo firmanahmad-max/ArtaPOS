@@ -6,7 +6,8 @@ import { nextDocNumber } from "@/server/shared/numbering";
 import type { SaleInput } from "@/lib/validations/pos";
 import { splitConsignment } from "@/lib/consignment-calc";
 import { usedSaleName } from "@/lib/used-item";
-import { pointsEarnedFor, programStarted, resolveRedemption } from "@/lib/loyalty";
+import { earnedPointsTarget, programStarted, resolveRedemption, saleEligibleRupiah } from "@/lib/loyalty";
+import { awardPointsUpTo, loadLoyalty } from "@/server/loyalty/service";
 
 /** Service POS — checkout transaksional, ter-scope tenantId. */
 
@@ -250,7 +251,15 @@ export async function recordSalePayment(
   return db.$transaction(async (tx) => {
     const sale = await tx.sale.findFirst({
       where: { id: saleId, tenantId, status: "COMPLETED" },
-      select: { id: true, total: true, paid: true },
+      select: {
+        id: true,
+        number: true,
+        total: true,
+        paid: true,
+        customerId: true,
+        createdAt: true,
+        items: { where: { consignmentItemId: { not: null } }, select: { subtotal: true } },
+      },
     });
     if (!sale) throw new Error("Penjualan tidak ditemukan.");
     const outstanding = sale.total - sale.paid;
@@ -265,6 +274,22 @@ export async function recordSalePayment(
       where: { id: sale.id },
       data: { paid: newPaid, paymentStatus: newPaid >= sale.total ? "PAID" : "PARTIAL" },
     });
+    // Poin penjualan KREDIT mengikuti uang yang masuk: pelunasan memberi sisa poinnya.
+    // Penjualan sebelum tanggal mulai program tidak mendapat poin.
+    if (sale.customerId) {
+      const cfg = await loadLoyalty(tx, tenantId);
+      if (cfg.started && (!cfg.startAt || sale.createdAt >= cfg.startAt)) {
+        const consignmentNet = sale.items.reduce((s, i) => s + i.subtotal, 0);
+        const added = await awardPointsUpTo(tx, {
+          tenantId,
+          customerId: sale.customerId,
+          target: earnedPointsTarget(saleEligibleRupiah(sale.total, consignmentNet), sale.total, newPaid),
+          ref: { saleId: sale.id },
+          note: `Pembayaran ${sale.number}`,
+        });
+        if (added > 0) await tx.sale.update({ where: { id: sale.id }, data: { pointsEarned: { increment: added } } });
+      }
+    }
     return { paid: newPaid, outstanding: sale.total - newPaid };
   });
 }
@@ -691,19 +716,17 @@ export async function createSale(
     }
 
     // Poin loyalitas: 1 poin per Rp 1.000 belanja (pelanggan terdaftar & program sudah mulai).
+    // - Barang TITIPAN tidak menghasilkan poin (toko hanya untung komisi).
+    // - Penjualan KREDIT: poin sebesar porsi yang sudah dibayar (DP); sisanya saat pelunasan.
     if (input.customerId && loyalty.started) {
-      const earned = pointsEarnedFor(total);
-      if (earned > 0) {
-        // updateMany + tenantId = lapis kedua isolasi tenant (customerId sudah
-        // diverifikasi di atas, tapi jangan bergantung pada satu penjaga saja).
-        await tx.customer.updateMany({
-          where: { id: input.customerId, tenantId },
-          data: { points: { increment: earned } },
-        });
-        await tx.pointEntry.create({
-          data: { tenantId, customerId: input.customerId, points: earned, type: "EARN", note: `Belanja ${number}`, saleId: sale.id },
-        });
-      }
+      const consignmentNet = consignmentItemsData.reduce((s, l) => s + l.subtotal, 0);
+      const earned = await awardPointsUpTo(tx, {
+        tenantId,
+        customerId: input.customerId,
+        target: earnedPointsTarget(saleEligibleRupiah(total, consignmentNet), total, Math.min(paid, total)),
+        ref: { saleId: sale.id },
+        note: `Belanja ${number}`,
+      });
       // Snapshot poin untuk struk: didapat & saldo SETELAH transaksi.
       const after = await tx.customer.findFirst({ where: { id: input.customerId, tenantId }, select: { points: true } });
       await tx.sale.update({

@@ -16,6 +16,8 @@ export interface LoyaltyConfig {
   pointValue: number;
   /** Minimal saldo poin agar bisa ditukar. */
   minRedeem: number;
+  /** Pengali poin JASA servis (default 2 → 2 poin per Rp 1.000 biaya jasa). */
+  serviceMultiplier?: number;
   /** Jadwal mulai program (ISO). null/undefined = sudah berjalan. */
   startsAt?: string | null;
   /**
@@ -38,6 +40,34 @@ export function isProgramStarted(cfg: LoyaltyConfig): boolean {
 /** "1 November 2026" (zona WIB) untuk tanggal mulai program. */
 export function formatStartDate(startsAt: Date | string): string {
   return new Date(startsAt).toLocaleDateString("id-ID", { dateStyle: "long", timeZone: "Asia/Jakarta" });
+}
+
+/**
+ * Target poin KUMULATIF sebuah transaksi: `eligible` = nilai rupiah yang berhak poin
+ * (sudah termasuk pengali), dikalikan porsi yang SUDAH DIBAYAR (`paid/total`, maks 1).
+ * Tiap pembayaran memberi selisih (target − poin yang sudah diberikan) → cicilan, DP
+ * kredit & pelunasan konsisten tanpa poin ganda / drift pembulatan.
+ */
+export function earnedPointsTarget(eligible: number, total: number, paid: number): number {
+  if (eligible <= 0 || total <= 0 || paid <= 0) return 0;
+  return Math.floor((eligible * Math.min(1, paid / total)) / RUPIAH_PER_POINT);
+}
+
+/** Nilai berhak poin dari penjualan kasir: barang TITIPAN tidak menghasilkan poin. */
+export function saleEligibleRupiah(total: number, consignmentNet: number): number {
+  return Math.max(0, total - Math.max(0, consignmentNet));
+}
+
+/**
+ * Nilai berhak poin dari tiket servis / rakitan: JASA × pengali, sparepart/komponen × 1.
+ * Diskon & potongan poin mengurangi keduanya proporsional (lewat total/gross).
+ * Rakit PC memakai pengali 1 (semua ×1).
+ */
+export function jobEligibleRupiah(p: { labor: number; parts: number; total: number; multiplier: number }): number {
+  const gross = Math.max(0, p.labor) + Math.max(0, p.parts);
+  if (gross <= 0 || p.total <= 0) return 0;
+  const weighted = Math.max(0, p.labor) * Math.max(1, p.multiplier) + Math.max(0, p.parts);
+  return weighted * (Math.min(p.total, gross) / gross);
 }
 
 /** Poin yang didapat dari sebuah pembayaran. */

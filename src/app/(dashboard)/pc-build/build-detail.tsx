@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BUILD_STATUS_META, BUILD_FLOW } from "./build-status";
+import { JobPointsPanel, type JobLoyaltyInfo } from "@/components/loyalty/job-points-panel";
 
 export interface BuildItem { id: string; productName: string; qty: number; price: number; subtotal: number }
 export interface BuildData {
@@ -33,7 +34,16 @@ export interface BuildData {
 }
 export interface BuildProduct { id: string; name: string; sellPrice: number; stock: number }
 
-export function BuildDetail({ build, products }: { build: BuildData; products: BuildProduct[] }) {
+export function BuildDetail({
+  build,
+  products,
+  points,
+}: {
+  build: BuildData;
+  products: BuildProduct[];
+  /** Poin member (pelanggan tertaut, tukar poin, poin didapat). */
+  points?: JobLoyaltyInfo;
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
@@ -151,6 +161,7 @@ export function BuildDetail({ build, products }: { build: BuildData; products: B
               <span>Potongan diskon</span><span>-{formatRupiah(build.discount)}</span>
             </div>
           )}
+          {points && <JobPointsPanel kind="build" id={build.id} info={points} outstanding={outstanding} />}
           <div className="flex justify-between border-t pt-2 text-base font-bold"><span>Total</span><span>{formatRupiah(build.total)}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Dibayar</span><span>{formatRupiah(build.paid)}</span></div>
           <div className="flex justify-between font-medium">

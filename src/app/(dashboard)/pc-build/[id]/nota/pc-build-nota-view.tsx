@@ -30,6 +30,8 @@ export interface PcBuildNotaData {
   items: PcBuildNotaItem[];
   subtotal: number; // nilai kotor (komponen + jasa) sebelum diskon
   total: number;
+  pointsRedeemed?: number;
+  pointsDiscount?: number;
   /** Saldo poin pelanggan terdaftar (kosong = tanpa pelanggan/program nonaktif). */
   loyaltyLines?: string[];
 }
@@ -68,6 +70,8 @@ export function PcBuildNotaView({ data, backHref }: { data: PcBuildNotaData; bac
       customerName: data.customerName,
       items: data.items,
       subtotal: data.subtotal,
+      pointsRedeemed: data.pointsRedeemed,
+      pointsDiscount: data.pointsDiscount,
       total: data.total,
       footer: data.receiptFooter,
       loyaltyLines: data.loyaltyLines,
@@ -136,7 +140,12 @@ export function PcBuildNotaView({ data, backHref }: { data: PcBuildNotaData; bac
         {data.subtotal > data.total && (
           <div className="mb-1 space-y-0.5 text-[11px]">
             <div className="flex justify-between"><span>Subtotal</span><span>{formatRupiah(data.subtotal)}</span></div>
-            <div className="flex justify-between"><span>Diskon</span><span>-{formatRupiah(data.subtotal - data.total)}</span></div>
+            {data.subtotal - data.total - (data.pointsDiscount ?? 0) > 0 && (
+              <div className="flex justify-between"><span>Diskon</span><span>-{formatRupiah(data.subtotal - data.total - (data.pointsDiscount ?? 0))}</span></div>
+            )}
+            {(data.pointsDiscount ?? 0) > 0 && (
+              <div className="flex justify-between"><span>Tukar poin ({data.pointsRedeemed})</span><span>-{formatRupiah(data.pointsDiscount ?? 0)}</span></div>
+            )}
           </div>
         )}
         <div className="flex justify-between text-sm font-bold">

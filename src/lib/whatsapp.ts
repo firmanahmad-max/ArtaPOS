@@ -99,6 +99,8 @@ export function buildServiceNotaText(n: {
   items: { name: string; qty: number; price: number; subtotal: number; isPart: boolean }[];
   laborCost: number;
   discount?: number;
+  pointsRedeemed?: number;
+  pointsDiscount?: number;
   total: number;
   paid: number;
   paymentMethodLabel?: string;
@@ -126,6 +128,8 @@ export function buildServiceNotaText(n: {
   }
   if (n.laborCost > 0) rows.push(`Biaya Jasa: ${formatRupiah(n.laborCost)}`);
   if (n.discount && n.discount > 0) rows.push(`Diskon: -${formatRupiah(n.discount)}`);
+  if (n.pointsDiscount && n.pointsDiscount > 0)
+    rows.push(`Tukar poin (${n.pointsRedeemed ?? 0}): -${formatRupiah(n.pointsDiscount)}`);
   rows.push(line);
   rows.push(`*TOTAL: ${formatRupiah(n.total)}*`);
   rows.push(`Dibayar${n.paymentMethodLabel ? ` (${n.paymentMethodLabel})` : ""}: ${formatRupiah(n.paid)}`);
@@ -267,6 +271,9 @@ export function buildPcBuildNotaText(n: {
   customerName: string | null;
   items: { name: string; qty: number }[];
   subtotal?: number; // nilai kotor sebelum diskon; bila > total → baris diskon tampil
+  /** Potongan tukar poin (bagian dari subtotal − total, ditampilkan terpisah). */
+  pointsRedeemed?: number;
+  pointsDiscount?: number;
   total: number;
   footer?: string | null;
   /** Info poin pelanggan (loyaltyNoteLines). */
@@ -287,8 +294,11 @@ export function buildPcBuildNotaText(n: {
   n.items.forEach((it, i) => rows.push(`${i + 1}. ${it.name}${it.qty > 1 ? ` (${it.qty}x)` : ""}`));
   rows.push(line);
   if (n.subtotal && n.subtotal > n.total) {
+    const pts = Math.max(0, n.pointsDiscount ?? 0);
+    const disc = n.subtotal - n.total - pts;
     rows.push(`Subtotal: ${formatRupiah(n.subtotal)}`);
-    rows.push(`Diskon: -${formatRupiah(n.subtotal - n.total)}`);
+    if (disc > 0) rows.push(`Diskon: -${formatRupiah(disc)}`);
+    if (pts > 0) rows.push(`Tukar poin (${n.pointsRedeemed ?? 0}): -${formatRupiah(pts)}`);
   }
   rows.push(`*TOTAL RAKITAN: ${formatRupiah(n.total)}*`);
   if (n.loyaltyLines && n.loyaltyLines.length > 0) {

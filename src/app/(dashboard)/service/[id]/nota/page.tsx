@@ -29,7 +29,7 @@ export default async function ServiceNotaPage({
     getTrackExtras(user.tenantId),
   ]);
   if (!ticket) notFound();
-  const loyaltyLines = await customerLoyaltyLines(user.tenantId, ticket.customerId);
+  const loyaltyLines = await customerLoyaltyLines(user.tenantId, ticket.customerId, { serviceTicketId: ticket.id });
 
   return (
     <div className="py-4">
@@ -64,6 +64,8 @@ export default async function ServiceNotaPage({
           })),
           laborCost: ticket.laborCost,
           discount: ticket.discount,
+          pointsRedeemed: ticket.pointsRedeemed,
+          pointsDiscount: ticket.pointsDiscount,
           total: ticket.total,
           paid: ticket.paid,
           paymentMethod: ticket.paymentMethod,

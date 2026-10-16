@@ -22,10 +22,12 @@ const VALUE_PRESETS = [
 export function LoyaltySettingsForm({
   pointValue,
   minRedeem,
+  serviceMultiplier,
   totalPoints,
 }: {
   pointValue: number;
   minRedeem: number;
+  serviceMultiplier: number;
   /** Total saldo poin semua pelanggan (untuk simulasi kewajiban). */
   totalPoints: number;
 }) {
@@ -33,12 +35,13 @@ export function LoyaltySettingsForm({
   const [pending, start] = useTransition();
   const [value, setValue] = useState(pointValue);
   const [min, setMin] = useState(minRedeem);
+  const [mult, setMult] = useState(serviceMultiplier);
   const cfg = { pointValue: value, minRedeem: min };
-  const dirty = value !== pointValue || min !== minRedeem;
+  const dirty = value !== pointValue || min !== minRedeem || mult !== serviceMultiplier;
 
   function save() {
     start(async () => {
-      const r = await updateLoyaltyConfigAction(value, min);
+      const r = await updateLoyaltyConfigAction(value, min, mult);
       if (r.ok) {
         toast.success(r.message ?? "Tersimpan");
         router.refresh();
@@ -74,6 +77,27 @@ export function LoyaltySettingsForm({
           <Label htmlFor="lp-min">Minimal saldo untuk menukar (poin)</Label>
           <Input id="lp-min" inputMode="numeric" className="h-9 w-32" value={String(min)} onChange={(e) => setMin(Math.min(1_000_000, num(e.target.value)))} />
         </div>
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label>Pengali poin jasa servis</Label>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {[1, 2, 3].map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMult(m)}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs transition-colors",
+                  mult === m ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground hover:border-primary/50",
+                )}
+              >
+                ×{m}
+              </button>
+            ))}
+            <span className="text-xs text-muted-foreground">
+              Biaya jasa servis dapat {mult} poin per {formatRupiah(RUPIAH_PER_POINT)}; sparepart, rakit PC &amp; barang tetap ×1. Barang titip jual tanpa poin.
+            </span>
+          </div>
+        </div>
       </div>
 
       <div className="rounded-lg bg-muted/50 p-3 text-sm">
@@ -86,6 +110,10 @@ export function LoyaltySettingsForm({
             <li>
               Contoh: belanja {formatRupiah(5_000_000)} → +5.000 poin = potongan{" "}
               <strong>{formatRupiah(5_000 * value)}</strong> di belanja berikutnya.
+            </li>
+            <li>
+              Servis jasa {formatRupiah(150_000)} + sparepart {formatRupiah(600_000)} → +{(150 * mult + 600).toLocaleString("id-ID")} poin
+              (≈ {formatRupiah((150 * mult + 600) * value)}). Poin servis &amp; kredit diberikan saat pembayaran diterima.
             </li>
             <li>
               Bisa ditukar mulai <strong>{min.toLocaleString("id-ID")} poin</strong> (≈ belanja{" "}

@@ -5,6 +5,7 @@ import { ArrowLeft, Printer } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { getBuild, listProductsForBuild } from "@/server/pcbuild/service";
+import { jobLoyaltyInfo } from "@/server/customers/service";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { BuildDetail } from "../build-detail";
@@ -63,6 +64,7 @@ export default async function BuildDetailPage({ params }: { params: Promise<{ id
           items: build.items.map((i) => ({ id: i.id, productName: i.productName, qty: i.qty, price: i.price, subtotal: i.subtotal })),
         }}
         products={products.map((p) => ({ id: p.id, name: p.name, sellPrice: p.sellPrice, stock: p.stock }))}
+        points={await jobLoyaltyInfo(user.tenantId, build.customerId, { pcBuildId: build.id }, build)}
       />
     </div>
   );

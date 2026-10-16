@@ -38,6 +38,8 @@ export interface ServiceNotaData {
   items: NotaItem[];
   laborCost: number;
   discount: number;
+  pointsRedeemed?: number;
+  pointsDiscount?: number;
   total: number;
   paid: number;
   paymentMethod: string | null;
@@ -99,6 +101,8 @@ export function ServiceNotaView({
       items: data.items,
       laborCost: data.laborCost,
       discount: data.discount,
+      pointsRedeemed: data.pointsRedeemed,
+      pointsDiscount: data.pointsDiscount,
       total: data.total,
       paid: data.paid,
       paymentMethodLabel: methodLabel ?? undefined,
@@ -185,6 +189,9 @@ export function ServiceNotaView({
           )}
           {data.discount > 0 && (
             <div className="flex justify-between"><span>Diskon</span><span>-{formatRupiah(data.discount)}</span></div>
+          )}
+          {(data.pointsDiscount ?? 0) > 0 && (
+            <div className="flex justify-between"><span>Tukar poin ({data.pointsRedeemed})</span><span>-{formatRupiah(data.pointsDiscount ?? 0)}</span></div>
           )}
           <div className="flex justify-between text-sm font-bold"><span>TOTAL</span><span>{formatRupiah(data.total)}</span></div>
           <div className="flex justify-between"><span>Dibayar{methodLabel ? ` (${methodLabel})` : ""}</span><span>{formatRupiah(data.paid)}</span></div>

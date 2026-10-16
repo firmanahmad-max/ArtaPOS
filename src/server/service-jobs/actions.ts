@@ -220,3 +220,35 @@ export async function recordServicePaymentAction(
     return { ok: false, message: e instanceof Error ? e.message : "Gagal." };
   }
 }
+
+/** Tukar poin pelanggan tiket ini sebagai potongan. */
+export async function redeemTicketPointsAction(ticketId: string, points: number): Promise<Result> {
+  const u = await guard();
+  if (!u) return { ok: false, message: NO_PERM };
+  const user = await getCurrentUser();
+  try {
+    const r = await svc.redeemTicketPoints(user.tenantId, ticketId, points);
+    revalidatePath(`/service/${ticketId}`);
+    revalidatePath("/customers", "layout");
+    revalidateReports();
+    return { ok: true, message: `${r.points.toLocaleString("id-ID")} poin ditukar (potongan Rp ${r.discount.toLocaleString("id-ID")}).` };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Gagal menukar poin." };
+  }
+}
+
+/** Batalkan tukar poin pada tiket (poin kembali ke pelanggan). */
+export async function cancelTicketPointsAction(ticketId: string): Promise<Result> {
+  const u = await guard();
+  if (!u) return { ok: false, message: NO_PERM };
+  const user = await getCurrentUser();
+  try {
+    await svc.cancelTicketPoints(user.tenantId, ticketId);
+    revalidatePath(`/service/${ticketId}`);
+    revalidatePath("/customers", "layout");
+    revalidateReports();
+    return { ok: true, message: "Tukar poin dibatalkan, poin dikembalikan ke pelanggan." };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Gagal." };
+  }
+}

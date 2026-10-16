@@ -6,6 +6,8 @@ import { assertPositiveInt, assertNonNegativeInt } from "@/lib/utils";
 import type { Prisma } from "@/generated/prisma/client";
 import type { BuildStatus } from "@/generated/prisma/enums";
 import type { PcBuildInput } from "@/lib/validations/pcbuild";
+import { earnedPointsTarget } from "@/lib/loyalty";
+import { awardPointsUpTo, loadLoyalty, redeemPointsOnJob, refundRedeemedOnJob } from "@/server/loyalty/service";
 
 /** Service Rakit PC — ter-scope tenantId, mutasi stok transaksional. */
 
@@ -90,7 +92,8 @@ async function recompute(tx: Prisma.TransactionClient, buildId: string) {
   // dibatasi saat DIISI (updateDiscount); menyimpan nilai ter-clamp di sini akan
   // menghilangkan diskon yang diniatkan bila komponen sempat dikurangi lalu
   // ditambah lagi.
-  const total = Math.max(0, b.buildFee + componentsCost - b.discount);
+  // Potongan dari TUKAR POIN juga mengurangi total (bukan pembayaran).
+  const total = Math.max(0, b.buildFee + componentsCost - b.discount - b.pointsDiscount);
   const paymentStatus = b.paid >= total && total > 0 ? "PAID" : b.paid > 0 ? "PARTIAL" : "UNPAID";
   await tx.pcBuild.update({ where: { id: buildId }, data: { componentsCost, total, paymentStatus } });
 }
@@ -209,13 +212,76 @@ export async function updateStatus(tenantId: string, buildId: string, status: Bu
 export async function recordPayment(tenantId: string, buildId: string, amount: number) {
   assertPositiveInt(amount, "Jumlah pembayaran");
   return db.$transaction(async (tx) => {
-    const b = await tx.pcBuild.findFirst({ where: { id: buildId, tenantId }, select: { id: true, total: true, paid: true } });
+    const b = await tx.pcBuild.findFirst({
+      where: { id: buildId, tenantId },
+      select: { id: true, number: true, total: true, paid: true, customerId: true },
+    });
     if (!b) throw new Error("Rakitan tidak ditemukan.");
     const outstanding = b.total - b.paid;
     if (outstanding <= 0) throw new Error("Sudah lunas.");
     if (amount > outstanding) throw new Error(`Maksimal ${outstanding}.`);
     const newPaid = b.paid + amount;
     await tx.pcBuild.update({ where: { id: b.id }, data: { paid: newPaid, paymentStatus: newPaid >= b.total ? "PAID" : "PARTIAL" } });
+    // Poin rakit PC per pembayaran: semua ×1 (komponen bermargin tipis).
+    if (b.customerId) {
+      const cfg = await loadLoyalty(tx, tenantId);
+      if (cfg.started) {
+        await awardPointsUpTo(tx, {
+          tenantId,
+          customerId: b.customerId,
+          target: earnedPointsTarget(b.total, b.total, newPaid),
+          ref: { pcBuildId: b.id },
+          note: `Rakit PC ${b.number}`,
+        });
+      }
+    }
     return { paid: newPaid, outstanding: b.total - newPaid };
+  });
+}
+
+/** Tukar poin pelanggan rakitan ini sebagai potongan (maks. sisa tagihan). */
+export async function redeemBuildPoints(tenantId: string, buildId: string, points: number) {
+  assertPositiveInt(points, "Jumlah poin");
+  return db.$transaction(async (tx) => {
+    const b = await tx.pcBuild.findFirst({
+      where: { id: buildId, tenantId },
+      select: { id: true, number: true, customerId: true, total: true, paid: true },
+    });
+    if (!b) throw new Error("Rakitan tidak ditemukan.");
+    if (!b.customerId) throw new Error("Tukar poin hanya untuk rakitan dengan pelanggan terdaftar.");
+    const r = await redeemPointsOnJob(tx, {
+      tenantId,
+      customerId: b.customerId,
+      requested: points,
+      outstanding: b.total - b.paid,
+      ref: { pcBuildId: b.id },
+      note: `Tukar di rakit PC ${b.number}`,
+    });
+    await tx.pcBuild.update({
+      where: { id: b.id },
+      data: { pointsRedeemed: { increment: r.points }, pointsDiscount: { increment: r.discount } },
+    });
+    await recompute(tx, b.id);
+    return r;
+  });
+}
+
+/** Batalkan tukar poin pada rakitan: poin kembali ke pelanggan, potongan dihapus. */
+export async function cancelBuildPoints(tenantId: string, buildId: string) {
+  return db.$transaction(async (tx) => {
+    const b = await tx.pcBuild.findFirst({
+      where: { id: buildId, tenantId },
+      select: { id: true, number: true, customerId: true, pointsRedeemed: true },
+    });
+    if (!b) throw new Error("Rakitan tidak ditemukan.");
+    if (b.pointsRedeemed <= 0) throw new Error("Tidak ada poin yang ditukar di rakitan ini.");
+    await refundRedeemedOnJob(tx, {
+      tenantId,
+      customerId: b.customerId,
+      ref: { pcBuildId: b.id },
+      note: `Batal tukar poin rakit PC ${b.number}`,
+    });
+    await tx.pcBuild.update({ where: { id: b.id }, data: { pointsRedeemed: 0, pointsDiscount: 0 } });
+    await recompute(tx, b.id);
   });
 }

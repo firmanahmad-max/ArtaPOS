@@ -63,6 +63,7 @@ model Tenant {
   // potongan di kasir senilai pointValue rupiah/poin (0 = penukaran nonaktif).
   pointValue      Int     @default(10)
   pointMinRedeem  Int     @default(100) // minimal saldo poin agar bisa ditukar
+  pointServiceMultiplier Int @default(2) // pengali poin untuk JASA servis (jasa margin tinggi)
   // Tanggal mulai program poin (null = sudah aktif). Sebelum tanggal ini belanja tak
   // menghasilkan poin & poin tak bisa ditukar; poin penjualan sebelum tanggal ini tak
   // ditarik/dikembalikan saat void/retur (saldonya sudah direset).
@@ -285,12 +286,17 @@ model PointEntry {
   type       PointEntryType
   note       String?
   saleId     String?
+  serviceTicketId String? // poin dari pembayaran / tukar di tiket servis
+  pcBuildId       String? // poin dari pembayaran / tukar di rakit PC
   createdAt  DateTime       @default(now())
 
   customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@index([customerId])
+  @@index([saleId])
+  @@index([serviceTicketId])
+  @@index([pcBuildId])
   @@map("point_entries")
 }
 
@@ -681,6 +687,8 @@ model ServiceTicket {
   laborCost      Int           @default(0) // biaya jasa
   partsCost      Int           @default(0) // akumulasi sparepart
   discount       Int           @default(0) // potongan harga (rupiah), maks laborCost+partsCost
+  pointsRedeemed Int           @default(0) // poin loyalitas yang ditukar di tiket ini
+  pointsDiscount Int           @default(0) // potongan rupiah dari tukar poin (mengurangi total)
   total          Int           @default(0) // laborCost + partsCost - discount
   paid           Int            @default(0)
   paymentStatus  PaymentStatus  @default(UNPAID)
@@ -972,6 +980,8 @@ model PcBuild {
   buildFee       Int           @default(0) // jasa rakit
   componentsCost Int           @default(0)
   discount       Int           @default(0) // potongan harga (rupiah), maks componentsCost+buildFee
+  pointsRedeemed Int           @default(0) // poin loyalitas yang ditukar di rakitan ini
+  pointsDiscount Int           @default(0) // potongan rupiah dari tukar poin (mengurangi total)
   total          Int           @default(0)
   paid           Int           @default(0)
   paymentStatus  PaymentStatus @default(UNPAID)

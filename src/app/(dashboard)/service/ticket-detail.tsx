@@ -19,6 +19,7 @@ import { clampQty, formatRupiah } from "@/lib/utils";
 import { formatLocalDateTime } from "@/lib/timezone";
 import { buildServiceStatusText, waLink } from "@/lib/whatsapp";
 import { buildTrackUrl, type TrackExtras } from "@/lib/track-link";
+import { JobPointsPanel, type JobLoyaltyInfo } from "@/components/loyalty/job-points-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -72,6 +73,7 @@ export function TicketDetail({
   customerPhone,
   storeName,
   track,
+  points,
 }: {
   ticket: TicketData;
   products: ServiceProduct[];
@@ -81,6 +83,8 @@ export function TicketDetail({
   storeName: string;
   /** Slug toko + ketersediaan promo/galeri di halaman lacak. */
   track?: ({ slug: string | null } & TrackExtras) | null;
+  /** Poin member (pelanggan tertaut, tukar poin, poin didapat). */
+  points?: JobLoyaltyInfo;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -390,6 +394,7 @@ export function TicketDetail({
               <span>Potongan diskon</span><span>-{formatRupiah(ticket.discount)}</span>
             </div>
           )}
+          {points && <JobPointsPanel kind="service" id={ticket.id} info={points} outstanding={outstanding} />}
           <div className="flex justify-between border-t pt-2 text-base font-bold"><span>Total</span><span>{formatRupiah(ticket.total)}</span></div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">

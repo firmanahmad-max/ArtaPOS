@@ -189,6 +189,7 @@ async function computeReport(
           select: {
             total: true,
             discount: true,
+            pointsDiscount: true,
             items: { select: { productId: true, qty: true, subtotal: true, costPrice: true } },
           },
         },
@@ -199,6 +200,7 @@ async function computeReport(
       select: {
         total: true,
         discount: true,
+        pointsDiscount: true,
         items: { select: { productId: true, qty: true, subtotal: true, costPrice: true } },
       },
     }),
@@ -242,7 +244,7 @@ async function computeReport(
     // Bagian sparepart = porsi dari NILAI KOTOR (sebelum diskon) → tak pernah
     // melebihi pendapatan yang ditagih walau ada diskon tiket. Tanpa diskon,
     // gross = total sehingga rasionya identik dengan sebelumnya.
-    const gross = total + p.ticket.discount;
+    const gross = total + p.ticket.discount + p.ticket.pointsDiscount; // potongan poin = diskon
     const revRatio = gross > 0 ? p.amount / gross : 0;
     servicePartsRevenue += Math.round(partsRevenue(p.ticket.items) * revRatio);
   }
@@ -270,7 +272,7 @@ async function computeReport(
   // pernah melebihi pendapatan rakitan walau ada diskon. Tanpa diskon, gross =
   // total sehingga identik dengan sebelumnya.
   const buildPartsRevenue = builds.reduce((s, b) => {
-    const gross = b.total + b.discount;
+    const gross = b.total + b.discount + b.pointsDiscount; // potongan poin = diskon
     const ratio = gross > 0 ? b.total / gross : 0;
     return s + Math.round(partsRevenue(b.items) * ratio);
   }, 0);

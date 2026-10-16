@@ -84,6 +84,7 @@ export async function adjustPointsAction(
 export async function updateLoyaltyConfigAction(
   pointValue: number,
   minRedeem: number,
+  serviceMultiplier = 2,
 ): Promise<{ ok: boolean; message?: string }> {
   const ctx = await getAuthContext();
   if (!can(ctx.role, "settings.manage")) return { ok: false, message: "Tidak punya izin." };
@@ -93,8 +94,11 @@ export async function updateLoyaltyConfigAction(
   if (!Number.isInteger(minRedeem) || minRedeem < 0 || minRedeem > 1_000_000) {
     return { ok: false, message: "Minimal tukar tidak valid." };
   }
+  if (!Number.isInteger(serviceMultiplier) || serviceMultiplier < 1 || serviceMultiplier > 5) {
+    return { ok: false, message: "Pengali poin jasa servis harus 1–5." };
+  }
   try {
-    await svc.updateLoyaltyConfig(ctx.tenantId, { pointValue, minRedeem });
+    await svc.updateLoyaltyConfig(ctx.tenantId, { pointValue, minRedeem, serviceMultiplier });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (/column|does not exist|P2022/i.test(msg)) {

@@ -100,7 +100,12 @@ export default async function SettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
-          <LoyaltySettingsForm pointValue={loyalty.pointValue} minRedeem={loyalty.minRedeem} totalPoints={totalPoints} />
+          <LoyaltySettingsForm
+            pointValue={loyalty.pointValue}
+            minRedeem={loyalty.minRedeem}
+            serviceMultiplier={loyalty.serviceMultiplier ?? 2}
+            totalPoints={totalPoints}
+          />
           <LoyaltyScheduleForm
             startsAt={loyalty.startsAt ?? null}
             started={loyalty.started !== false}

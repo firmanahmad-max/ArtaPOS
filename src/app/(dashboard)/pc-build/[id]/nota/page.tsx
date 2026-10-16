@@ -24,7 +24,7 @@ export default async function PcBuildNotaPage({ params }: { params: Promise<{ id
   ]);
   if (!result) notFound();
   const { build, customerPhone } = result;
-  const loyaltyLines = await customerLoyaltyLines(user.tenantId, build.customerId);
+  const loyaltyLines = await customerLoyaltyLines(user.tenantId, build.customerId, { pcBuildId: build.id });
 
   return (
     <div className="py-4">
@@ -48,6 +48,8 @@ export default async function PcBuildNotaPage({ params }: { params: Promise<{ id
           // tersimpan > gross (mis. komponen dikurangi setelah diskon diisi).
           subtotal: build.componentsCost + build.buildFee,
           total: build.total,
+          pointsRedeemed: build.pointsRedeemed,
+          pointsDiscount: build.pointsDiscount,
           loyaltyLines,
         }}
       />
