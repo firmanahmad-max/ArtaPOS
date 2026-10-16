@@ -7,6 +7,8 @@ import { APP_NAME } from "@/lib/brand";
 import { getGalleryStoreBySlug, listGalleryPublic } from "@/server/gallery/service";
 import { ShareButton } from "./share-button";
 import { galleryRefKind } from "@/lib/track-link";
+import { waLink } from "@/lib/whatsapp";
+import { storeOgImageUrl } from "@/server/public/track-info";
 import { VisitBeacon } from "@/components/public/visit-beacon";
 import { ViewBeacon, ChatWaButton } from "./gallery-tracker";
 
@@ -19,13 +21,16 @@ export async function generateMetadata({
   const store = await getGalleryStoreBySlug(slug).catch(() => null);
   const name = store?.name ?? "Galeri";
   const desc = `Produk & promo pilihan dari ${name}. Lihat spesifikasi, harga, dan hubungi via WhatsApp.`;
-  const img = [{ url: "/og-galeri.png", width: 1200, height: 630, alt: `Galeri ${name}` }];
+  // Pratinjau tautan WA = logo TOKO (route OG per toko); toko tak ditemukan → gambar galeri umum.
+  const ogUrl = store?.isActive ? storeOgImageUrl(store.slug, store.updatedAt) : "/og-galeri.png";
+  const img = [{ url: ogUrl, width: 1200, height: 630, alt: `Galeri ${name}` }];
   return {
     title: `Galeri — ${name}`,
     description: desc,
     openGraph: {
       title: `Galeri Produk — ${name}`,
       description: desc,
+      siteName: name,
       type: "website",
       images: img,
     },
@@ -33,7 +38,7 @@ export async function generateMetadata({
       card: "summary_large_image",
       title: `Galeri Produk — ${name}`,
       description: desc,
-      images: ["/og-galeri.png"],
+      images: [ogUrl],
     },
   };
 }
@@ -70,7 +75,7 @@ export default async function GaleriPage({
         <div className="flex items-center gap-3">
           {store.logo ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={store.logo} alt={store.name} className="size-10 rounded-lg object-cover" />
+            <img src={store.logo} alt={store.name} className="h-10 w-auto max-w-24 rounded-lg bg-white object-contain" />
           ) : (
             <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <Store className="size-5" />
@@ -102,7 +107,7 @@ export default async function GaleriPage({
                 const msg = `Halo ${store.name}, saya tertarik dengan *${it.title}*${
                   it.price > 0 ? ` (${formatRupiah(it.price)})` : ""
                 }. Apakah masih tersedia?`;
-                const waHref = wid ? `https://wa.me/${wid}?text=${encodeURIComponent(msg)}` : null;
+                const waHref = wid ? waLink(msg, wid) : null;
                 return (
                   <div key={it.id} className="flex flex-col overflow-hidden rounded-2xl border bg-card elevate">
                     <div className="relative aspect-[4/3] bg-muted/40">

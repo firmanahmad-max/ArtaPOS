@@ -323,8 +323,14 @@ export function normalizePhoneId(phone: string): string {
   return p;
 }
 
-/** Bangun URL wa.me. `phone` opsional (format internasional tanpa +, mis. 628…). */
+/**
+ * Bangun URL kirim WhatsApp. `phone` opsional (format internasional tanpa +, mis. 628…).
+ * SENGAJA langsung ke `api.whatsapp.com/send`, BUKAN `wa.me`: redirect wa.me merusak
+ * emoji 4-byte (🙏 🛍️ → "�", terverifikasi pada header Location-nya).
+ */
 export function waLink(text: string, phone?: string): string {
-  const base = phone ? `https://wa.me/${normalizePhoneId(phone)}` : "https://wa.me/";
-  return `${base}?text=${encodeURIComponent(text)}`;
+  const q = new URLSearchParams();
+  if (phone) q.set("phone", normalizePhoneId(phone));
+  q.set("text", text);
+  return `https://api.whatsapp.com/send?${q.toString().replace(/\+/g, "%20")}`;
 }

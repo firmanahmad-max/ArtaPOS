@@ -14,7 +14,33 @@ import { getTrackPagePromo } from "@/server/public/track-info";
 import { VisitBeacon } from "@/components/public/visit-beacon";
 import { TrackForm } from "./track-form";
 
-export const metadata: Metadata = { title: "Lacak Servis & Garansi" };
+/** Pratinjau tautan WA memakai nama & logo TOKO (bukan brosur ArtaPOS). */
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ t?: string }>;
+}): Promise<Metadata> {
+  const { t } = await searchParams;
+  const { storeName, ogImage, hasGallery, promo, promoImage } = await getTrackPagePromo(t);
+  if (!storeName || !ogImage) return { title: "Lacak Servis & Garansi" };
+  const title = `Lacak Servis & Garansi — ${storeName}`;
+  const extra =
+    (promo || promoImage) && hasGallery
+      ? " Lihat juga info promo & galeri produk kami."
+      : hasGallery
+        ? " Lihat juga galeri produk kami."
+        : promo || promoImage
+          ? " Lihat juga info promo terbaru kami."
+          : "";
+  const description = `Cek status servis & klaim garansi Anda di ${storeName}.${extra}`;
+  const images = [{ url: ogImage, width: 1200, height: 630, alt: storeName }];
+  return {
+    title,
+    description,
+    openGraph: { title, description, siteName: storeName, type: "website", locale: "id_ID", images },
+    twitter: { card: "summary_large_image", title, description, images: [ogImage] },
+  };
+}
 
 export default async function LacakPage({
   searchParams,

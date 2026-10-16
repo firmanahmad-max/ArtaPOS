@@ -77,7 +77,7 @@ export function topGalleryItems(tenantId: string, limit = 3) {
 export function getGalleryStoreBySlug(slug: string) {
   return db.tenant.findUnique({
     where: { slug },
-    select: { id: true, name: true, phone: true, logo: true, slug: true, isActive: true },
+    select: { id: true, name: true, phone: true, logo: true, slug: true, isActive: true, updatedAt: true },
   });
 }
 

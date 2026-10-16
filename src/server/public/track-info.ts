@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { db } from "@/lib/db";
 import { publicGalleryWhere } from "@/server/gallery/service";
 import type { TrackExtras } from "@/lib/track-link";
@@ -12,7 +13,23 @@ async function tenantHasGallery(tenantId: string): Promise<boolean> {
   }
 }
 
-const TENANT_SELECT = { id: true, name: true, slug: true, trackPromo: true, trackPromoImage: true } as const;
+const TENANT_SELECT = {
+  id: true,
+  name: true,
+  slug: true,
+  trackPromo: true,
+  trackPromoImage: true,
+  updatedAt: true,
+} as const;
+
+/**
+ * URL gambar pratinjau tautan (OG) toko: logo toko di kanvas 1200×630.
+ * `v` = versi (updatedAt) agar cache pratinjau WhatsApp ikut berganti saat logo diubah.
+ */
+export function storeOgImageUrl(slug: string, updatedAt?: Date | null): string {
+  const v = updatedAt ? `?v=${updatedAt.getTime().toString(36)}` : "";
+  return `/api/og/store/${encodeURIComponent(slug)}${v}`;
+}
 
 /**
  * Info publik untuk halaman lacak servis (/lacak).
@@ -21,15 +38,17 @@ const TENANT_SELECT = { id: true, name: true, slug: true, trackPromo: true, trac
  *   utama pemilik deployment (kompatibel dgn tautan lama; mencegah promo akun demo
  *   ikut tampil). Bila belum ada super-admin, fallback ke tenant aktif pertama.
  * Defensif: bila kolom belum ada (migrasi produksi belum jalan) → null.
+ * Di-`cache` per request: dipakai generateMetadata (pratinjau tautan) & halaman.
  */
-export async function getTrackPagePromo(slug?: string | null): Promise<{
+export const getTrackPagePromo = cache(async function getTrackPagePromo(slug?: string | null): Promise<{
   storeName: string | null;
   promo: string | null;
   promoImage: string | null;
   slug: string | null;
   hasGallery: boolean;
+  ogImage: string | null;
 }> {
-  const empty = { storeName: null, promo: null, promoImage: null, slug: null, hasGallery: false };
+  const empty = { storeName: null, promo: null, promoImage: null, slug: null, hasGallery: false, ogImage: null };
   try {
     const bySlug =
       slug && /^[a-z0-9-]{1,80}$/.test(slug)
@@ -53,11 +72,12 @@ export async function getTrackPagePromo(slug?: string | null): Promise<{
       promoImage: t.trackPromoImage,
       slug: t.slug,
       hasGallery: await tenantHasGallery(t.id),
+      ogImage: storeOgImageUrl(t.slug, t.updatedAt),
     };
   } catch {
     return empty;
   }
-}
+});
 
 /**
  * Untuk halaman internal yang membuat tautan lacak ke pelanggan (servis, nota, RMA):
@@ -78,5 +98,15 @@ export async function getTrackExtras(tenantId: string): Promise<{ slug: string |
     };
   } catch {
     return { slug: null, hasPromo: false, hasGallery: false };
+  }
+}
+
+/** Nama + logo toko aktif untuk gambar pratinjau tautan (route OG publik). */
+export async function getStoreOgSource(slug: string): Promise<{ name: string; logo: string | null } | null> {
+  if (!/^[a-z0-9-]{1,80}$/.test(slug)) return null;
+  try {
+    return await db.tenant.findFirst({ where: { slug, isActive: true }, select: { name: true, logo: true } });
+  } catch {
+    return null;
   }
 }

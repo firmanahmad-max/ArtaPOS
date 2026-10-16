@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Share2, Copy, Check } from "lucide-react";
 import { formatRupiah } from "@/lib/utils";
+import { waLink } from "@/lib/whatsapp";
 
 /** Tombol bagikan item galeri — Web Share API (HP) dengan fallback WA/salin. */
 export function ShareButton({ title, price, spec }: { title: string; price: number; spec: string | null }) {
@@ -27,7 +28,7 @@ export function ShareButton({ title, price, spec }: { title: string; price: numb
       }
     }
     // Fallback: buka WhatsApp dengan teks siap kirim (pilih kontak/grup).
-    const wa = `https://wa.me/?text=${encodeURIComponent(`${body}\n${url}`)}`;
+    const wa = waLink(`${body}\n${url}`);
     window.open(wa, "_blank", "noopener,noreferrer");
   }
 

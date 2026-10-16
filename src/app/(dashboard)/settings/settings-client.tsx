@@ -151,7 +151,11 @@ export function StoreSettingsForm({
   );
 }
 
-/** Resize logo di browser → PNG data URL (maks 240px, latar putih). */
+/**
+ * Resize logo di browser → data URL (maks 640px, latar putih). Cukup tajam untuk
+ * pratinjau tautan WA (gambar OG); struk cetak tetap mengecilkannya sendiri.
+ * PNG bila muat batas server (~500 ribu karakter), selain itu JPEG kualitas tinggi.
+ */
 function fileToLogoDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -160,7 +164,7 @@ function fileToLogoDataUrl(file: File): Promise<string> {
       const img = new Image();
       img.onerror = () => reject(new Error("Gagal memuat gambar"));
       img.onload = () => {
-        const max = 240;
+        const max = 640;
         let { width, height } = img;
         if (width > max || height > max) {
           const r = Math.min(max / width, max / height);
@@ -175,7 +179,8 @@ function fileToLogoDataUrl(file: File): Promise<string> {
         ctx.fillStyle = "#fff";
         ctx.fillRect(0, 0, width, height);
         ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL("image/png"));
+        const png = canvas.toDataURL("image/png");
+        resolve(png.length <= 450_000 ? png : canvas.toDataURL("image/jpeg", 0.9));
       };
       img.src = reader.result as string;
     };

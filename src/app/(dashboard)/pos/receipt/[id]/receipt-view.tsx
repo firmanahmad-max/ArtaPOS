@@ -81,7 +81,8 @@ export function ReceiptView({ data }: { data: ReceiptData }) {
     setPrinting(true);
     try {
       const logo = data.storeLogo
-        ? await imageToEscposRaster(data.storeLogo).catch(() => undefined)
+        ? // Lebar cetak tetap 240 titik (logo tersimpan bisa s/d 640px demi pratinjau tautan WA).
+          await imageToEscposRaster(data.storeLogo, 240).catch(() => undefined)
         : undefined;
       const buffer = buildReceiptEscpos({
         storeName: data.storeName,
