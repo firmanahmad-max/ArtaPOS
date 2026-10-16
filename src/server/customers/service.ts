@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import type { ContactInput } from "@/lib/validations/contacts";
-import { loyaltyNoteLines, type LoyaltyConfig } from "@/lib/loyalty";
+import { loyaltyNoteLines, programStarted, type LoyaltyConfig } from "@/lib/loyalty";
 
 /** Service Customer — semua query ter-scope tenantId. */
 
@@ -82,11 +82,50 @@ export async function deactivateCustomer(tenantId: string, id: string) {
 /** Aturan tukar poin toko. Defensif: kolom belum ada (migrasi) → penukaran nonaktif. */
 export async function getLoyaltyConfig(tenantId: string): Promise<LoyaltyConfig> {
   try {
-    const t = await db.tenant.findUnique({ where: { id: tenantId }, select: { pointValue: true, pointMinRedeem: true } });
-    return { pointValue: t?.pointValue ?? 0, minRedeem: t?.pointMinRedeem ?? 0 };
+    const t = await db.tenant.findUnique({
+      where: { id: tenantId },
+      select: { pointValue: true, pointMinRedeem: true, pointsStartAt: true },
+    });
+    return {
+      pointValue: t?.pointValue ?? 0,
+      minRedeem: t?.pointMinRedeem ?? 0,
+      startsAt: t?.pointsStartAt?.toISOString() ?? null,
+      // Dinilai di server (sumber waktu tunggal) → dikirim ke klien sebagai boolean.
+      started: programStarted(t?.pointsStartAt),
+    };
   } catch {
     return { pointValue: 0, minRedeem: 0 };
   }
+}
+
+/**
+ * Jadwalkan mulai program poin & (opsional) nolkan saldo SEMUA pelanggan.
+ * - `startAt` = batas mulai (≥ saat disimpan; lihat setLoyaltyScheduleAction).
+ * - Reset dicatat per pelanggan sebagai PointEntry ADJUST (jejak audit), atomik.
+ * Sebelum `startAt`: belanja tak menghasilkan poin & poin tak bisa ditukar.
+ */
+export async function setLoyaltySchedule(tenantId: string, startAt: Date | null, resetBalances: boolean) {
+  return db.$transaction(async (tx) => {
+    let resetCount = 0;
+    if (resetBalances) {
+      const holders = await tx.customer.findMany({
+        where: { tenantId, points: { not: 0 } },
+        select: { id: true, points: true },
+      });
+      if (holders.length > 0) {
+        const label = startAt
+          ? `Reset program poin (mulai ${startAt.toLocaleDateString("id-ID", { dateStyle: "long", timeZone: "Asia/Jakarta" })})`
+          : "Reset program poin";
+        await tx.pointEntry.createMany({
+          data: holders.map((h) => ({ tenantId, customerId: h.id, points: -h.points, type: "ADJUST" as const, note: label })),
+        });
+        await tx.customer.updateMany({ where: { tenantId, points: { not: 0 } }, data: { points: 0 } });
+      }
+      resetCount = holders.length;
+    }
+    await tx.tenant.update({ where: { id: tenantId }, data: { pointsStartAt: startAt } });
+    return { resetCount };
+  });
 }
 
 /**
@@ -105,6 +144,11 @@ export async function customerLoyaltyLines(tenantId: string, customerId: string 
   } catch {
     return [];
   }
+}
+
+/** Jumlah pelanggan yang saldo poinnya ≠ 0 (untuk konfirmasi reset). */
+export function countPointHolders(tenantId: string) {
+  return db.customer.count({ where: { tenantId, points: { not: 0 } } });
 }
 
 /** Total saldo poin semua pelanggan aktif (kewajiban potongan). */

@@ -6,7 +6,7 @@ import { nextDocNumber } from "@/server/shared/numbering";
 import type { SaleInput } from "@/lib/validations/pos";
 import { splitConsignment } from "@/lib/consignment-calc";
 import { usedSaleName } from "@/lib/used-item";
-import { pointsEarnedFor, resolveRedemption } from "@/lib/loyalty";
+import { pointsEarnedFor, programStarted, resolveRedemption } from "@/lib/loyalty";
 
 /** Service POS — checkout transaksional, ter-scope tenantId. */
 
@@ -131,6 +131,16 @@ async function refundRedeemedPoints(
   await tx.pointEntry.create({ data: { tenantId, customerId, points: owed, type: "REDEEM", note, saleId } });
 }
 
+/**
+ * Poin penjualan ini masih "berlaku"? Penjualan SEBELUM tanggal mulai program
+ * (`pointsStartAt`) poinnya sudah direset — jangan tarik/kembalikan apa pun saat
+ * void/retur, agar poin baru pelanggan tak ikut terpotong.
+ */
+async function saleCountsForPoints(tx: Prisma.TransactionClient, tenantId: string, saleCreatedAt: Date) {
+  const t = await tx.tenant.findUnique({ where: { id: tenantId }, select: { pointsStartAt: true } });
+  return !t?.pointsStartAt || saleCreatedAt >= t.pointsStartAt;
+}
+
 /** Retur penjualan sebagian/seluruh. Mengembalikan stok + catat dokumen retur. */
 export async function createReturn(
   tenantId: string,
@@ -201,7 +211,9 @@ export async function createReturn(
     });
 
     // Poin ikut ditarik sebanding nilai barang yang diretur (tarif earn sama).
-    await reversePoints(tx, tenantId, saleId, sale.customerId, `Retur ${number}`, Math.floor(refund / 1000));
+    if (await saleCountsForPoints(tx, tenantId, sale.createdAt)) {
+      await reversePoints(tx, tenantId, saleId, sale.customerId, `Retur ${number}`, Math.floor(refund / 1000));
+    }
 
     return { number, refund };
   });
@@ -336,8 +348,10 @@ export async function voidSale(tenantId: string, userId: string, saleId: string)
     }
 
     // Kembalikan poin yang ditukar, lalu tarik kembali poin yang didapat dari penjualan ini.
-    await refundRedeemedPoints(tx, tenantId, sale.id, sale.customerId, `Pengembalian poin tukar (void ${sale.number})`);
-    await reversePoints(tx, tenantId, sale.id, sale.customerId, `Void ${sale.number}`);
+    if (await saleCountsForPoints(tx, tenantId, sale.createdAt)) {
+      await refundRedeemedPoints(tx, tenantId, sale.id, sale.customerId, `Pengembalian poin tukar (void ${sale.number})`);
+      await reversePoints(tx, tenantId, sale.id, sale.customerId, `Void ${sale.number}`);
+    }
 
     // Kembalikan kuota transaksi lisensi — transaksi yang dibatalkan tidak
     // seharusnya menghabiskan jatah paket demo. `gt: 0` mencegah nilai negatif.
@@ -525,20 +539,30 @@ export async function createSale(
       throw new Error("Penjualan kredit wajib memilih pelanggan terdaftar.");
     }
 
+    // Aturan poin toko (nilai, minimal, jadwal mulai). "Sudah mulai" dinilai pada waktu
+    // TRANSAKSI terjadi (penjualan offline memakai waktu di perangkat).
+    const lt = input.customerId
+      ? await tx.tenant.findUnique({
+          where: { id: tenantId },
+          select: { pointValue: true, pointMinRedeem: true, pointsStartAt: true },
+        })
+      : null;
+    const saleAt = input.clientCreatedAt ? Date.parse(input.clientCreatedAt) : Date.now();
+    const loyalty = {
+      pointValue: lt?.pointValue ?? 0,
+      minRedeem: lt?.pointMinRedeem ?? 0,
+      startsAt: lt?.pointsStartAt?.toISOString() ?? null,
+      started: programStarted(lt?.pointsStartAt, saleAt),
+    };
+
     // Tukar poin loyalitas → potongan. Nilai & minimal dari pengaturan toko (DB),
     // saldo dari DB; dipotong atomik setelah penjualan dibuat.
     let pointsRedeemed = 0;
     let pointsDiscount = 0;
     if ((input.redeemPoints ?? 0) > 0) {
       if (!input.customerId) throw new Error("Tukar poin wajib memilih pelanggan terdaftar.");
-      const [t, c] = await Promise.all([
-        tx.tenant.findUnique({ where: { id: tenantId }, select: { pointValue: true, pointMinRedeem: true } }),
-        tx.customer.findFirst({ where: { id: input.customerId, tenantId }, select: { points: true } }),
-      ]);
-      const r = resolveRedemption(input.redeemPoints ?? 0, c?.points ?? 0, total, {
-        pointValue: t?.pointValue ?? 0,
-        minRedeem: t?.pointMinRedeem ?? 0,
-      });
+      const c = await tx.customer.findFirst({ where: { id: input.customerId, tenantId }, select: { points: true } });
+      const r = resolveRedemption(input.redeemPoints ?? 0, c?.points ?? 0, total, loyalty);
       if (r.error) throw new Error(r.error);
       pointsRedeemed = r.points;
       pointsDiscount = r.discount;
@@ -666,8 +690,8 @@ export async function createSale(
       });
     }
 
-    // Poin loyalitas: 1 poin per Rp 1.000 belanja (jika ada pelanggan terdaftar).
-    if (input.customerId) {
+    // Poin loyalitas: 1 poin per Rp 1.000 belanja (pelanggan terdaftar & program sudah mulai).
+    if (input.customerId && loyalty.started) {
       const earned = pointsEarnedFor(total);
       if (earned > 0) {
         // updateMany + tenantId = lapis kedua isolasi tenant (customerId sudah

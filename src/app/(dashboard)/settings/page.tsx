@@ -5,8 +5,10 @@ import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { getLicense } from "@/server/license/service";
 import { getReceiptStoreInfo } from "@/server/users/service";
-import { getLoyaltyConfig, totalCustomerPoints } from "@/server/customers/service";
+import { getLoyaltyConfig, totalCustomerPoints, countPointHolders } from "@/server/customers/service";
 import { LoyaltySettingsForm } from "./loyalty-form";
+import { LoyaltyScheduleForm } from "./loyalty-schedule-form";
+import { localParts } from "@/lib/timezone";
 import { formatRupiah } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +32,15 @@ export default async function SettingsPage() {
   }
   const license = await getLicense(user.tenantId);
   const storeInfo = await getReceiptStoreInfo(user.tenantId);
-  const [loyalty, totalPoints] = await Promise.all([getLoyaltyConfig(user.tenantId), totalCustomerPoints(user.tenantId)]);
+  const [loyalty, totalPoints, holders] = await Promise.all([
+    getLoyaltyConfig(user.tenantId),
+    totalCustomerPoints(user.tenantId),
+    countPointHolders(user.tenantId),
+  ]);
+  // Default jadwal: tanggal 1 bulan depan (WIB).
+  const { y, m } = localParts();
+  const next = new Date(Date.UTC(y, m + 1, 1));
+  const nextMonthFirst = `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, "0")}-01`;
   const canLicense = can(user.role, "license.manage");
 
   // Status masa berlaku lisensi → CTA perpanjang (ke /harga) bila hampir/sudah habis.
@@ -89,8 +99,15 @@ export default async function SettingsPage() {
             Atur nilai tukar poin loyalitas. Poin ditukar sebagai potongan di kasir dan tercantum di setiap nota pelanggan terdaftar.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-5">
           <LoyaltySettingsForm pointValue={loyalty.pointValue} minRedeem={loyalty.minRedeem} totalPoints={totalPoints} />
+          <LoyaltyScheduleForm
+            startsAt={loyalty.startsAt ?? null}
+            started={loyalty.started !== false}
+            defaultDate={nextMonthFirst}
+            totalPoints={totalPoints}
+            holders={holders}
+          />
         </CardContent>
       </Card>
 

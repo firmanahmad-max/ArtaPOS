@@ -5,7 +5,7 @@ import { getAuthContext } from "@/lib/auth/guard";
 import { can } from "@/lib/rbac";
 import { getLoyaltyConfig, listCustomers } from "@/server/customers/service";
 import { createCustomerAction, deactivateCustomerAction } from "@/server/customers/actions";
-import { cashbackPercent, pointsWorth, RUPIAH_PER_POINT } from "@/lib/loyalty";
+import { cashbackPercent, formatStartDate, isProgramStarted, pointsWorth, RUPIAH_PER_POINT } from "@/lib/loyalty";
 import { formatRupiah } from "@/lib/utils";
 import { ContactManager } from "@/components/contacts/contact-manager";
 import { StatCard } from "@/components/ui/stat-card";
@@ -18,7 +18,8 @@ export default async function CustomersPage() {
   const [customers, loyalty] = await Promise.all([listCustomers(tenantId), getLoyaltyConfig(tenantId)]);
   const totalPoints = customers.reduce((s, c) => s + (c.points ?? 0), 0);
   const withPhone = customers.filter((c) => c.phone).length;
-  const active = loyalty.pointValue > 0;
+  const scheduled = !isProgramStarted(loyalty) && !!loyalty.startsAt;
+  const active = loyalty.pointValue > 0 && !scheduled;
   const ready = customers.filter((c) => active && c.points >= loyalty.minRedeem && c.points > 0);
   const top = [...customers].filter((c) => c.points > 0).sort((a, b) => b.points - a.points).slice(0, 5);
 
@@ -36,7 +37,13 @@ export default async function CustomersPage() {
           icon={Star}
           label="Total Poin Loyalitas"
           value={totalPoints.toLocaleString("id-ID")}
-          hint={active ? `Senilai ${formatRupiah(pointsWorth(totalPoints, loyalty))} potongan` : "Penukaran poin nonaktif"}
+          hint={
+            scheduled
+              ? `Program mulai ${formatStartDate(loyalty.startsAt!)}`
+              : active
+                ? `Senilai ${formatRupiah(pointsWorth(totalPoints, loyalty))} potongan`
+                : "Penukaran poin nonaktif"
+          }
           tone="violet"
         />
         <StatCard icon={Phone} label="Dengan No. HP" value={String(withPhone)} hint="Bisa dihubungi/WhatsApp" tone="emerald" />
@@ -50,7 +57,12 @@ export default async function CustomersPage() {
               <Star className="size-5 fill-amber-400 text-amber-500" /> Program Poin Member
             </CardTitle>
             <CardDescription>
-              {active ? (
+              {scheduled ? (
+                <>
+                  <strong className="text-foreground">Dijadwalkan mulai {formatStartDate(loyalty.startsAt!)}</strong> — sampai
+                  tanggal itu belanja belum menghasilkan poin. Struk pelanggan terdaftar menampilkan pengumumannya.
+                </>
+              ) : active ? (
                 <>
                   1 poin per {formatRupiah(RUPIAH_PER_POINT)} belanja · 1 poin = {formatRupiah(loyalty.pointValue)} potongan
                   (cashback {cashbackPercent(loyalty).toLocaleString("id-ID")}%) · tukar mulai{" "}

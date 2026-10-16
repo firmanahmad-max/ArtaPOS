@@ -63,6 +63,10 @@ model Tenant {
   // potongan di kasir senilai pointValue rupiah/poin (0 = penukaran nonaktif).
   pointValue      Int     @default(10)
   pointMinRedeem  Int     @default(100) // minimal saldo poin agar bisa ditukar
+  // Tanggal mulai program poin (null = sudah aktif). Sebelum tanggal ini belanja tak
+  // menghasilkan poin & poin tak bisa ditukar; poin penjualan sebelum tanggal ini tak
+  // ditarik/dikembalikan saat void/retur (saldonya sudah direset).
+  pointsStartAt   DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

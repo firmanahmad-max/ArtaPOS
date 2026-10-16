@@ -225,6 +225,7 @@ const SECTIONS: Section[] = [
       "Atur nilai poin di Pengaturan → Program Poin Member (mis. 1 poin = Rp 10 = cashback 1%) & minimal tukar (mis. 100 poin). Nilai 0 = penukaran nonaktif.",
       "Poin ditukar di kasir sebagai potongan belanja. Struk mencantumkan poin ditukar, poin didapat, saldo & nilainya; nota servis/rakit PC pelanggan terdaftar juga menampilkan saldo poinnya.",
       "Halaman Pelanggan menampilkan total poin beserta nilai rupiahnya (kewajiban potongan toko) & pemegang poin terbanyak.",
+      "Mau mulai program di tanggal tertentu (mis. awal bulan depan) dari nol? Pengaturan → Program Poin Member → Jadwal Mulai & Reset: pilih tanggal, centang \"Nolkan poin semua pelanggan\", Simpan. Sampai tanggal itu belanja belum menghasilkan poin & struk pelanggan terdaftar menampilkan pengumuman tanggal mulainya; program aktif otomatis di tanggal tersebut (atau tekan \"Mulai sekarang\").",
       "Di halaman edit pelanggan: lihat saldo, nilai & riwayat poin; tukar manual (mis. hadiah) atau sesuaikan poin. Void penjualan otomatis mengembalikan poin yang ditukar & menarik poin yang didapat.",
     ],
   },

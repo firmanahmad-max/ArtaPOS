@@ -8,6 +8,7 @@ import {
   resolveRedemption,
   loyaltyNoteLines,
   redeemHint,
+  programStarted,
 } from "../src/lib/loyalty.ts";
 
 const cfg = { pointValue: 10, minRedeem: 100 };
@@ -54,4 +55,23 @@ test("loyaltyNoteLines: isi nota sesuai kondisi", () => {
   ]);
   assert.deepEqual(loyaltyNoteLines({ earned: 5, redeemed: 0, balance: null }, cfg), []);
   assert.equal(redeemHint(500, { pointValue: 0, minRedeem: 0 }), null);
+});
+
+test("jadwal mulai: sebelum mulai tak bisa tukar & nota berisi pengumuman", () => {
+  const pending = { pointValue: 10, minRedeem: 100, startsAt: "2026-10-31T17:00:00.000Z", started: false };
+  assert.equal(maxRedeemablePoints(5_000, 1e6, pending), 0);
+  assert.match(resolveRedemption(500, 5_000, 1e6, pending).error ?? "", /belum dimulai \(mulai 1 November 2026\)/);
+  assert.deepEqual(loyaltyNoteLines({ earned: 0, redeemed: 0, balance: null }, pending), [
+    "Program Poin Member mulai 1 November 2026: dapat 1 poin tiap Rp 1.000 belanja.",
+  ]);
+  assert.equal(redeemHint(5_000, pending), null);
+  // Setelah dimulai → perilaku normal.
+  assert.equal(maxRedeemablePoints(5_000, 1e6, { ...pending, started: true }), 5_000);
+});
+
+test("programStarted: berdasarkan waktu", () => {
+  const start = "2026-11-01T00:00:00+07:00";
+  assert.equal(programStarted(null), true);
+  assert.equal(programStarted(start, Date.parse("2026-10-31T23:59:00+07:00")), false);
+  assert.equal(programStarted(start, Date.parse("2026-11-01T00:00:00+07:00")), true);
 });

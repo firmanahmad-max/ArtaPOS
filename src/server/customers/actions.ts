@@ -7,6 +7,7 @@ import { can } from "@/lib/rbac";
 import { toFieldErrors, type FormState } from "@/lib/form";
 import { contactSchema } from "@/lib/validations/contacts";
 import * as svc from "@/server/customers/service";
+import { startOfDay } from "@/lib/timezone";
 
 const NO_PERM = "Anda tidak punya izin mengelola pelanggan.";
 
@@ -105,4 +106,43 @@ export async function updateLoyaltyConfigAction(
   revalidatePath("/customers");
   revalidatePath("/pos");
   return { ok: true, message: "Program poin disimpan." };
+}
+
+/**
+ * Jadwal mulai program poin (`startDate` "YYYY-MM-DD" WIB, null = mulai SEKARANG)
+ * + opsi nolkan saldo semua pelanggan.
+ *
+ * Tanggal mulai TIDAK PERNAH lebih awal dari saat ini: ia juga batas "poin penjualan
+ * lama" (void/retur penjualan sebelum batas tak menyentuh saldo). Batas yang lebih
+ * awal dari reset akan membuat void penjualan pra-reset memotong saldo baru.
+ */
+export async function setLoyaltyScheduleAction(
+  startDate: string | null,
+  resetBalances: boolean,
+): Promise<{ ok: boolean; message?: string }> {
+  const ctx = await getAuthContext();
+  if (!can(ctx.role, "settings.manage")) return { ok: false, message: "Tidak punya izin." };
+  const now = new Date();
+  let startAt = now;
+  if (startDate) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return { ok: false, message: "Tanggal mulai tidak valid." };
+    const [y, m, d] = startDate.split("-").map(Number);
+    const chosen = startOfDay(y, m - 1, d); // 00:00 WIB
+    if (chosen > now) startAt = chosen;
+  }
+  try {
+    const r = await svc.setLoyaltySchedule(ctx.tenantId, startAt, resetBalances);
+    revalidatePath("/settings");
+    revalidatePath("/customers", "layout");
+    revalidatePath("/pos");
+    const parts = [startAt > now ? "Jadwal mulai program disimpan" : "Program poin berjalan mulai sekarang"];
+    if (resetBalances) parts.push(`saldo ${r.resetCount} pelanggan dinolkan`);
+    return { ok: true, message: parts.join(" · ") + "." };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/column|does not exist|P2022/i.test(msg)) {
+      return { ok: false, message: "Database produksi belum dimigrasi (kolom jadwal poin belum ada)." };
+    }
+    return { ok: false, message: msg || "Gagal menyimpan." };
+  }
 }

@@ -6,7 +6,7 @@ import { Search, Plus, Minus, Trash2, ShoppingCart, Loader2, X, Pause, RotateCcw
 import { toast } from "sonner";
 import { createSaleAction } from "@/server/pos/actions";
 import { cn, formatRupiah } from "@/lib/utils";
-import { maxRedeemablePoints, pointsWorth, type LoyaltyConfig } from "@/lib/loyalty";
+import { formatStartDate, isProgramStarted, maxRedeemablePoints, pointsWorth, type LoyaltyConfig } from "@/lib/loyalty";
 import { enqueueOutbox } from "@/lib/offline/db";
 import { effectiveCatalog } from "@/lib/offline/catalog";
 import { newOpId } from "@/lib/offline/enqueue";
@@ -752,7 +752,13 @@ export function PosTerminal({
           </Select>
 
           {/* Poin loyalitas pelanggan terpilih: saldo, nilai & tukar sebagai potongan */}
-          {selectedCustomer && loyalty.pointValue > 0 && (
+          {selectedCustomer && !isProgramStarted(loyalty) && loyalty.startsAt && (
+            <p className="flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground">
+              <Star className="size-3.5 text-amber-500" />
+              Program Poin Member mulai {formatStartDate(loyalty.startsAt)} — belum ada poin dari transaksi ini.
+            </p>
+          )}
+          {selectedCustomer && isProgramStarted(loyalty) && loyalty.pointValue > 0 && (
             <div className="space-y-1.5 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs">
               <div className="flex items-center justify-between gap-2">
                 <span className="flex items-center gap-1.5">
