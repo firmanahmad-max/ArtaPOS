@@ -93,6 +93,7 @@ export interface FinanceReport {
   /** Modal komponen yang terpakai di rakitan. */
   buildCogs: number;
   buildCount: number;
+  /** Pembelian stok dari supplier + harga beli barang bekas (informasi arus keluar). */
   purchaseTotal: number;
   expenseTotal: number;
   estimatedNet: number;
@@ -133,8 +134,8 @@ export async function getFinanceComparison(
 ): Promise<{ current: FinanceReport; previous: FinanceReport }> {
   const cur = periodRange(period);
   const prev = previousRange(period);
-  // SENGAJA berurutan (bukan Promise.all): tiap computeReport menembakkan 6
-  // query. Menjalankan kedua periode bersamaan = 12 koneksi serentak per
+  // SENGAJA berurutan (bukan Promise.all): tiap computeReport menembakkan 7
+  // query. Menjalankan kedua periode bersamaan = 14 koneksi serentak per
   // request — di serverless dengan pool kecil (lihat DB_POOL_MAX) ini menaikkan
   // tekanan koneksi ke Supabase dan bisa memicu error transien. Berurutan
   // memangkas puncak koneksi per-request jadi setengahnya.
@@ -171,7 +172,7 @@ async function computeReport(
 ): Promise<FinanceReport> {
   const range = { gte: from, lt: to };
 
-  const [sales, servicePayments, builds, purchaseAgg, expenseAgg, returns] = await Promise.all([
+  const [sales, servicePayments, builds, purchaseAgg, expenseAgg, returns, usedAgg] = await Promise.all([
     db.sale.findMany({
       where: { tenantId, status: "COMPLETED", createdAt: range },
       select: { total: true, items: { select: { costPrice: true, qty: true } } },
@@ -215,6 +216,8 @@ async function computeReport(
         sale: { select: { items: { select: { productId: true, costPrice: true } } } },
       },
     }),
+    // Barang bekas yang dibeli/diterima di periode ini (modal keluar, seperti pembelian stok).
+    db.usedItem.aggregate({ where: { tenantId, acquiredAt: range }, _sum: { costPrice: true } }),
   ]);
 
   const buildItems = builds.flatMap((b) => b.items);
@@ -271,7 +274,7 @@ async function computeReport(
     const ratio = gross > 0 ? b.total / gross : 0;
     return s + Math.round(partsRevenue(b.items) * ratio);
   }, 0);
-  const purchaseTotal = purchaseAgg._sum.total ?? 0;
+  const purchaseTotal = (purchaseAgg._sum.total ?? 0) + (usedAgg._sum.costPrice ?? 0);
   const expenseTotal = expenseAgg._sum.amount ?? 0;
   const estimatedNet =
     salesGrossProfit + serviceRevenue - serviceCogs + buildRevenue - buildCogs - expenseTotal;

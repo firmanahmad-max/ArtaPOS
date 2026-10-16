@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { gradeText, warrantyText } from "@/lib/used-item";
 
 /** Service Galeri Publik — etalase produk/promo. Ter-scope tenantId. */
 
@@ -7,6 +8,8 @@ export interface GalleryInput {
   productId?: string | null;
   /** Tautan barang titipan (titip jual) — saling eksklusif dengan productId. */
   consignmentItemId?: string | null;
+  /** Tautan barang bekas milik toko — saling eksklusif dengan productId & titipan. */
+  usedItemId?: string | null;
   title: string;
   spec?: string | null;
   price: number;
@@ -28,14 +31,18 @@ function cleanPhoto(photo: string | null | undefined): string | null {
 
 /**
  * Aturan TAMPIL di publik: aktif DAN (bukan barang titipan ATAU titipannya masih
- * "Dititipkan"). Barang titipan yang laku/diambil kembali otomatis tersembunyi
- * tanpa perlu diubah manual. Dipakai halaman publik, insight & tautan /lacak.
+ * "Dititipkan") DAN (bukan barang bekas ATAU bekasnya masih "Tersedia"). Barang
+ * yang laku/diambil kembali/ditarik otomatis tersembunyi tanpa perlu diubah manual.
+ * Dipakai halaman publik, insight & tautan /lacak.
  */
 export function publicGalleryWhere(tenantId: string) {
   return {
     tenantId,
     isActive: true,
-    OR: [{ consignmentItemId: null }, { consignmentItem: { status: "AVAILABLE" as const } }],
+    AND: [
+      { OR: [{ consignmentItemId: null }, { consignmentItem: { status: "AVAILABLE" as const } }] },
+      { OR: [{ usedItemId: null }, { usedItem: { status: "AVAILABLE" as const } }] },
+    ],
   };
 }
 
@@ -45,6 +52,7 @@ export function listGalleryAdmin(tenantId: string) {
     orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
     include: {
       consignmentItem: { select: { status: true, consignment: { select: { id: true, number: true } } } },
+      usedItem: { select: { id: true, number: true, status: true } },
     },
   });
 }
@@ -87,11 +95,15 @@ export function getGalleryStoreBySlug(slug: string) {
  * = tautan lama item yang sedang diedit — boleh dipertahankan walau sudah laku
  * (mis. hanya mengganti foto); tautan BARU wajib barang yang masih dititipkan.
  */
-async function resolveDefaults(tenantId: string, input: GalleryInput, keepLinkedId?: string | null) {
+async function resolveDefaults(
+  tenantId: string,
+  input: GalleryInput,
+  keep?: { consignment?: string | null; used?: string | null },
+) {
   let title = input.title?.trim() || "";
   let price = input.price;
-  if (input.productId && input.consignmentItemId) {
-    throw new Error("Pilih salah satu: produk atau barang titipan.");
+  if ([input.productId, input.consignmentItemId, input.usedItemId].filter(Boolean).length > 1) {
+    throw new Error("Pilih salah satu: produk, barang titipan, atau barang bekas.");
   }
   if (input.productId) {
     const p = await db.product.findFirst({
@@ -108,19 +120,31 @@ async function resolveDefaults(tenantId: string, input: GalleryInput, keepLinked
       select: { category: true, name: true, askingPrice: true, status: true },
     });
     if (!ci) throw new Error("Barang titipan tidak ditemukan.");
-    if (ci.status !== "AVAILABLE" && input.consignmentItemId !== keepLinkedId) {
+    if (ci.status !== "AVAILABLE" && input.consignmentItemId !== keep?.consignment) {
       throw new Error("Barang titipan ini sudah tidak dititipkan (laku/diambil kembali).");
     }
     if (!title) title = `${ci.category} ${ci.name}`;
     price = ci.askingPrice;
   }
+  if (input.usedItemId) {
+    const u = await db.usedItem.findFirst({
+      where: { id: input.usedItemId, tenantId },
+      select: { category: true, name: true, sellPrice: true, status: true },
+    });
+    if (!u) throw new Error("Barang bekas tidak ditemukan.");
+    if (u.status !== "AVAILABLE" && input.usedItemId !== keep?.used) {
+      throw new Error("Barang bekas ini sudah tidak tersedia (terjual/ditarik).");
+    }
+    if (!title) title = `${u.category} ${u.name}`;
+    price = u.sellPrice; // harga selalu mengikuti harga jual di menu Barang Bekas
+  }
   if (!title) throw new Error("Judul wajib diisi.");
   return { title, price: Math.max(0, Math.round(price || 0)) };
 }
 
-/** Pesan ramah untuk tautan ganda (consignmentItemId unik). */
+/** Pesan ramah untuk tautan ganda (consignmentItemId/usedItemId unik). */
 function friendlyGalleryError(e: unknown): never {
-  if ((e as { code?: string })?.code === "P2002") throw new Error("Barang titipan ini sudah ada di Galeri.");
+  if ((e as { code?: string })?.code === "P2002") throw new Error("Barang ini sudah ada di Galeri.");
   throw e;
 }
 
@@ -133,6 +157,7 @@ export async function createGalleryItem(tenantId: string, userId: string, input:
         tenantId,
         productId: input.productId || null,
         consignmentItemId: input.consignmentItemId || null,
+        usedItemId: input.usedItemId || null,
         title,
         spec: input.spec?.trim() || null,
         price,
@@ -148,16 +173,20 @@ export async function createGalleryItem(tenantId: string, userId: string, input:
 export async function updateGalleryItem(tenantId: string, id: string, input: GalleryInput) {
   const existing = await db.galleryItem.findFirst({
     where: { id, tenantId },
-    select: { id: true, consignmentItemId: true },
+    select: { id: true, consignmentItemId: true, usedItemId: true },
   });
   if (!existing) throw new Error("Item galeri tidak ditemukan.");
-  const { title, price } = await resolveDefaults(tenantId, input, existing.consignmentItemId);
+  const { title, price } = await resolveDefaults(tenantId, input, {
+    consignment: existing.consignmentItemId,
+    used: existing.usedItemId,
+  });
   return db.galleryItem
     .update({
       where: { id },
       data: {
         productId: input.productId || null,
         consignmentItemId: input.consignmentItemId || null,
+        usedItemId: input.usedItemId || null,
         title,
         spec: input.spec?.trim() || null,
         price,
@@ -187,6 +216,37 @@ export async function addConsignmentToGallery(tenantId: string, userId: string, 
     price: 0,
     photo: null,
     label: null,
+    isActive: true,
+  });
+}
+
+/**
+ * Pajang satu barang bekas di Galeri (dari menu Barang Bekas). Judul & harga
+ * otomatis; deskripsi dirangkai dari grade, kondisi, kelengkapan, spesifikasi &
+ * garansi toko. Foto bisa ditambahkan kemudian di Galeri.
+ */
+export async function addUsedItemToGallery(tenantId: string, userId: string, usedItemId: string) {
+  const u = await db.usedItem.findFirst({
+    where: { id: usedItemId, tenantId },
+    select: { grade: true, condition: true, completeness: true, specs: true, warrantyDays: true },
+  });
+  if (!u) throw new Error("Barang bekas tidak ditemukan.");
+  const spec = [
+    `Bekas — ${gradeText(u.grade)}`,
+    u.specs,
+    u.condition ? `Kondisi: ${u.condition}` : null,
+    u.completeness ? `Kelengkapan: ${u.completeness}` : null,
+    warrantyText(u.warrantyDays),
+  ]
+    .filter(Boolean)
+    .join("\n");
+  return createGalleryItem(tenantId, userId, {
+    usedItemId,
+    title: "",
+    spec: spec.slice(0, 2000),
+    price: 0,
+    photo: null,
+    label: "Bekas",
     isActive: true,
   });
 }

@@ -6,6 +6,8 @@ import { can } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { listGalleryAdmin } from "@/server/gallery/service";
 import { listConsignmentItemsForSale } from "@/server/consignment/service";
+import { listUsedItemsForSale } from "@/server/used-items/service";
+import { gradeText, warrantyText } from "@/lib/used-item";
 import { getLinkVisitSummary } from "@/server/link-stats/service";
 import type { LinkVisitSummary } from "@/lib/track-link";
 import { buttonVariants } from "@/components/ui/button";
@@ -76,7 +78,7 @@ export default async function GalleryPage() {
     return <Card className="p-8 text-center text-sm text-muted-foreground">Tidak punya izin mengelola galeri.</Card>;
   }
 
-  const [items, products, tenant, consignmentItems, visits] = await Promise.all([
+  const [items, products, tenant, consignmentItems, visits, usedItems] = await Promise.all([
     listGalleryAdmin(user.tenantId),
     db.product.findMany({
       where: { tenantId: user.tenantId, isActive: true },
@@ -87,6 +89,7 @@ export default async function GalleryPage() {
     db.tenant.findUnique({ where: { id: user.tenantId }, select: { slug: true, phone: true } }),
     listConsignmentItemsForSale(user.tenantId),
     getLinkVisitSummary(user.tenantId, VISIT_DAYS),
+    listUsedItemsForSale(user.tenantId),
   ]);
 
   const publicUrl = tenant ? `/galeri/${tenant.slug}` : null;
@@ -105,6 +108,9 @@ export default async function GalleryPage() {
     consignmentStatus: i.consignmentItem?.status ?? null,
     consignmentNumber: i.consignmentItem?.consignment.number ?? null,
     consignmentId: i.consignmentItem?.consignment.id ?? null,
+    usedItemId: i.usedItemId,
+    usedStatus: i.usedItem?.status ?? null,
+    usedNumber: i.usedItem?.number ?? null,
   }));
 
   return (
@@ -141,6 +147,14 @@ export default async function GalleryPage() {
           askingPrice: ci.askingPrice,
           condition: ci.condition,
           inGallery: !!ci.galleryItem,
+        }))}
+        usedItems={usedItems.map((u) => ({
+          id: u.id,
+          label: `${u.category} ${u.name}`,
+          number: u.number,
+          sellPrice: u.sellPrice,
+          spec: `Bekas — ${gradeText(u.grade)}\n${warrantyText(u.warrantyDays)}`,
+          inGallery: !!u.galleryItem,
         }))}
       />
     </div>

@@ -24,6 +24,7 @@ import {
   Search,
   Images,
   Handshake,
+  Recycle,
   type LucideIcon,
 } from "lucide-react";
 
@@ -183,6 +184,24 @@ const SECTIONS: Section[] = [
       "Void/retur penjualan mengembalikan barang ke \"Dititipkan\". Bila hak pemilik sudah dibayar, batalkan pembayarannya dulu.",
     ],
     example: "Pak Fajar menitip VGA Rp 3.500.000 dengan komisi 10% → laku di kasir (diskon Rp 100.000) seharga Rp 3.400.000 → komisi toko Rp 340.000, hak Pak Fajar Rp 3.060.000 → bayar & tandai dibayar.",
+  },
+  {
+    icon: Recycle,
+    title: "Barang Bekas (Second Milik Toko)",
+    desc: "Kelola laptop/komponen bekas milik toko per unit — kondisi, harga beli & jual, garansi — lalu jual lewat kasir dan pajang di Galeri.",
+    steps: [
+      "Buka Inventaris → Barang Bekas → Tambah Barang Bekas. Isi jenis, nama/tipe, no. seri (opsional), spesifikasi ringkas.",
+      "Pilih Grade kondisi (A Seperti baru · B Baik · C Cukup · D Ada minus), tulis keterangan kondisi/minus dan kelengkapan (charger, dus, dll.).",
+      "Isi harga beli (modal) & harga jual — margin tampil langsung. Pilih garansi toko (tanpa/7 hari/1 bulan/3 bulan atau isi sendiri).",
+      "Catat asal barang (beli dari pelanggan, tukar tambah, supplier, unit servis tak diambil) & tanggal masuk. Nomor BK-xxxxx dibuat otomatis.",
+      "Cetak label (tombol Label) — barcode berisi no. BK yang bisa di-scan langsung di kasir.",
+      "Jual dari Kasir: buka tab \"Bekas\" di POS (atau scan no. BK/no. seri). Struk mencantumkan \"Bekas, Grade …, garansi …\". Hanya bisa saat online.",
+      "Laba otomatis masuk Keuangan: HPP = harga beli, jadi laba kotor = harga jual − harga beli. Harga beli ikut tercatat di ringkasan pembelian.",
+      "Pajang di Galeri Publik: tekan \"Tampilkan di Galeri\" di detail barang (deskripsi grade, kondisi & garansi terisi otomatis; tambah foto di menu Galeri). Barang otomatis hilang dari galeri saat laku atau ditarik.",
+      "Pantau chip \"Lama >60 hari\" untuk barang yang perlu dipromosikan/turun harga. \"Tarik dari penjualan\" bila barang rusak atau dipakai sendiri.",
+      "Void/retur penjualan mengembalikan barang ke \"Tersedia\" (dan muncul lagi di galeri).",
+    ],
+    example: "Beli ThinkPad T480 dari pelanggan Rp 3.000.000 → catat Grade B, baterai 82%, garansi 1 bulan, jual Rp 3.600.000 → pajang di Galeri → laku di kasir → laba kotor Rp 600.000 tercatat otomatis.",
   },
   {
     icon: Truck,

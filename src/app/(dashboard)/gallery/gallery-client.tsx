@@ -34,6 +34,9 @@ export interface GalleryRow {
   consignmentStatus: "AVAILABLE" | "SOLD" | "RETURNED" | null;
   consignmentNumber: string | null;
   consignmentId: string | null;
+  usedItemId: string | null;
+  usedStatus: "AVAILABLE" | "SOLD" | "WITHDRAWN" | null;
+  usedNumber: string | null;
 }
 interface ProductOpt {
   id: string;
@@ -49,10 +52,19 @@ interface ConsignmentOpt {
   condition: string | null;
   inGallery: boolean;
 }
+interface UsedOpt {
+  id: string;
+  label: string;
+  number: string;
+  sellPrice: number;
+  spec: string;
+  inGallery: boolean;
+}
 type Form = {
   id?: string;
   productId: string;
   consignmentItemId: string;
+  usedItemId: string;
   title: string;
   spec: string;
   price: number;
@@ -61,7 +73,7 @@ type Form = {
   isActive: boolean;
 };
 
-const BLANK: Form = { productId: "", consignmentItemId: "", title: "", spec: "", price: 0, photo: null, label: "", isActive: true };
+const BLANK: Form = { productId: "", consignmentItemId: "", usedItemId: "", title: "", spec: "", price: 0, photo: null, label: "", isActive: true };
 const LABELS = ["Promo", "Baru", "Unggulan", "Diskon", "Terlaris"];
 
 function compressImage(file: File, maxDim = 1000, quality = 0.72): Promise<string> {
@@ -98,11 +110,14 @@ export function GalleryManager({
   items,
   products,
   consignments = [],
+  usedItems = [],
 }: {
   items: GalleryRow[];
   products: ProductOpt[];
   /** Barang titipan yang masih dititipkan (bisa dipajang). */
   consignments?: ConsignmentOpt[];
+  /** Barang bekas yang masih tersedia (bisa dipajang). */
+  usedItems?: UsedOpt[];
 }) {
   const router = useRouter();
   const [form, setForm] = useState<Form | null>(null);
@@ -120,6 +135,7 @@ export function GalleryManager({
       id: it.id,
       productId: it.productId ?? "",
       consignmentItemId: it.consignmentItemId ?? "",
+      usedItemId: it.usedItemId ?? "",
       title: it.title,
       spec: it.spec ?? "",
       price: it.price,
@@ -136,7 +152,8 @@ export function GalleryManager({
     const p = products.find((x) => x.id === id);
     patch({
       productId: id,
-      consignmentItemId: "", // produk & barang titipan saling eksklusif
+      consignmentItemId: "", // produk, barang titipan & barang bekas saling eksklusif
+      usedItemId: "",
       ...(p && !form?.title ? { title: p.name } : {}),
       ...(p && (!form?.price || form.price === 0) ? { price: p.sellPrice } : {}),
     });
@@ -147,11 +164,29 @@ export function GalleryManager({
     patch({
       consignmentItemId: id,
       productId: "",
+      usedItemId: "",
       ...(c ? { price: c.askingPrice } : {}), // harga selalu mengikuti harga titipan
       ...(c && !form?.title ? { title: c.label } : {}),
       ...(c && !form?.spec && c.condition ? { spec: c.condition } : {}),
     });
   }
+
+  function onPickUsed(id: string) {
+    const u = usedItems.find((x) => x.id === id);
+    patch({
+      usedItemId: id,
+      productId: "",
+      consignmentItemId: "",
+      ...(u ? { price: u.sellPrice } : {}), // harga selalu mengikuti harga jual barang bekas
+      ...(u && !form?.title ? { title: u.label } : {}),
+      ...(u && !form?.spec ? { spec: u.spec } : {}),
+      ...(u && !form?.label ? { label: "Bekas" } : {}),
+    });
+  }
+
+  // Opsi barang bekas: yang belum dipajang + tautan item yang sedang diedit.
+  const usedChoices = usedItems.filter((u) => !u.inGallery || u.id === form?.usedItemId);
+  const usedLinkedButGone = !!form?.usedItemId && !usedChoices.some((u) => u.id === form.usedItemId);
 
   // Opsi barang titipan: yang belum dipajang + tautan item yang sedang diedit.
   const consignmentChoices = consignments.filter((c) => !c.inGallery || c.id === form?.consignmentItemId);
@@ -180,6 +215,7 @@ export function GalleryManager({
       id: form.id,
       productId: form.productId || null,
       consignmentItemId: form.consignmentItemId || null,
+      usedItemId: form.usedItemId || null,
       title: form.title,
       spec: form.spec || null,
       price: form.price,
@@ -300,6 +336,28 @@ export function GalleryManager({
                   </p>
                 </div>
               )}
+              {(usedItems.length > 0 || form.usedItemId) && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="g-used">…atau tautkan barang bekas</Label>
+                  <Select id="g-used" value={form.usedItemId} onChange={(e) => onPickUsed(e.target.value)}>
+                    <option value="">— Bukan barang bekas —</option>
+                    {usedChoices.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.label} · {formatRupiah(u.sellPrice)} ({u.number})
+                      </option>
+                    ))}
+                    {usedLinkedButGone && (
+                      <option value={form.usedItemId}>
+                        Barang bekas {editingRow?.usedNumber ?? ""} (sudah tidak tersedia)
+                      </option>
+                    )}
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Tampil di galeri publik selama barang masih tersedia — otomatis hilang saat laku atau ditarik.
+                    Harga mengikuti harga jual di menu Barang Bekas.
+                  </p>
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label htmlFor="g-title">Judul</Label>
                 <Input id="g-title" value={form.title} onChange={(e) => patch({ title: e.target.value })} placeholder="mis. Laptop Asus VivoBook 14" />
@@ -313,11 +371,20 @@ export function GalleryManager({
                     value={form.price ? String(form.price) : ""}
                     onChange={(e) => patch({ price: Number(e.target.value.replace(/[^0-9]/g, "")) || 0 })}
                     placeholder="0 = Hubungi"
-                    disabled={!!form.consignmentItemId}
-                    title={form.consignmentItemId ? "Ubah harga lewat menu Titip Jual" : undefined}
+                    disabled={!!form.consignmentItemId || !!form.usedItemId}
+                    title={
+                      form.consignmentItemId
+                        ? "Ubah harga lewat menu Titip Jual"
+                        : form.usedItemId
+                          ? "Ubah harga lewat menu Barang Bekas"
+                          : undefined
+                    }
                   />
                   {form.consignmentItemId && (
                     <p className="text-xs text-muted-foreground">Ubah harga lewat menu Titip Jual.</p>
+                  )}
+                  {form.usedItemId && (
+                    <p className="text-xs text-muted-foreground">Ubah harga lewat menu Barang Bekas.</p>
                   )}
                 </div>
                 <div className="space-y-1.5">
@@ -396,8 +463,10 @@ export function GalleryManager({
           {items.map((it) => {
             // Barang titipan yang laku/diambil kembali → tersembunyi otomatis dari publik.
             const consignmentGone = !!it.consignmentItemId && it.consignmentStatus !== "AVAILABLE";
+            // Barang bekas yang laku/ditarik → tersembunyi otomatis dari publik.
+            const usedGone = !!it.usedItemId && it.usedStatus !== "AVAILABLE";
             return (
-            <Card key={it.id} className={cn("flex flex-col overflow-hidden", (!it.isActive || consignmentGone) && "opacity-60")}>
+            <Card key={it.id} className={cn("flex flex-col overflow-hidden", (!it.isActive || consignmentGone || usedGone) && "opacity-60")}>
               <div className="relative aspect-video bg-muted/40">
                 {it.photo ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -412,6 +481,11 @@ export function GalleryManager({
                     {it.consignmentStatus === "SOLD" ? "Sudah laku" : "Diambil pemilik"} — otomatis disembunyikan
                   </span>
                 )}
+                {usedGone && (
+                  <span className="absolute inset-x-2 bottom-2 rounded-md bg-background/90 px-2 py-1 text-center text-[11px] font-medium">
+                    {it.usedStatus === "SOLD" ? "Sudah laku" : "Ditarik dari penjualan"} — otomatis disembunyikan
+                  </span>
+                )}
               </div>
               <div className="flex flex-1 flex-col gap-1 p-3">
                 <p className="line-clamp-1 font-semibold">{it.title}</p>
@@ -421,6 +495,14 @@ export function GalleryManager({
                     className="w-fit rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-semibold text-amber-700 hover:underline dark:text-amber-300"
                   >
                     Titipan {it.consignmentNumber}
+                  </Link>
+                )}
+                {it.usedItemId && (
+                  <Link
+                    href={`/used-items/${it.usedItemId}`}
+                    className="w-fit rounded-full bg-sky-500/20 px-2 py-0.5 text-[10px] font-semibold text-sky-700 hover:underline dark:text-sky-300"
+                  >
+                    Bekas {it.usedNumber}
                   </Link>
                 )}
                 {it.spec && <p className="line-clamp-2 text-xs text-muted-foreground">{it.spec}</p>}

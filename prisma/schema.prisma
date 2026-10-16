@@ -86,6 +86,7 @@ model Tenant {
   galleryItems   GalleryItem[]
   consignments   Consignment[]
   linkVisitStats LinkVisitStat[]
+  usedItems      UsedItem[]
 
   @@map("tenants")
 }
@@ -483,12 +484,16 @@ model SaleItem {
   // tak ketemu sehingga stok tak disentuh, sementara kunci per-baris tetap unik
   // (dipakai finance/refund-audit). costPrice = hak pemilik → laba kotor = komisi.
   consignmentItemId String?
+  // Baris BARANG BEKAS milik toko: pola sama (productId = id barang bekas, stok produk
+  // tak disentuh). costPrice = harga beli barang → laba kotor = harga jual − harga beli.
+  usedItemId        String?
 
   sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
 
   @@index([saleId])
   @@index([productId])
   @@index([consignmentItemId])
+  @@index([usedItemId])
   @@map("sale_items")
 }
 
@@ -743,10 +748,13 @@ model GalleryItem {
   // Opsional: tautan barang TITIPAN (titip jual). Tampil di publik hanya selama
   // barangnya masih "Dititipkan"; laku/diambil kembali → otomatis tersembunyi.
   consignmentItemId String? @unique
+  // Opsional: tautan BARANG BEKAS milik toko — tampil di publik hanya selama "Tersedia".
+  usedItemId        String? @unique
 
   tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   product         Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
   consignmentItem ConsignmentItem? @relation(fields: [consignmentItemId], references: [id], onDelete: Cascade)
+  usedItem        UsedItem?        @relation(fields: [usedItemId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@map("gallery_items")
@@ -837,6 +845,67 @@ model ConsignmentItem {
 
   @@index([consignmentId])
   @@map("consignment_items")
+}
+
+/// Status barang bekas.
+enum UsedItemStatus {
+  AVAILABLE // tersedia, dipajang/ditawarkan
+  SOLD // terjual lewat kasir
+  WITHDRAWN // ditarik dari penjualan (rusak, dipakai sendiri, dll.)
+}
+
+/// Grade kondisi fisik & fungsi barang bekas.
+enum UsedItemGrade {
+  LIKE_NEW // A — seperti baru
+  GOOD // B — normal, bekas pakai wajar
+  FAIR // C — lecet/kosmetik, fungsi normal
+  POOR // D — ada minus (dijelaskan di keterangan)
+}
+
+/// Asal barang bekas.
+enum UsedItemSource {
+  BUY // dibeli dari pelanggan
+  TRADE_IN // tukar tambah
+  SUPPLIER // supplier / lelang / grosir bekas
+  SERVICE // unit servis tak diambil / kanibal
+  OTHER
+}
+
+/// Barang BEKAS milik toko — unik per unit (no. BK-xxxxx), terpisah dari stok produk.
+/// Dijual lewat kasir (tab "Bekas"): HPP = harga beli → masuk laporan keuangan.
+model UsedItem {
+  id           String         @id @default(cuid())
+  tenantId     String
+  number       String // BK-00001 (juga bisa di-scan di kasir)
+  category     String // jenis: Laptop, VGA, RAM, …
+  name         String // merk / tipe
+  serialNumber String?
+  grade        UsedItemGrade  @default(GOOD)
+  condition    String? // keterangan kondisi/minus
+  completeness String? // kelengkapan: charger, box, nota, …
+  specs        String? // spesifikasi ringkas
+  costPrice    Int            @default(0) // harga beli/modal (rupiah)
+  sellPrice    Int // harga jual (rupiah)
+  warrantyDays Int            @default(0) // garansi toko (hari; 0 = tanpa garansi)
+  source       UsedItemSource @default(BUY)
+  sourceName   String? // dibeli dari siapa
+  sourcePhone  String?
+  acquiredAt   DateTime       @default(now())
+  note         String? // catatan internal (tak tampil ke pelanggan)
+  status       UsedItemStatus @default(AVAILABLE)
+  soldPrice    Int? // harga bersih terjual (setelah diskon baris)
+  saleId       String? // penjualan kasir yang menjualnya
+  statusAt     DateTime? // kapan terjual/ditarik
+  createdById  String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  galleryItem GalleryItem? // dipajang di Galeri Publik (opsional)
+
+  @@unique([tenantId, number])
+  @@index([tenantId, status])
+  @@map("used_items")
 }
 
 /// Baris pada tiket servis: sparepart (productId terisi) atau jasa/lainnya.

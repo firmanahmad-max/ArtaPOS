@@ -5,6 +5,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { nextDocNumber } from "@/server/shared/numbering";
 import type { SaleInput } from "@/lib/validations/pos";
 import { splitConsignment } from "@/lib/consignment-calc";
+import { usedSaleName } from "@/lib/used-item";
 
 /** Service POS — checkout transaksional, ter-scope tenantId. */
 
@@ -32,6 +33,14 @@ async function revertConsignmentSale(
   await tx.consignmentItem.update({
     where: { id: ci.id },
     data: { status: "AVAILABLE", soldPrice: null, storeCommission: null, ownerShare: null, saleId: null, statusAt: null },
+  });
+}
+
+/** Kembalikan barang bekas yang dijual `saleId` ke status "Tersedia" (void/retur). */
+async function revertUsedSale(tx: Prisma.TransactionClient, tenantId: string, usedItemId: string, saleId: string) {
+  await tx.usedItem.updateMany({
+    where: { id: usedItemId, tenantId, status: "SOLD", saleId },
+    data: { status: "AVAILABLE", soldPrice: null, saleId: null, statusAt: null },
   });
 }
 
@@ -127,7 +136,9 @@ export async function createReturn(
       if (item.consignmentItemId) {
         await revertConsignmentSale(tx, tenantId, item.consignmentItemId, sale.id);
       }
-      const product = item.consignmentItemId
+      // Barang bekas: kembali "Tersedia" (bukan stok produk).
+      if (item.usedItemId) await revertUsedSale(tx, tenantId, item.usedItemId, sale.id);
+      const product = item.consignmentItemId || item.usedItemId
         ? null
         : await tx.product.findFirst({ where: { id: item.productId, tenantId }, select: { id: true } });
       if (product) {
@@ -281,6 +292,11 @@ export async function voidSale(tenantId: string, userId: string, saleId: string)
         await revertConsignmentSale(tx, tenantId, item.consignmentItemId, sale.id);
         continue;
       }
+      // Barang bekas: kembali "Tersedia" (bukan stok produk).
+      if (item.usedItemId) {
+        await revertUsedSale(tx, tenantId, item.usedItemId, sale.id);
+        continue;
+      }
       const product = await tx.product.findFirst({
         where: { id: item.productId, tenantId },
         select: { id: true },
@@ -415,6 +431,51 @@ export async function createSale(
       };
     });
 
+    // ── Barang BEKAS milik toko: unik 1 unit; harga dari DB, HPP = harga beli ──
+    const usedInput = input.usedItems ?? [];
+    const usedIds = usedInput.map((u) => u.usedItemId);
+    if (new Set(usedIds).size !== usedIds.length) throw new Error("Barang bekas tercantum dua kali di keranjang.");
+    const usedRows = usedIds.length
+      ? await tx.usedItem.findMany({
+          where: { id: { in: usedIds }, tenantId },
+          select: {
+            id: true,
+            number: true,
+            category: true,
+            name: true,
+            serialNumber: true,
+            grade: true,
+            warrantyDays: true,
+            costPrice: true,
+            sellPrice: true,
+            status: true,
+          },
+        })
+      : [];
+    const usedMap = new Map(usedRows.map((r) => [r.id, r]));
+    const usedClaims: { id: string; soldPrice: number }[] = [];
+    const usedItemsData = usedInput.map((u) => {
+      const r = usedMap.get(u.usedItemId);
+      if (!r) throw new Error("Barang bekas tidak ditemukan.");
+      if (r.status !== "AVAILABLE") throw new Error(`Barang bekas "${r.name}" sudah tidak tersedia.`);
+      const disc = Math.min(Math.max(0, u.discount ?? 0), r.sellPrice);
+      const net = r.sellPrice - disc;
+      subtotal += net;
+      usedClaims.push({ id: r.id, soldPrice: net });
+      return {
+        // productId = id barang bekas (BUKAN produk) — lihat komentar model SaleItem.
+        productId: r.id,
+        usedItemId: r.id,
+        productName: usedSaleName(r),
+        sku: r.serialNumber || r.number,
+        qty: 1,
+        price: r.sellPrice,
+        costPrice: r.costPrice, // HPP = harga beli → laba kotor = jual − beli
+        discount: disc,
+        subtotal: net,
+      };
+    });
+
     const discount = Math.min(input.discount ?? 0, subtotal);
     // Biaya lain/jasa (mis. setup/instal) — menambah total, tanpa HPP.
     const serviceFee = Math.max(0, input.serviceFee ?? 0);
@@ -491,7 +552,7 @@ export async function createSale(
         clientOpId: input.clientOpId ?? null,
         // Penjualan offline bertanggal saat TERJADI di perangkat, bukan saat sinkron.
         ...(input.clientCreatedAt ? { createdAt: new Date(input.clientCreatedAt) } : {}),
-        items: { create: [...itemsData, ...consignmentItemsData] },
+        items: { create: [...itemsData, ...consignmentItemsData, ...usedItemsData] },
         ...(isCredit && paid > 0
           ? { payments: { create: { tenantId, amount: paid, note: "Uang muka", createdById: cashier.id } } }
           : {}),
@@ -528,6 +589,15 @@ export async function createSale(
         },
       });
       if (claimed.count !== 1) throw new Error("Barang titipan baru saja terjual di transaksi lain.");
+    }
+
+    // Klaim barang bekas secara ATOMIK (hanya bila masih AVAILABLE) — cegah jual ganda.
+    for (const u of usedClaims) {
+      const claimed = await tx.usedItem.updateMany({
+        where: { id: u.id, tenantId, status: "AVAILABLE" },
+        data: { status: "SOLD", soldPrice: u.soldPrice, saleId: sale.id, statusAt: new Date() },
+      });
+      if (claimed.count !== 1) throw new Error("Barang bekas baru saja terjual di transaksi lain.");
     }
 
     // Hitung pemakaian transaksi untuk enforcement lisensi/demo.

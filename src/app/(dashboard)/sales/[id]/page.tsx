@@ -97,6 +97,15 @@ export default async function SaleDetailPage({
                       Titipan
                     </span>
                   )}
+                  {it.usedItemId && (
+                    <Link
+                      href={`/used-items/${it.usedItemId}`}
+                      className="ml-2 rounded-full bg-sky-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700 hover:underline dark:text-sky-300"
+                      title={`Barang bekas · modal ${formatRupiah(it.costPrice)}`}
+                    >
+                      Bekas
+                    </Link>
+                  )}
                 </td>
                 <td className="p-3 text-center">{it.qty}</td>
                 <td className="p-3 text-right">{formatRupiah(it.price)}</td>

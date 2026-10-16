@@ -4,6 +4,7 @@ import {
   ShoppingCart,
   Images,
   Handshake,
+  Recycle,
   Boxes,
   Truck,
   Wrench,
@@ -62,6 +63,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/inventory", label: "Inventory", icon: Boxes, permission: "inventory.manage", enabled: true },
       { href: "/gallery", label: "Galeri Publik", icon: Images, permission: "inventory.manage", enabled: true },
+      { href: "/used-items", label: "Barang Bekas", icon: Recycle, permission: "inventory.manage", enabled: true },
       { href: "/consignments", label: "Titip Jual", icon: Handshake, permission: "inventory.manage", enabled: true },
       { href: "/warranty", label: "Garansi", icon: ShieldCheck, permission: "inventory.manage", enabled: true },
       { href: "/rma", label: "Klaim RMA", icon: PackageOpen, permission: "inventory.manage", enabled: true },

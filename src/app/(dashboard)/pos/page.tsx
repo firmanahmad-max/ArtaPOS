@@ -4,6 +4,8 @@ import { can } from "@/lib/rbac";
 import { listProductsForSale } from "@/server/pos/service";
 import { listCustomers } from "@/server/customers/service";
 import { listConsignmentItemsForSale } from "@/server/consignment/service";
+import { listUsedItemsForSale } from "@/server/used-items/service";
+import { gradeMeta } from "@/lib/used-item";
 import { Card } from "@/components/ui/card";
 import { PosTerminal } from "./pos-terminal";
 
@@ -20,10 +22,11 @@ export default async function PosPage() {
     );
   }
 
-  const [products, customers, consignmentItems] = await Promise.all([
+  const [products, customers, consignmentItems, usedItems] = await Promise.all([
     listProductsForSale(user.tenantId),
     listCustomers(user.tenantId),
     listConsignmentItemsForSale(user.tenantId),
+    listUsedItemsForSale(user.tenantId),
   ]);
 
   return (
@@ -52,6 +55,18 @@ export default async function PosPage() {
           minStock: 0,
           unit: null,
           consignment: { owner: ci.consignment.customerName, number: ci.consignment.number },
+        }))}
+        usedItems={usedItems.map((u) => ({
+          // Barang bekas tampil seperti produk 1 unit; bisa di-scan via no. seri atau no. BK.
+          id: u.id,
+          name: `${u.category} ${u.name}`,
+          sku: u.serialNumber ?? "",
+          barcode: u.serialNumber,
+          sellPrice: u.sellPrice,
+          stock: 1,
+          minStock: 0,
+          unit: null,
+          used: { number: u.number, gradeCode: gradeMeta(u.grade).code, warrantyDays: u.warrantyDays },
         }))}
       />
     </div>

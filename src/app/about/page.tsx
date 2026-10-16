@@ -12,6 +12,8 @@ import {
   Bluetooth,
   MessageCircle,
   Images,
+  Recycle,
+  Handshake,
   Building2,
   MonitorSmartphone,
   ArrowRight,
@@ -69,6 +71,8 @@ const FEATURES = [
   { icon: Bluetooth, label: "Cetak Struk Bluetooth" },
   { icon: MessageCircle, label: "Kirim Laporan via WhatsApp" },
   { icon: Images, label: "Galeri Publik (Etalase Produk Online)" },
+  { icon: Recycle, label: "Barang Bekas (Grade, Garansi & Margin)" },
+  { icon: Handshake, label: "Titip Jual (Konsinyasi + Komisi)" },
   { icon: Building2, label: "Multi-Tenant (SaaS Ready)" },
   { icon: MonitorSmartphone, label: "Responsive (Desktop, Tablet, Mobile)" },
 ];
