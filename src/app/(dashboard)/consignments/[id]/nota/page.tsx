@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { getConsignment } from "@/server/consignment/service";
 import { getReceiptStoreInfo } from "@/server/users/service";
+import { getTrackExtras } from "@/server/public/track-info";
 import { commissionLabel, soldSplit, summarizeConsignment } from "@/lib/consignment-calc";
 import { formatRupiah } from "@/lib/utils";
 import { formatLocalDateTime } from "@/lib/timezone";
@@ -19,7 +20,11 @@ export default async function ConsignmentNotaPage({ params }: { params: Promise<
   if (!can(user.role, "inventory.manage")) {
     return <Card className="p-8 text-center text-sm text-muted-foreground">Tidak punya izin.</Card>;
   }
-  const [c, store] = await Promise.all([getConsignment(user.tenantId, id), getReceiptStoreInfo(user.tenantId)]);
+  const [c, store, track] = await Promise.all([
+    getConsignment(user.tenantId, id),
+    getReceiptStoreInfo(user.tenantId),
+    getTrackExtras(user.tenantId),
+  ]);
   if (!c) notFound();
   const sum = summarizeConsignment(c.items);
 
@@ -32,6 +37,7 @@ export default async function ConsignmentNotaPage({ params }: { params: Promise<
           storeLogo: store.logo,
           storeAddress: store.address,
           storePhone: store.phone,
+          gallerySlug: track.hasGallery ? track.slug : null,
           number: c.number,
           dateText: formatLocalDateTime(c.createdAt, { dateStyle: "medium", timeStyle: "short" }),
           customerName: c.customerName,

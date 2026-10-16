@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth/dal";
 import { getSale } from "@/server/pos/service";
 import { getReceiptStoreInfo } from "@/server/users/service";
 import { getCustomer } from "@/server/customers/service";
+import { getTrackExtras } from "@/server/public/track-info";
 import { ReceiptView } from "./receipt-view";
 
 export const metadata: Metadata = { title: "Struk" };
@@ -15,9 +16,10 @@ export default async function ReceiptPage({
 }) {
   const { id } = await params;
   const user = await getCurrentUser();
-  const [sale, store] = await Promise.all([
+  const [sale, store, track] = await Promise.all([
     getSale(user.tenantId, id),
     getReceiptStoreInfo(user.tenantId),
+    getTrackExtras(user.tenantId),
   ]);
   if (!sale) notFound();
 
@@ -33,6 +35,8 @@ export default async function ReceiptPage({
           storeAddress: store.address,
           storePhone: store.phone,
           receiptFooter: store.receiptFooter,
+          // Tautan galeri ikut di pesan WA hanya bila toko punya pajangan aktif.
+          gallerySlug: track.hasGallery ? track.slug : null,
           number: sale.number,
           createdAt: sale.createdAt.toISOString(),
           customerName: sale.customerName,

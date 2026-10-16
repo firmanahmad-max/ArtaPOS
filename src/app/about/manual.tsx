@@ -162,6 +162,8 @@ const SECTIONS: Section[] = [
       "Simpan — item aktif langsung tampil di galeri publik toko Anda. Sembunyikan/Ubah/Hapus kapan pun.",
       "Bagikan tautan galeri (/galeri/<toko>) ke WhatsApp/sosmed; tombolnya juga muncul di halaman Lacak. Pastikan No. HP toko terisi di Pengaturan agar tombol 'Chat WA' aktif.",
       "Pelanggan menekan 'Saya Berminat (Chat WA)' → langsung chat WhatsApp berisi nama produk; atau 'Bagikan' untuk meneruskan ke orang lain.",
+      "Selama ada pajangan aktif, struk penjualan & Tanda Titip Jual yang dikirim via WhatsApp otomatis menyertakan tautan galeri.",
+      "Pantau kartu 'Kunjungan dari Tautan WhatsApp' (30 hari) di halaman Galeri: berapa kali halaman lacak dibuka dari WA, berapa yang lanjut ke galeri, dan kunjungan galeri dari struk/tanda titip.",
     ],
     example: "Pajang 'SSD 1TB NVMe' dengan label Promo + foto → bagikan tautan galeri ke status WA → pelanggan klik Chat WA dan transaksi dimulai.",
   },

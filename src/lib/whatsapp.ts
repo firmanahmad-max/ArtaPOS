@@ -158,6 +158,8 @@ export function buildConsignmentText(n: {
   note?: string | null;
   /** Ringkasan hak pemilik (bila ada yang terjual). */
   owner?: { total: number; paid: number; owed: number } | null;
+  /** Tautan Galeri Publik toko (hanya bila ada pajangan aktif). */
+  galleryUrl?: string | null;
 }): string {
   const line = "────────────────";
   const rows = [
@@ -189,6 +191,7 @@ export function buildConsignmentText(n: {
   if (n.note) rows.push(`Catatan: ${n.note}`);
   rows.push(line);
   rows.push("Simpan tanda titip ini sebagai bukti. Hubungi kami untuk perubahan harga atau pengambilan barang.");
+  if (n.galleryUrl) rows.push(`🛍️ Lihat galeri produk kami: ${n.galleryUrl}`);
   rows.push("Terima kasih 🙏");
   return rows.join("\n");
 }
@@ -210,6 +213,8 @@ export function buildSaleReceiptText(r: {
   paid: number;
   change: number;
   footer?: string;
+  /** Tautan Galeri Publik toko (hanya bila ada pajangan aktif). */
+  galleryUrl?: string | null;
 }): string {
   const line = "────────────────";
   const rows = [`*${r.storeName}*`, "STRUK PENJUALAN", `No: ${r.number}`, `Tgl: ${r.dateText}`];
@@ -229,6 +234,7 @@ export function buildSaleReceiptText(r: {
   if (r.change > 0) rows.push(`Kembali: ${formatRupiah(r.change)}`);
   rows.push(line);
   rows.push(r.footer || "Terima kasih telah berbelanja 🙏");
+  if (r.galleryUrl) rows.push(`🛍️ Lihat produk pilihan kami lainnya: ${r.galleryUrl}`);
   return rows.join("\n");
 }
 

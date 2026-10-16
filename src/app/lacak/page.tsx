@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getTrackPagePromo } from "@/server/public/track-info";
+import { VisitBeacon } from "@/components/public/visit-beacon";
 import { TrackForm } from "./track-form";
 
 export const metadata: Metadata = { title: "Lacak Servis & Garansi" };
@@ -59,8 +60,11 @@ export default async function LacakPage({
           </Card>
         )}
 
+        {/* Dibuka dari tautan WA (membawa no. tiket) → hitung sebagai kunjungan lacak. */}
+        {no && slug && <VisitBeacon slug={slug} kind="LACAK_OPEN" />}
+
         {hasGallery && slug && (
-          <Link href={`/galeri/${slug}`} className={`${buttonVariants({ variant: "outline" })} mt-4 w-full`}>
+          <Link href={`/galeri/${slug}?ref=lacak`} className={`${buttonVariants({ variant: "outline" })} mt-4 w-full`}>
             <Images className="size-4" /> Lihat Galeri Produk &amp; Promo
           </Link>
         )}

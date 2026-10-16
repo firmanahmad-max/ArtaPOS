@@ -11,6 +11,7 @@ import { buildReceiptEscpos } from "@/lib/escpos";
 import { imageToEscposRaster } from "@/lib/escpos-image";
 import { printViaBluetooth } from "@/lib/bluetooth-printer";
 import { shareNodeAsImage } from "@/lib/share-image";
+import { buildGalleryUrl } from "@/lib/track-link";
 
 export interface ReceiptItem {
   productName: string;
@@ -24,6 +25,8 @@ export interface ReceiptData {
   storeAddress?: string | null;
   storePhone?: string | null;
   receiptFooter?: string | null;
+  /** Slug Galeri Publik toko (null = tak ada pajangan aktif → tautan tak disertakan). */
+  gallerySlug?: string | null;
   number: string;
   createdAt: string;
   customerName: string | null;
@@ -48,14 +51,19 @@ export function ReceiptView({ data }: { data: ReceiptData }) {
   const [printing, setPrinting] = useState(false);
   const [sharing, setSharing] = useState(false);
 
+  const galleryUrl = () =>
+    data.gallerySlug ? buildGalleryUrl(window.location.origin, data.gallerySlug, "struk") : null;
+
   async function shareImage() {
     if (!receiptRef.current) return;
     setSharing(true);
     try {
+      const gUrl = galleryUrl();
       const { mode } = await shareNodeAsImage(receiptRef.current, {
         fileName: `Struk-${data.number}.png`,
         title: `Struk ${data.number}`,
-        text: `Struk penjualan ${data.storeName} — ${data.number}`,
+        // Caption gambar (Web Share) ikut membawa tautan galeri yang bisa diklik.
+        text: `Struk penjualan ${data.storeName} — ${data.number}${gUrl ? `\n🛍️ Lihat produk pilihan kami lainnya: ${gUrl}` : ""}`,
       });
       if (mode === "downloaded") {
         toast.info("Gambar struk diunduh. Buka WhatsApp lalu lampirkan gambarnya.");
@@ -133,6 +141,7 @@ export function ReceiptView({ data }: { data: ReceiptData }) {
       paid: data.paid,
       change: data.change,
       footer: data.receiptFooter || undefined,
+      galleryUrl: galleryUrl(),
     });
     window.open(waLink(text, data.customerPhone ?? undefined), "_blank", "noopener,noreferrer");
   }

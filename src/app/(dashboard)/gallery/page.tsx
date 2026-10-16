@@ -1,16 +1,74 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, HandCoins, Images, Receipt, Wrench } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { listGalleryAdmin } from "@/server/gallery/service";
 import { listConsignmentItemsForSale } from "@/server/consignment/service";
+import { getLinkVisitSummary } from "@/server/link-stats/service";
+import type { LinkVisitSummary } from "@/lib/track-link";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { GalleryManager, type GalleryRow } from "./gallery-client";
 
 export const metadata: Metadata = { title: "Galeri Publik" };
+
+const VISIT_DAYS = 30;
+
+/** Kunjungan dari tautan yang dibagikan via WA (lacak servis, struk, tanda titip). */
+function LinkVisitsCard({ s }: { s: LinkVisitSummary }) {
+  const stats: { label: string; value: number; hint: string; icon: React.ReactNode }[] = [
+    {
+      label: "Halaman lacak dibuka",
+      value: s.lacakOpen,
+      hint: "dari tautan WA servis/klaim",
+      icon: <Wrench className="size-4" />,
+    },
+    {
+      label: "Lanjut ke galeri dari lacak",
+      value: s.galleryFromLacak,
+      hint: s.lacakToGalleryRate === null ? "belum ada data" : `${s.lacakToGalleryRate}% dari pembuka lacak`,
+      icon: <Images className="size-4" />,
+    },
+    {
+      label: "Galeri dari struk",
+      value: s.galleryFromReceipt,
+      hint: "tautan di struk penjualan",
+      icon: <Receipt className="size-4" />,
+    },
+    {
+      label: "Galeri dari tanda titip",
+      value: s.galleryFromConsignment,
+      hint: "tautan di Tanda Titip Jual",
+      icon: <HandCoins className="size-4" />,
+    },
+  ];
+  return (
+    <Card className="p-4">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <p className="font-semibold">Kunjungan dari Tautan WhatsApp</p>
+        <p className="text-xs text-muted-foreground">
+          {VISIT_DAYS} hari terakhir · total {s.galleryTotal.toLocaleString("id-ID")} kunjungan galeri dari tautan
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {stats.map((x) => (
+          <div key={x.label} className="rounded-xl border bg-muted/30 p-3">
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              {x.icon} {x.label}
+            </p>
+            <p className="mt-1 font-mono text-2xl font-bold tabular-nums">{x.value.toLocaleString("id-ID")}</p>
+            <p className="text-[11px] text-muted-foreground">{x.hint}</p>
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-[11px] text-muted-foreground">
+        Dihitung sekali per sesi browser; hanya angka agregat, tanpa data pengunjung.
+      </p>
+    </Card>
+  );
+}
 
 export default async function GalleryPage() {
   const user = await getCurrentUser();
@@ -18,7 +76,7 @@ export default async function GalleryPage() {
     return <Card className="p-8 text-center text-sm text-muted-foreground">Tidak punya izin mengelola galeri.</Card>;
   }
 
-  const [items, products, tenant, consignmentItems] = await Promise.all([
+  const [items, products, tenant, consignmentItems, visits] = await Promise.all([
     listGalleryAdmin(user.tenantId),
     db.product.findMany({
       where: { tenantId: user.tenantId, isActive: true },
@@ -28,6 +86,7 @@ export default async function GalleryPage() {
     }),
     db.tenant.findUnique({ where: { id: user.tenantId }, select: { slug: true, phone: true } }),
     listConsignmentItemsForSale(user.tenantId),
+    getLinkVisitSummary(user.tenantId, VISIT_DAYS),
   ]);
 
   const publicUrl = tenant ? `/galeri/${tenant.slug}` : null;
@@ -68,6 +127,8 @@ export default async function GalleryPage() {
           <Link href="/settings" className="font-medium text-primary hover:underline">Pengaturan → Profil Toko</Link>.
         </Card>
       )}
+
+      {visits && <LinkVisitsCard s={visits} />}
 
       <GalleryManager
         items={rows}

@@ -6,6 +6,8 @@ import { formatRupiah } from "@/lib/utils";
 import { APP_NAME } from "@/lib/brand";
 import { getGalleryStoreBySlug, listGalleryPublic } from "@/server/gallery/service";
 import { ShareButton } from "./share-button";
+import { galleryRefKind } from "@/lib/track-link";
+import { VisitBeacon } from "@/components/public/visit-beacon";
 import { ViewBeacon, ChatWaButton } from "./gallery-tracker";
 
 export async function generateMetadata({
@@ -46,8 +48,16 @@ function waId(phone: string | null | undefined): string | null {
   return d;
 }
 
-export default async function GaleriPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function GaleriPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ ref?: string }>;
+}) {
   const { slug } = await params;
+  // `?ref=` = asal tautan (lacak/struk/titip) → dicatat sebagai metrik kunjungan.
+  const refKind = galleryRefKind((await searchParams).ref);
   const store = await getGalleryStoreBySlug(slug).catch(() => null);
   if (!store || !store.isActive) notFound();
 
@@ -76,6 +86,7 @@ export default async function GaleriPage({ params }: { params: Promise<{ slug: s
 
       <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         <ViewBeacon slug={slug} ids={items.map((i) => i.id)} />
+        {refKind && <VisitBeacon slug={store.slug} kind={refKind} />}
         {items.length === 0 ? (
           <div className="rounded-xl border bg-card p-12 text-center text-muted-foreground">
             Belum ada produk yang dipajang. Silakan cek kembali nanti.

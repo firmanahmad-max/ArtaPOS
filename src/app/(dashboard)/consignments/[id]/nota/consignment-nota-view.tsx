@@ -8,12 +8,15 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { formatRupiah } from "@/lib/utils";
 import { buildConsignmentText, waLink } from "@/lib/whatsapp";
 import { shareNodeAsImage } from "@/lib/share-image";
+import { buildGalleryUrl } from "@/lib/track-link";
 
 export interface ConsignmentNotaData {
   storeName: string;
   storeLogo?: string | null;
   storeAddress?: string | null;
   storePhone?: string | null;
+  /** Slug Galeri Publik toko (null = tak ada pajangan aktif → tautan tak disertakan). */
+  gallerySlug?: string | null;
   number: string;
   dateText: string;
   customerName: string;
@@ -37,14 +40,18 @@ export function ConsignmentNotaView({ data, backHref }: { data: ConsignmentNotaD
   const notaRef = useRef<HTMLDivElement>(null);
   const [sharing, setSharing] = useState(false);
 
+  const galleryUrl = () =>
+    data.gallerySlug ? buildGalleryUrl(window.location.origin, data.gallerySlug, "titip") : null;
+
   async function shareImage() {
     if (!notaRef.current) return;
     setSharing(true);
     try {
+      const gUrl = galleryUrl();
       const { mode } = await shareNodeAsImage(notaRef.current, {
         fileName: `Tanda-Titip-Jual-${data.number}.png`,
         title: `Tanda Titip Jual ${data.number}`,
-        text: `Tanda titip jual ${data.storeName} — ${data.number}`,
+        text: `Tanda titip jual ${data.storeName} — ${data.number}${gUrl ? `\n🛍️ Lihat galeri produk kami: ${gUrl}` : ""}`,
       });
       if (mode === "downloaded") {
         toast.info("Gambar tanda titip diunduh. Buka WhatsApp lalu lampirkan gambarnya.");
@@ -67,6 +74,7 @@ export function ConsignmentNotaView({ data, backHref }: { data: ConsignmentNotaD
       askingTotal: data.askingTotal,
       note: data.note,
       owner: data.owner,
+      galleryUrl: galleryUrl(),
     });
     window.open(waLink(text, data.customerPhone ?? undefined), "_blank", "noopener,noreferrer");
   }

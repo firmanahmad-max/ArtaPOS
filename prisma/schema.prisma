@@ -85,6 +85,7 @@ model Tenant {
   promoRedemptions PromoRedemption[]
   galleryItems   GalleryItem[]
   consignments   Consignment[]
+  linkVisitStats LinkVisitStat[]
 
   @@map("tenants")
 }
@@ -749,6 +750,29 @@ model GalleryItem {
 
   @@index([tenantId])
   @@map("gallery_items")
+}
+
+/// Asal kunjungan dari tautan yang dibagikan toko (lihat src/lib/track-link.ts).
+enum LinkVisitKind {
+  LACAK_OPEN
+  GALLERY_FROM_LACAK
+  GALLERY_FROM_RECEIPT
+  GALLERY_FROM_CONSIGNMENT
+}
+
+/// Penghitung kunjungan harian (tanggal WIB) per toko per asal tautan.
+/// Hanya angka agregat — tanpa data pengunjung.
+model LinkVisitStat {
+  id       String        @id @default(cuid())
+  tenantId String
+  day      DateTime      @db.Date
+  kind     LinkVisitKind
+  count    Int           @default(0)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, day, kind])
+  @@map("link_visit_stats")
 }
 
 /// Jenis komisi toko atas barang titipan.
