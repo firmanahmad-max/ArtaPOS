@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Users, BookOpen, AlertTriangle, ArrowRight, Tag, Star } from "lucide-react";
+import { Users, BookOpen, AlertTriangle, ArrowRight, Tag, Star, CalendarClock } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { getLicense } from "@/server/license/service";
@@ -8,6 +8,8 @@ import { getReceiptStoreInfo } from "@/server/users/service";
 import { getLoyaltyConfig, totalCustomerPoints, countPointHolders } from "@/server/customers/service";
 import { LoyaltySettingsForm } from "./loyalty-form";
 import { LoyaltyScheduleForm } from "./loyalty-schedule-form";
+import { ReportScheduleForm } from "./report-schedule-form";
+import { getReportSettings, listRecentDispatches } from "@/server/scheduled-reports/service";
 import { localParts } from "@/lib/timezone";
 import { formatRupiah } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
@@ -32,10 +34,12 @@ export default async function SettingsPage() {
   }
   const license = await getLicense(user.tenantId);
   const storeInfo = await getReceiptStoreInfo(user.tenantId);
-  const [loyalty, totalPoints, holders] = await Promise.all([
+  const [loyalty, totalPoints, holders, reportSettings, dispatches] = await Promise.all([
     getLoyaltyConfig(user.tenantId),
     totalCustomerPoints(user.tenantId),
     countPointHolders(user.tenantId),
+    getReportSettings(user.tenantId).catch(() => null),
+    listRecentDispatches(user.tenantId),
   ]);
   // Default jadwal: tanggal 1 bulan depan (WIB).
   const { y, m } = localParts();
@@ -115,6 +119,31 @@ export default async function SettingsPage() {
           />
         </CardContent>
       </Card>
+
+      {reportSettings && (
+        <Card id="laporan" className="scroll-mt-4">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CalendarClock className="size-5 text-primary" /> Laporan WhatsApp Terjadwal
+            </CardTitle>
+            <CardDescription>
+              Ringkasan penjualan, servis &amp; laba otomatis disiapkan sesuai jadwal, lalu dikirim ke WhatsApp pemilik dengan 1 klik.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ReportScheduleForm
+              initial={{
+                daily: reportSettings.daily,
+                weekly: reportSettings.weekly,
+                monthly: reportSettings.monthly,
+                dailyHour: reportSettings.dailyHour,
+                phone: reportSettings.phone ?? "",
+              }}
+              history={dispatches.map((d) => ({ ...d, actedAt: d.actedAt.toISOString() }))}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {license && (
         <Card>

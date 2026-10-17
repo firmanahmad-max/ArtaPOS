@@ -68,6 +68,13 @@ model Tenant {
   // menghasilkan poin & poin tak bisa ditukar; poin penjualan sebelum tanggal ini tak
   // ditarik/dikembalikan saat void/retur (saldonya sudah direset).
   pointsStartAt   DateTime?
+  // Laporan WhatsApp terjadwal (semi-otomatis: tampil di Dashboard saat jatuh jadwal,
+  // kirim 1 klik). Harian siap jam reportDailyHour WIB; mingguan Senin & bulanan tgl 1 jam 07.
+  reportDaily     Boolean @default(true)
+  reportWeekly    Boolean @default(true)
+  reportMonthly   Boolean @default(true)
+  reportDailyHour Int     @default(21)
+  reportPhone     String? // No. WA penerima laporan (kosong = pilih kontak saat kirim)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -98,6 +105,7 @@ model Tenant {
   usedItems      UsedItem[]
   serviceCatalog ServiceCatalogItem[]
   serviceReminders ServiceReminder[]
+  reportDispatches ReportDispatch[]
 
   @@map("tenants")
 }
@@ -1258,4 +1266,33 @@ model RmaPhoto {
 
   @@index([rmaId])
   @@map("rma_photos")
+}
+
+enum ReportKind {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum ReportDispatchStatus {
+  SENT
+  SKIPPED
+}
+
+/// Catatan tindakan atas laporan WhatsApp terjadwal per periode (dikirim / dilewati),
+/// agar laporan periode yang sama tak muncul lagi di Dashboard.
+model ReportDispatch {
+  id         String               @id @default(cuid())
+  tenantId   String
+  kind       ReportKind
+  periodKey  String // harian/mingguan "YYYY-MM-DD" (tgl awal), bulanan "YYYY-MM"
+  status     ReportDispatchStatus
+  actedById  String?
+  actedAt    DateTime             @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, kind, periodKey])
+  @@index([tenantId, actedAt])
+  @@map("report_dispatches")
 }

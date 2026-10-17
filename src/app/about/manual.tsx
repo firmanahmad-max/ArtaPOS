@@ -334,8 +334,10 @@ const SECTIONS: Section[] = [
       "Pilih periode: Hari Ini / Bulan Ini / Bulan Lalu / Tahun Ini — lihat pendapatan, laba kotor, laba bersih, biaya.",
       "Kartu Perbandingan menampilkan perubahan terhadap periode sebelumnya (naik/turun).",
       "Kirim ringkasan ke WhatsApp (pemilik/grup) atau salin teksnya.",
+      "Laporan WhatsApp Terjadwal: atur di Pengaturan → Laporan WhatsApp Terjadwal — Harian (jam bisa dipilih, default 21.00 WIB), Mingguan (Senin 07.00, minggu lalu vs minggu sebelumnya + terlaris) & Bulanan (tgl 1 07.00, bulan lalu vs bulan sebelumnya), plus No. WA penerima.",
+      "Saat jadwal tiba, kartu \"Laporan WhatsApp siap dikirim\" muncul di Dashboard: Kirim via WA (pesan sudah terisi, tinggal tekan kirim), Pratinjau/Salin teks, atau Lewati. Laporan yang terlewat tetap menunggu sampai dikirim/dilewati.",
     ],
-    example: "Akhir bulan muncul pengingat di Dashboard untuk kirim laporan bulanan via WhatsApp.",
+    example: "Jam 21.00 muncul Laporan Harian di Dashboard → tekan Kirim via WA → WhatsApp terbuka ke nomor pemilik berisi omzet, laba & hal yang perlu perhatian (servis siap diambil, piutang lewat tempo, stok habis).",
   },
   {
     icon: FileBarChart,

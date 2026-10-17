@@ -17,13 +17,14 @@ import { getCurrentUser } from "@/lib/auth/dal";
 import { db } from "@/lib/db";
 import { ROLE_LABELS, can, type Permission } from "@/lib/rbac";
 import { cn, formatRupiah } from "@/lib/utils";
-import { localParts, startOfDay as startOfLocalDay, formatLocalDate } from "@/lib/timezone";
+import { localParts, startOfDay as startOfLocalDay, formatLocalDate, daysFromNow } from "@/lib/timezone";
 import { salesTrend, serviceTrend } from "@/server/analytics/service";
 import { getArtaInsights } from "@/server/insights/service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard, type StatTone } from "@/components/ui/stat-card";
 import { MiniBars } from "@/components/charts/mini-bars";
-import { MonthlyReportReminder } from "@/components/finance/monthly-report-reminder";
+import { ScheduledReportsCard } from "@/components/finance/scheduled-reports-card";
+import { getReportSettings, listDueReports } from "@/server/scheduled-reports/service";
 import { DashboardTrends } from "./dashboard-trends";
 
 export const metadata: Metadata = { title: "Dashboard" };
@@ -113,6 +114,15 @@ export default async function DashboardPage() {
       : undefined;
 
   // Panel tren & aktivitas hanya untuk yang boleh lihat laporan.
+  // Laporan WhatsApp terjadwal yang jatuh jadwal (semi-otomatis) — untuk peran keuangan.
+  const canFinance = can(user.role, "finance.view");
+  const [dueReports, reportSettings] = canFinance
+    ? await Promise.all([
+        listDueReports(user.tenantId, daysFromNow(0)),
+        getReportSettings(user.tenantId).catch(() => null),
+      ])
+    : [[], null];
+
   const canReports = can(user.role, "reports.view");
   // Panel dashboard bersifat tambahan: bila salah satu query gagal sesaat
   // (mis. koneksi DB), degradasi anggun — JANGAN meng-crash halaman (ini juga
@@ -227,8 +237,14 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Pengingat kirim laporan bulanan (akhir/awal bulan) — untuk peran keuangan */}
-      {can(user.role, "finance.view") && <MonthlyReportReminder />}
+      {/* Laporan WhatsApp terjadwal (harian/mingguan/bulanan) yang siap dikirim */}
+      {canFinance && (
+        <ScheduledReportsCard
+          reports={dueReports}
+          hasPhone={!!reportSettings?.phone}
+          canConfigure={can(user.role, "settings.manage")}
+        />
+      )}
 
       {/* Header sambutan */}
       <div className="relative overflow-hidden rounded-2xl gradient-brand p-6 text-primary-foreground elevate-lg">

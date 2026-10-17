@@ -164,7 +164,7 @@ export async function getExpenseBreakdown(
     .sort((a, b) => b.amount - a.amount);
 }
 
-async function computeReport(
+export async function computeReport(
   tenantId: string,
   from: Date,
   to: Date,
