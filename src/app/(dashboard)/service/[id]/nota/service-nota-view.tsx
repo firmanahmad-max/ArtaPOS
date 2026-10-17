@@ -112,7 +112,7 @@ export function ServiceNotaView({
       trackUrl,
       trackExtras: track,
       loyaltyLines: data.loyaltyLines,
-      portalUrl: data.portalToken ? buildPortalUrl(window.location.origin, data.portalToken) : null,
+      portalUrl: data.portalToken ? buildPortalUrl(window.location.origin, data.portalToken, "nota") : null,
     });
     window.open(waLink(text, data.customerPhone ?? undefined), "_blank", "noopener,noreferrer");
   }

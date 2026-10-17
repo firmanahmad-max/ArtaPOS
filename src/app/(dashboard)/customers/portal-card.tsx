@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Copy, ExternalLink, Link2, Loader2, MessageCircle, RefreshCw, ShieldOff, UserRound } from "lucide-react";
+import { Copy, Eye, ExternalLink, Link2, Loader2, MessageCircle, RefreshCw, ShieldOff, UserRound } from "lucide-react";
 import {
   ensurePortalLinkAction,
   regeneratePortalLinkAction,
@@ -23,6 +23,8 @@ export function PortalCard({
   storeName,
   initialToken,
   tokenAt,
+  views = 0,
+  lastSeenAt = null,
 }: {
   customerId: string;
   customerName: string;
@@ -30,6 +32,9 @@ export function PortalCard({
   storeName: string;
   initialToken: string | null;
   tokenAt: string | null;
+  /** Statistik: berapa kali portal dibuka (sekali per sesi browser) & kapan terakhir. */
+  views?: number;
+  lastSeenAt?: string | null;
 }) {
   const [token, setToken] = useState(initialToken);
   const [createdAt, setCreatedAt] = useState(tokenAt);
@@ -37,6 +42,7 @@ export function PortalCard({
   const [confirm, setConfirm] = useState<"regen" | "revoke" | null>(null);
 
   const url = (t: string) => buildPortalUrl(window.location.origin, t);
+  const inviteUrl = (t: string) => buildPortalUrl(window.location.origin, t, "undangan");
 
   const run = (fn: () => Promise<{ ok: boolean; token?: string | null; message?: string }>) =>
     start(async () => {
@@ -59,7 +65,7 @@ export function PortalCard({
     );
 
   const waHref = (t: string) =>
-    waLink(buildPortalInviteText({ storeName, customerName, portalUrl: url(t) }), phone ?? undefined);
+    waLink(buildPortalInviteText({ storeName, customerName, portalUrl: inviteUrl(t) }), phone ?? undefined);
   const sendWa = (t: string) => window.open(waHref(t), "_blank", "noopener,noreferrer");
 
   /** Buat link lalu kirim: jendela dibuka SINKRON saat klik (agar tak diblokir popup blocker). */
@@ -104,6 +110,17 @@ export function PortalCard({
                 Aktif sejak {formatLocalDateTime(createdAt, { dateStyle: "medium", timeStyle: "short" })}
               </p>
             )}
+            <p className="flex items-center gap-1.5 text-xs">
+              <Eye className="size-3.5 text-muted-foreground" />
+              {views > 0 && lastSeenAt ? (
+                <span>
+                  Dibuka <b className="font-mono">{views.toLocaleString("id-ID")}×</b> · terakhir{" "}
+                  {formatLocalDateTime(lastSeenAt, { dateStyle: "medium", timeStyle: "short" })}
+                </span>
+              ) : (
+                <span className="text-muted-foreground">Belum pernah dibuka pelanggan</span>
+              )}
+            </p>
             <div className="flex flex-wrap gap-2">
               <Button variant="whatsapp" size="sm" onClick={() => sendWa(token)} disabled={!phone || pending}>
                 <MessageCircle /> Kirim via WA

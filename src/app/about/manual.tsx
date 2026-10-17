@@ -279,6 +279,7 @@ const SECTIONS: Section[] = [
       "Pelanggan membuka link → melihat saldo & nilai poin, servis yang sedang diproses, rekam servis per perangkat (keluhan, diagnosa, jasa/part) + perkiraan perawatan berikutnya, garansi & klaim, riwayat belanja, rakit PC, dan titip jual.",
       "Tidak menampilkan harga modal atau data internal toko. Halaman tidak diindeks mesin pencari.",
       "Link bocor ke orang lain? Tekan \"Buat ulang\" — link lama langsung tidak berlaku. \"Nonaktifkan\" untuk menutup akses.",
+      "Statistik: kartu Portal Member di halaman Pelanggan menampilkan jumlah link aktif, member yang pernah membuka, kunjungan 30 hari & asalnya (struk, nota servis, pengingat, undangan, langsung). Di kartu tiap pelanggan terlihat \"Dibuka N× · terakhir …\".",
     ],
     example: "Dewi menerima struk via WA → klik link member → melihat 9.727 poin (senilai Rp 97.270) & jadwal cleaning laptop berikutnya 17 April 2027.",
   },

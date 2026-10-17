@@ -27,6 +27,7 @@ import { pointsWorth, redeemHint, isProgramStarted, formatStartDate } from "@/li
 import { waLink } from "@/lib/whatsapp";
 import { formatRupiah, cn } from "@/lib/utils";
 import { daysFromNow, formatLocalDate } from "@/lib/timezone";
+import { PortalBeacon } from "./portal-beacon";
 import { SERVICE_STATUS_META } from "@/app/(dashboard)/service/status-config";
 import { BUILD_STATUS_META } from "@/app/(dashboard)/pc-build/build-status";
 import { CONSIGNMENT_STATUS_META } from "@/app/(dashboard)/consignments/status-config";
@@ -169,8 +170,14 @@ function DeviceHistory({ data, now }: { data: PortalData; now: number }) {
   );
 }
 
-export default async function MemberPortalPage({ params }: { params: Promise<{ token: string }> }) {
-  const { token } = await params;
+export default async function MemberPortalPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ token: string }>;
+  searchParams: Promise<{ ref?: string }>;
+}) {
+  const [{ token }, { ref }] = await Promise.all([params, searchParams]);
   const data = await getPortalData(token);
   if (!data) notFound();
   const now = daysFromNow(0);
@@ -194,6 +201,7 @@ export default async function MemberPortalPage({ params }: { params: Promise<{ t
 
   return (
     <div className="min-h-screen bg-muted/40 px-4 py-6">
+      <PortalBeacon token={token} refParam={typeof ref === "string" ? ref : undefined} />
       <div className="mx-auto w-full max-w-2xl space-y-4">
         <div className="flex items-center gap-3">
           {store.logo ? (

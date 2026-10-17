@@ -51,6 +51,8 @@ export default async function EditCustomerPage({
           storeName={user.tenant.name}
           initialToken={customer.portalToken}
           tokenAt={customer.portalTokenAt?.toISOString() ?? null}
+          views={customer.portalViews}
+          lastSeenAt={customer.portalLastSeenAt?.toISOString() ?? null}
         />
       )}
       <PointsManager

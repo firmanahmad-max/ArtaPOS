@@ -271,6 +271,9 @@ model Customer {
   // dinonaktifkan). Dibuat ulang → link lama tak berlaku.
   portalToken   String?   @unique
   portalTokenAt DateTime?
+  // Statistik Portal: jumlah kunjungan (sekali per sesi browser, via beacon JS) & terakhir dibuka.
+  portalViews      Int       @default(0)
+  portalLastSeenAt DateTime?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -799,6 +802,12 @@ enum LinkVisitKind {
   GALLERY_FROM_LACAK
   GALLERY_FROM_RECEIPT
   GALLERY_FROM_CONSIGNMENT
+  // Portal Member dibuka — per asal tautan (?ref=)
+  PORTAL_FROM_RECEIPT
+  PORTAL_FROM_SERVICE
+  PORTAL_FROM_REMINDER
+  PORTAL_FROM_INVITE
+  PORTAL_DIRECT
 }
 
 /// Penghitung kunjungan harian (tanggal WIB) per toko per asal tautan.

@@ -66,7 +66,7 @@ export function ReminderList({
       serviceName: r.serviceName,
       monthsAgo: r.monthsAgo,
       pointsMultiplier,
-      portalUrl: r.portalToken ? buildPortalUrl(window.location.origin, r.portalToken) : null,
+      portalUrl: r.portalToken ? buildPortalUrl(window.location.origin, r.portalToken, "pengingat") : null,
     });
     // Buka WA dulu (harus sinkron di event klik agar tak diblokir popup), lalu tandai.
     window.open(waLink(text, r.phone), "_blank", "noopener,noreferrer");

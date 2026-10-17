@@ -66,7 +66,7 @@ export function ReceiptView({ data }: { data: ReceiptData }) {
   const galleryUrl = () =>
     data.gallerySlug ? buildGalleryUrl(window.location.origin, data.gallerySlug, "struk") : null;
 
-  const portalUrl = () => (data.portalToken ? buildPortalUrl(window.location.origin, data.portalToken) : null);
+  const portalUrl = () => (data.portalToken ? buildPortalUrl(window.location.origin, data.portalToken, "struk") : null);
 
   async function shareImage() {
     if (!receiptRef.current) return;

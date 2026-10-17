@@ -9,6 +9,9 @@ import { cashbackPercent, formatStartDate, isProgramStarted, pointsWorth, RUPIAH
 import { formatRupiah } from "@/lib/utils";
 import { ContactManager } from "@/components/contacts/contact-manager";
 import { LinkHistoryButton } from "./link-history-button";
+import { PortalStatsCard } from "./portal-stats-card";
+import { getPortalStats } from "@/server/portal/service";
+import { daysFromNow } from "@/lib/timezone";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -16,7 +19,11 @@ export const metadata: Metadata = { title: "Pelanggan" };
 
 export default async function CustomersPage() {
   const { tenantId, role } = await getAuthContext();
-  const [customers, loyalty] = await Promise.all([listCustomers(tenantId), getLoyaltyConfig(tenantId)]);
+  const [customers, loyalty, portalStats] = await Promise.all([
+    listCustomers(tenantId),
+    getLoyaltyConfig(tenantId),
+    getPortalStats(tenantId, 30, daysFromNow(0)),
+  ]);
   const totalPoints = customers.reduce((s, c) => s + (c.points ?? 0), 0);
   const withPhone = customers.filter((c) => c.phone).length;
   const scheduled = !isProgramStarted(loyalty) && !!loyalty.startsAt;
@@ -122,6 +129,8 @@ export default async function CustomersPage() {
           )}
         </CardContent>
       </Card>
+
+      {portalStats && <PortalStatsCard stats={portalStats} />}
 
       <ContactManager
         items={customers}

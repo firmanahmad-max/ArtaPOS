@@ -8,8 +8,79 @@ export function isPortalToken(v: string | null | undefined): v is string {
   return !!v && /^[A-Za-z0-9_-]{24,64}$/.test(v);
 }
 
-export function buildPortalUrl(origin: string, token: string): string {
-  return `${origin.replace(/\/+$/, "")}/member/${token}`;
+/** Asal tautan portal (`?ref=`) — untuk statistik kanal mana yang paling sering dibuka. */
+export type PortalRef = "struk" | "nota" | "pengingat" | "undangan";
+
+export function buildPortalUrl(origin: string, token: string, ref?: PortalRef): string {
+  const base = `${origin.replace(/\/+$/, "")}/member/${token}`;
+  return ref ? `${base}?ref=${ref}` : base;
+}
+
+/** Jenis kunjungan portal (dicerminkan enum Prisma `LinkVisitKind` PORTAL_*). */
+export const PORTAL_VISIT_KINDS = [
+  "PORTAL_FROM_RECEIPT",
+  "PORTAL_FROM_SERVICE",
+  "PORTAL_FROM_REMINDER",
+  "PORTAL_FROM_INVITE",
+  "PORTAL_DIRECT",
+] as const;
+export type PortalVisitKind = (typeof PORTAL_VISIT_KINDS)[number];
+
+const PORTAL_REF_KIND: Record<PortalRef, PortalVisitKind> = {
+  struk: "PORTAL_FROM_RECEIPT",
+  nota: "PORTAL_FROM_SERVICE",
+  pengingat: "PORTAL_FROM_REMINDER",
+  undangan: "PORTAL_FROM_INVITE",
+};
+
+/** `ref` tak dikenal / kosong → dibuka langsung (bookmark, diteruskan, dsb.). */
+export function portalRefKind(ref?: unknown): PortalVisitKind {
+  return typeof ref === "string" && Object.hasOwn(PORTAL_REF_KIND, ref)
+    ? PORTAL_REF_KIND[ref as PortalRef]
+    : "PORTAL_DIRECT";
+}
+
+export interface PortalStats {
+  /** Member dengan link portal aktif. */
+  linked: number;
+  /** Member (link aktif) yang pernah membuka portal. */
+  opened: number;
+  /** % member ber-link yang pernah membuka (0–100, dibulatkan). */
+  openRate: number;
+  /** Member yang membuka portal sejak `since`. */
+  activeRecent: number;
+  /** Total kunjungan dalam periode + rincian per asal tautan. */
+  visits: number;
+  byChannel: { receipt: number; service: number; reminder: number; invite: number; direct: number };
+}
+
+/**
+ * Ringkasan statistik portal: `members` = pelanggan aktif (link & penghitung),
+ * `rows` = penghitung harian kunjungan dalam periode, `since` = awal periode.
+ */
+export function summarizePortalStats(
+  members: { portalToken: string | null; portalViews: number; portalLastSeenAt: Date | null }[],
+  rows: { kind: string; count: number }[],
+  since: Date,
+): PortalStats {
+  const withLink = members.filter((m) => m.portalToken);
+  const opened = withLink.filter((m) => m.portalViews > 0).length;
+  const sum = (k: PortalVisitKind) => rows.reduce((a, r) => (r.kind === k ? a + r.count : a), 0);
+  const byChannel = {
+    receipt: sum("PORTAL_FROM_RECEIPT"),
+    service: sum("PORTAL_FROM_SERVICE"),
+    reminder: sum("PORTAL_FROM_REMINDER"),
+    invite: sum("PORTAL_FROM_INVITE"),
+    direct: sum("PORTAL_DIRECT"),
+  };
+  return {
+    linked: withLink.length,
+    opened,
+    openRate: withLink.length ? Math.round((opened / withLink.length) * 100) : 0,
+    activeRecent: members.filter((m) => m.portalLastSeenAt && m.portalLastSeenAt >= since).length,
+    visits: Object.values(byChannel).reduce((a, b) => a + b, 0),
+    byChannel,
+  };
 }
 
 /** Kunci perangkat: jenis + merk + model, dinormalisasi (huruf kecil, spasi tunggal). */

@@ -3,7 +3,8 @@ import { cache } from "react";
 import { randomBytes } from "node:crypto";
 import { db } from "@/lib/db";
 import { phoneKey } from "@/lib/phone";
-import { isPortalToken } from "@/lib/portal";
+import { isPortalToken, portalRefKind, summarizePortalStats, PORTAL_VISIT_KINDS } from "@/lib/portal";
+import { incrementVisitStat, periodStartDate } from "@/server/link-stats/service";
 import { getLoyaltyConfig } from "@/server/customers/service";
 import { getTrackExtras } from "@/server/public/track-info";
 import { warrantyDisplayStatus } from "@/server/warranty/service";
@@ -46,6 +47,49 @@ export async function ensurePortalTokens(tenantId: string, customerIds: string[]
     if (t) out.set(r.id, t);
   }
   return out;
+}
+
+/**
+ * Catat satu kunjungan portal (endpoint publik, dipicu beacon JS sekali per sesi browser).
+ * Token tak valid / nonaktif → diam. Menambah penghitung per member + penghitung harian per asal.
+ */
+export async function recordPortalVisit(token: string, ref?: unknown): Promise<void> {
+  if (!isPortalToken(token)) return;
+  const c = await db.customer.findFirst({
+    where: { portalToken: token, isActive: true, tenant: { isActive: true } },
+    select: { id: true, tenantId: true },
+  });
+  if (!c) return;
+  await db.customer.update({
+    where: { id: c.id },
+    data: { portalViews: { increment: 1 }, portalLastSeenAt: new Date() },
+  });
+  await incrementVisitStat(c.tenantId, portalRefKind(ref));
+}
+
+/** Statistik Portal Member `days` hari terakhir. null bila kolom/tabel belum dimigrasi. */
+export async function getPortalStats(tenantId: string, days = 30, now: number = Date.now()) {
+  try {
+    const [members, rows] = await Promise.all([
+      db.customer.findMany({
+        where: { tenantId, isActive: true },
+        select: { id: true, name: true, portalToken: true, portalViews: true, portalLastSeenAt: true },
+      }),
+      db.linkVisitStat.findMany({
+        where: { tenantId, day: { gte: periodStartDate(days) }, kind: { in: [...PORTAL_VISIT_KINDS] } },
+        select: { kind: true, count: true },
+      }),
+    ]);
+    const since = new Date(now - days * 86_400_000);
+    const recent = members
+      .filter((m) => m.portalLastSeenAt)
+      .sort((a, b) => b.portalLastSeenAt!.getTime() - a.portalLastSeenAt!.getTime())
+      .slice(0, 5)
+      .map((m) => ({ id: m.id, name: m.name, views: m.portalViews, lastSeenAt: m.portalLastSeenAt! }));
+    return { days, ...summarizePortalStats(members, rows, since), recent };
+  } catch {
+    return null;
+  }
 }
 
 /** Buat ulang link (link lama langsung tidak berlaku). */
