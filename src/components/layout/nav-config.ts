@@ -4,6 +4,7 @@ import {
   ShoppingCart,
   Images,
   Handshake,
+  BellRing,
   Recycle,
   Boxes,
   Truck,
@@ -81,6 +82,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Layanan",
     items: [
       { href: "/service", label: "Jasa Servis", icon: Wrench, permission: "service.manage", enabled: true },
+      { href: "/service/reminders", label: "Pengingat Servis", icon: BellRing, permission: "service.manage", enabled: true },
       { href: "/pc-build", label: "Rakit PC", icon: Cpu, permission: "pcbuild.manage", enabled: true },
       { href: "/simulations", label: "Simulasi Rakitan", icon: ClipboardList, permission: "pcbuild.manage", enabled: true },
     ],

@@ -17,6 +17,8 @@ function parse(formData: FormData) {
     phone: formData.get("phone"),
     email: formData.get("email"),
     address: formData.get("address"),
+    // Checkbox hanya ada di form edit pelanggan (penanda waConsentField).
+    waConsent: formData.has("waConsentField") ? formData.get("waConsent") === "on" : undefined,
   });
 }
 
@@ -148,5 +150,22 @@ export async function setLoyaltyScheduleAction(
       return { ok: false, message: "Database produksi belum dimigrasi (kolom jadwal poin belum ada)." };
     }
     return { ok: false, message: msg || "Gagal menyimpan." };
+  }
+}
+
+/** Tautkan tiket servis lama (tanpa pelanggan) ke member berdasarkan No. HP yang sama. */
+export async function linkHistoryByPhoneAction(): Promise<{ ok: boolean; message?: string }> {
+  const ctx = await getAuthContext();
+  if (!can(ctx.role, "pos.use")) return { ok: false, message: NO_PERM };
+  try {
+    const r = await svc.linkHistoryByPhone(ctx.tenantId);
+    revalidatePath("/customers");
+    revalidatePath("/service", "layout");
+    return {
+      ok: true,
+      message: r.tickets > 0 ? `${r.tickets} tiket servis lama ditautkan ke member.` : "Tidak ada tiket lama yang cocok untuk ditautkan.",
+    };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Gagal menautkan riwayat." };
   }
 }

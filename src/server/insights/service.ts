@@ -9,6 +9,7 @@ import { listReceivables } from "@/server/pos/service";
 import { listPayables } from "@/server/purchasing/service";
 import { getFinanceComparison } from "@/server/finance/service";
 import { topGalleryItems } from "@/server/gallery/service";
+import { countDueReminders } from "@/server/service-reminders/service";
 
 /**
  * "Tanya Arta" — mesin insight otomatis (deterministik, tanpa API eksternal).
@@ -108,6 +109,8 @@ export async function getArtaInsights(tenantId: string, role: UserRole): Promise
     canInv ? topGalleryItems(tenantId, 3) : Promise.resolve([]),
   ]);
   const finance = canFin ? await getFinanceComparison(tenantId, "month") : null;
+  // Pengingat servis berkala yang jatuh tempo (dihitung terpisah, berurutan → hemat koneksi).
+  const dueReminders = can(role, "service.manage") ? await countDueReminders(tenantId) : 0;
 
   // ── Penjualan ──────────────────────────────────────────────────────────
   if (canReports) {
@@ -195,6 +198,17 @@ export async function getArtaInsights(tenantId: string, role: UserRole): Promise
         detail: "Ada tiket berstatus Selesai yang belum diserahkan. Hubungi pelanggan agar segera diambil.",
         href: "/service",
         actionLabel: "Lihat tiket",
+      });
+    }
+    if (dueReminders > 0) {
+      insights.push({
+        id: "svc-reminders",
+        domain: "servis",
+        tone: "warning",
+        title: `${dueReminders} pelanggan jatuh tempo servis berkala`,
+        detail: "Saatnya perawatan rutin (mis. cleaning & repaste). Ingatkan via WhatsApp sekali klik — peluang servis berulang.",
+        href: "/service/reminders",
+        actionLabel: "Buka pengingat",
       });
     }
     if (waiting > 0) {

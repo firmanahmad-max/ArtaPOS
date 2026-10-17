@@ -25,6 +25,7 @@ import {
   Images,
   Handshake,
   Recycle,
+  BellRing,
   type LucideIcon,
 } from "lucide-react";
 
@@ -235,12 +236,27 @@ const SECTIONS: Section[] = [
     title: "Jasa Servis",
     desc: "Kelola tiket servis dari terima sampai diserahkan, lengkap sparepart, foto, dan notifikasi.",
     steps: [
-      "Tiket Baru: isi pelanggan (+No. HP untuk lacak), perangkat, keluhan.",
+      "Tiket Baru: isi pelanggan (+No. HP untuk lacak), perangkat, keluhan. No. HP yang sudah terdaftar otomatis ditautkan ke member; bila belum, centang \"Daftarkan sebagai member\" (dapat poin & pengingat servis).",
       "Ubah status alur: Diterima → Dikerjakan → Tunggu Sparepart → Selesai → Diserahkan.",
       "Tambah sparepart (memotong stok) & biaya jasa; unggah foto kondisi; catat pembayaran (tunai/transfer/QRIS/kredit).",
       "Tombol 'Beri tahu via WhatsApp' mengirim update status + tautan lacak ke pelanggan.",
     ],
     example: "Servis 'Laptop overheat' → ganti pasta (jasa Rp 100.000) → status Selesai → kirim WA ke pelanggan agar diambil.",
+  },
+  {
+    icon: BellRing,
+    title: "Katalog Jasa & Pengingat Servis Berkala",
+    desc: "Ingatkan pelanggan untuk perawatan rutin (mis. cleaning & repaste tiap 6 bulan) — peluang servis berulang.",
+    steps: [
+      "Buka Jasa Servis → Katalog Jasa. Tekan \"Tambah contoh jasa\" atau buat sendiri: nama jasa, harga standar, dan interval pengingat (3/6/12 bulan, atau tidak berkala).",
+      "Di detail tiket, saat menambah jasa pilih dari Katalog Jasa (nama & harga terisi otomatis) — inilah yang dicatat sebagai riwayat perawatan perangkat.",
+      "Setelah tiket Selesai/Diserahkan, pelanggan otomatis masuk Layanan → Pengingat Servis ketika jatuh tempo (tanggal servis + interval).",
+      "Tekan \"Ingatkan via WA\": pesan siap kirim (menyebut perangkat, jasa & bonus poin bila aktif) lalu otomatis ditandai sudah diingatkan. \"Lewati\" bila tak perlu.",
+      "Pelanggan yang datang lagi untuk jasa yang sama tercatat sebagai \"Kembali servis\" — ukur keberhasilan pengingat. Tanya Arta juga memberi tahu bila ada yang jatuh tempo.",
+      "Hormati privasi: di data pelanggan, hapus centang \"Bersedia dihubungi via WhatsApp\" bila pelanggan menolak — tombol WA tak akan muncul.",
+      "Pelanggan → \"Tautkan riwayat lama\" menautkan tiket servis lama ke member berdasarkan No. HP yang sama.",
+    ],
+    example: "Dewi cleaning laptop 28 Maret (jasa katalog 6 bulan) → 28 September muncul di Pengingat → klik Ingatkan via WA → Dewi datang 17 Oktober → tercatat Kembali servis.",
   },
   {
     icon: Search,

@@ -6,5 +6,7 @@ export const contactSchema = z.object({
   phone: z.string().max(30).trim().optional().or(z.literal("")),
   email: z.union([z.email("Email tidak valid"), z.literal("")]).optional(),
   address: z.string().max(255).trim().optional().or(z.literal("")),
+  /** Khusus pelanggan: undefined = tidak diubah. */
+  waConsent: z.boolean().optional(),
 });
 export type ContactInput = z.infer<typeof contactSchema>;

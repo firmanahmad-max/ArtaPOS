@@ -21,10 +21,13 @@ export function ContactForm({
   action,
   initial,
   backHref,
+  waConsent,
 }: {
   action: (prev: FormState, fd: FormData) => Promise<FormState>;
   initial: ContactValues;
   backHref: string;
+  /** Khusus pelanggan: izin dihubungi via WA (undefined = tak ditampilkan). */
+  waConsent?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
 
@@ -50,6 +53,19 @@ export function ContactForm({
             <Label htmlFor="address">Alamat</Label>
             <Textarea id="address" name="address" defaultValue={initial.address} />
           </div>
+          {waConsent !== undefined && (
+            <label className="flex items-start gap-2 text-sm sm:col-span-2">
+              <input type="hidden" name="waConsentField" value="1" />
+              <input type="checkbox" name="waConsent" defaultChecked={waConsent} className="mt-0.5 size-4 accent-[var(--primary)]" />
+              <span>
+                Bersedia dihubungi via WhatsApp
+                <span className="block text-xs text-muted-foreground">
+                  Untuk pengingat servis berkala &amp; info promo. Tanyakan ke pelanggan; bila tidak dicentang, pelanggan
+                  tidak akan muncul tombol WA di Pengingat Servis.
+                </span>
+              </span>
+            </label>
+          )}
           {state?.message && !state.ok && (
             <p className="sm:col-span-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {state.message}

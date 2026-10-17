@@ -9,6 +9,7 @@ import { toFieldErrors, type FormState } from "@/lib/form";
 import { serviceTicketSchema } from "@/lib/validations/service";
 import type { ServiceStatus } from "@/generated/prisma/enums";
 import * as svc from "@/server/service-jobs/service";
+import { linkTicketCustomer } from "@/server/customers/service";
 
 const NO_PERM = "Anda tidak punya izin mengelola servis.";
 type Result = { ok: boolean; message?: string };
@@ -38,6 +39,7 @@ export async function createTicketAction(
     technicianId: formData.get("technicianId") || undefined,
     laborCost: formData.get("laborCost") ?? 0,
     note: formData.get("note") || undefined,
+    registerMember: formData.get("registerMember") === "on",
   });
   if (!parsed.success) return { errors: toFieldErrors(parsed.error) };
 
@@ -68,12 +70,18 @@ export async function addPartAction(ticketId: string, productId: string, qty: nu
   }
 }
 
-export async function addLineAction(ticketId: string, name: string, price: number, qty: number): Promise<Result> {
+export async function addLineAction(
+  ticketId: string,
+  name: string,
+  price: number,
+  qty: number,
+  catalogItemId?: string | null,
+): Promise<Result> {
   const u = await guard();
   if (!u) return { ok: false, message: NO_PERM };
   const user = await getCurrentUser();
   try {
-    await svc.addLine(user.tenantId, ticketId, name, price, qty);
+    await svc.addLine(user.tenantId, ticketId, name, price, qty, catalogItemId);
     revalidatePath(`/service/${ticketId}`);
     return { ok: true };
   } catch (e) {
@@ -250,5 +258,21 @@ export async function cancelTicketPointsAction(ticketId: string): Promise<Result
     return { ok: true, message: "Tukar poin dibatalkan, poin dikembalikan ke pelanggan." };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Gagal." };
+  }
+}
+
+/** Tautkan tiket ke pelanggan terdaftar (cocok No. HP) atau daftarkan sebagai member. */
+export async function linkTicketCustomerAction(ticketId: string): Promise<Result> {
+  const u = await guard();
+  if (!u) return { ok: false, message: NO_PERM };
+  const user = await getCurrentUser();
+  try {
+    const c = await linkTicketCustomer(user.tenantId, ticketId);
+    revalidatePath(`/service/${ticketId}`);
+    revalidatePath("/customers", "layout");
+    revalidatePath("/service/reminders");
+    return { ok: true, message: c.created ? `Member baru "${c.name}" didaftarkan & ditautkan.` : `Ditautkan ke ${c.name}.` };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Gagal menautkan." };
   }
 }

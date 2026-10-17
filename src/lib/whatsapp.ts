@@ -348,6 +348,30 @@ export function buildSimulationText(n: {
   return rows.join("\n");
 }
 
+/**
+ * Pesan pengingat servis berkala (mis. cleaning & repaste setiap 6 bulan).
+ * `pointsMultiplier` > 1 → sebut bonus poin jasa servis (hanya bila program poin aktif).
+ */
+export function buildServiceReminderText(r: {
+  storeName: string;
+  customerName: string;
+  device: string;
+  serviceName: string;
+  monthsAgo: number;
+  pointsMultiplier?: number | null;
+}): string {
+  const rows = [
+    `Halo ${r.customerName} 👋`,
+    `Sudah ${r.monthsAgo} bulan sejak ${r.device || "perangkat"} Anda mendapat *${r.serviceName}* di *${r.storeName}*.`,
+    "Agar performa tetap optimal & lebih awet, sekarang waktunya perawatan berkala lagi 🔧",
+  ];
+  if (r.pointsMultiplier && r.pointsMultiplier > 1) {
+    rows.push(`Bonus: jasa servis dapat *poin member ${r.pointsMultiplier}×* 🎁`);
+  }
+  rows.push("Balas pesan ini untuk atur jadwal ya. Terima kasih 🙏");
+  return rows.join("\n");
+}
+
 /** Normalisasi no. HP Indonesia ke format internasional (62…) untuk wa.me. */
 export function normalizePhoneId(phone: string): string {
   let p = phone.replace(/[^0-9]/g, "");

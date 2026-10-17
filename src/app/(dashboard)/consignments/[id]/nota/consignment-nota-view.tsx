@@ -156,7 +156,7 @@ export function ConsignmentNotaView({ data, backHref }: { data: ConsignmentNotaD
       </div>
 
       <div className="no-print mx-auto w-[320px] space-y-2">
-        <Button className="w-full bg-[#25D366] text-white hover:bg-[#1ebe5b]" onClick={shareImage} disabled={sharing}>
+        <Button variant="whatsapp" className="w-full" onClick={shareImage} disabled={sharing}>
           {sharing ? <Loader2 className="animate-spin" /> : <ImageIcon />} Kirim Tanda Titip (Gambar) via WhatsApp
         </Button>
         <Button variant="outline" className="w-full" onClick={sendText}>

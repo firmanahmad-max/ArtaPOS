@@ -163,7 +163,7 @@ export function PcBuildNotaView({ data, backHref }: { data: PcBuildNotaData; bac
 
       <div className="no-print mx-auto w-[320px] space-y-2">
         <Button
-          className="w-full bg-[#25D366] text-white hover:bg-[#1ebe5b]"
+          variant="whatsapp" className="w-full"
           onClick={shareImage}
           disabled={sharing}
         >

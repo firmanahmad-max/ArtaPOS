@@ -25,7 +25,7 @@ export default async function NewBuildPage() {
         </Link>
         <h1 className="text-2xl font-bold tracking-tight">Rakitan Baru</h1>
       </div>
-      <BuildForm customers={customers.map((c) => ({ id: c.id, name: c.name }))} />
+      <BuildForm customers={customers.map((c) => ({ id: c.id, name: c.name, phone: c.phone }))} />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { createTicketAction } from "@/server/service-jobs/actions";
 import { queueOfflineOp } from "@/lib/offline/enqueue";
+import { phoneKey } from "@/lib/phone";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,6 +35,10 @@ export function TicketForm({
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [offlineErr, setOfflineErr] = useState<string | null>(null);
+  const [registerMember, setRegisterMember] = useState(true);
+  // Member terdeteksi dari No. HP (bila belum memilih pelanggan) → akan ditautkan otomatis.
+  const typedKey = phoneKey(customerPhone);
+  const phoneMatch = !customerId && typedKey ? customers.find((c) => phoneKey(c.phone) === typedKey) : undefined;
 
   // Saat OFFLINE, cegah submit ke server → antre ke outbox (disinkron nanti).
   // Validasi wajib (nama/perangkat/keluhan) sudah dijaga atribut `required`.
@@ -60,6 +65,7 @@ export function TicketForm({
       technicianId: str("technicianId"),
       laborCost,
       note: str("note"),
+      registerMember: !customerId && !!typedKey && registerMember,
     };
     void queueOfflineOp("service", payload, {
       itemCount: 1,
@@ -107,6 +113,30 @@ export function TicketForm({
             <Label htmlFor="customerPhone">No. Telepon</Label>
             <Input id="customerPhone" name="customerPhone" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="08…" />
           </div>
+          {phoneMatch ? (
+            <p className="rounded-md bg-success/10 px-3 py-2 text-sm text-success sm:col-span-2">
+              ✓ No. HP terdaftar atas nama <strong>{phoneMatch.name}</strong> — tiket otomatis ditautkan ke member ini (poin &amp; riwayat servis tercatat).
+            </p>
+          ) : (
+            !customerId &&
+            typedKey && (
+              <label className="flex items-start gap-2 text-sm sm:col-span-2">
+                <input
+                  type="checkbox"
+                  name="registerMember"
+                  checked={registerMember}
+                  onChange={(e) => setRegisterMember(e.target.checked)}
+                  className="mt-0.5 size-4 accent-[var(--primary)]"
+                />
+                <span>
+                  Daftarkan sebagai member
+                  <span className="block text-xs text-muted-foreground">
+                    No. HP belum terdaftar. Member mendapat poin servis &amp; pengingat perawatan berkala via WA.
+                  </span>
+                </span>
+              </label>
+            )
+          )}
         </CardContent>
       </Card>
 

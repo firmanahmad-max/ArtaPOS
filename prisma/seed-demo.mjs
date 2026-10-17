@@ -143,7 +143,7 @@ async function main() {
       ["c4", "Maya Sari", "081234567804", null],
       ["c5", "Fajar Nugroho", "081234567805", "Jl. Anggrek 4"],
     ];
-    for (const [k, name, phone, addr] of custDefs) { cust[k] = { id: uid("cust"), name }; await insert("customers", { id: cust[k].id, tenantId: TENANT_ID, name, phone, email: null, address: addr, points: 0, isActive: true, createdAt: at(90), updatedAt: now }); }
+    for (const [k, name, phone, addr] of custDefs) { cust[k] = { id: uid("cust"), name }; await insert("customers", { id: cust[k].id, tenantId: TENANT_ID, name, phone, phoneKey: phone ? "62" + phone.replace(/D/g, "").replace(/^0/, "") : null, waConsent: true, email: null, address: addr, points: 0, isActive: true, createdAt: at(90), updatedAt: now }); }
     const custPoints = {};
 
     // ── Produk (+ stok awal via movement INITIAL) ───────────────────────────
@@ -287,6 +287,17 @@ async function main() {
 
     // ── Jasa Servis (semua status) ──────────────────────────────────────────
     let svNo = 0;
+    // Katalog jasa (harga standar + interval perawatan) — dasar Pengingat Servis.
+    const svcCat = {};
+    for (const [k, name, price, months, order] of [
+      ["cleaning", "Cleaning & repaste laptop", 150000, 6, 0],
+      ["thermalpad", "Ganti thermal pad", 120000, 12, 1],
+      ["printer", "Perawatan printer (head cleaning)", 80000, 3, 2],
+      ["installos", "Install ulang OS + driver", 100000, 0, 3],
+    ]) {
+      svcCat[k] = uid("svc");
+      await insert("service_catalog_items", { id: svcCat[k], tenantId: TENANT_ID, name, price, intervalMonths: months, isActive: true, sortOrder: order, createdAt: at(120), updatedAt: now });
+    }
     async function ticket({ when, cu, phone, device, brand, info, complaint, diagnosis = null, status, labor = 0, parts = [], jasa = [], paid = 0, method = null, completedAgo = null }) {
       svNo += 1;
       const number = `SV-${String(svNo).padStart(5, "0")}`;
@@ -294,7 +305,7 @@ async function main() {
       let partsCost = 0;
       const items = [];
       for (const p of parts) { const pr = prod[p.k]; const sub = pr.sell * p.qty; partsCost += sub; items.push({ productId: pr.id, name: pr.name, qty: p.qty, price: pr.sell, cost: pr.cost, subtotal: sub, isPart: true, pk: p.k }); }
-      for (const j of jasa) items.push({ productId: null, name: j.name, qty: 1, price: j.price, cost: 0, subtotal: j.price, isPart: false });
+      for (const j of jasa) items.push({ productId: null, name: j.name, qty: 1, price: j.price, cost: 0, subtotal: j.price, isPart: false, cat: j.cat ? svcCat[j.cat] : null });
       const jasaTotal = jasa.reduce((s, j) => s + j.price, 0);
       const total = labor + partsCost + jasaTotal;
       const paymentStatus = paid <= 0 ? "UNPAID" : paid >= total ? "PAID" : "PARTIAL";
@@ -306,7 +317,7 @@ async function main() {
         createdAt: when, updatedAt: when, completedAt: completedAgo != null ? at(completedAgo) : null,
       });
       for (const it of items) {
-        await insert("service_items", { id: uid("svi"), ticketId: id, productId: it.productId, name: it.name, qty: it.qty, price: it.price, costPrice: it.cost, subtotal: it.subtotal, isPart: it.isPart });
+        await insert("service_items", { id: uid("svi"), ticketId: id, productId: it.productId, name: it.name, qty: it.qty, price: it.price, costPrice: it.cost, subtotal: it.subtotal, isPart: it.isPart, catalogItemId: it.cat ?? null });
         if (it.isPart) await movement(it.productId, "SERVICE_OUT", -it.qty, when, `Sparepart servis ${number}`);
       }
       // Pendapatan servis diakui basis kas → catat pembayaran ber-tanggal.
@@ -315,7 +326,10 @@ async function main() {
         await insert("service_payments", { id: uid("svp"), tenantId: TENANT_ID, ticketId: id, amount: paid, method, note: null, createdById: KASIR_ID, createdAt: payWhen });
       }
     }
-    await ticket({ when: at(16), cu: "Ahmad Rizki", phone: "081298760001", device: "Laptop", brand: "Asus ROG", info: "Strix G15", complaint: "Laptop overheat, mati sendiri", diagnosis: "Pasta processor kering, kipas kotor", status: "DELIVERED", labor: 150000, jasa: [{ name: "Bersih & ganti pasta", price: 100000 }], paid: 250000, method: "CASH", completedAgo: 12 });
+    await ticket({ when: at(16), cu: "Ahmad Rizki", phone: "081298760001", device: "Laptop", brand: "Asus ROG", info: "Strix G15", complaint: "Laptop overheat, mati sendiri", diagnosis: "Pasta processor kering, kipas kotor", status: "DELIVERED", labor: 150000, jasa: [{ name: "Cleaning & repaste laptop", price: 100000, cat: "cleaning" }], paid: 250000, method: "CASH", completedAgo: 12 });
+    // Servis berkala yang sudah JATUH TEMPO (contoh untuk menu Pengingat Servis).
+    await ticket({ when: at(205), cu: "Dewi Lestari", phone: "081234567801", device: "Laptop", brand: "Acer", info: "Aspire 5", complaint: "Laptop panas & berisik", diagnosis: "Kipas berdebu, pasta kering", status: "DELIVERED", labor: 0, jasa: [{ name: "Cleaning & repaste laptop", price: 150000, cat: "cleaning" }], paid: 150000, method: "CASH", completedAgo: 203 });
+    await ticket({ when: at(100), cu: "Toko Berkah Jaya", phone: "081234567803", device: "Printer", brand: "Canon", info: "G2010", complaint: "Hasil cetak pudar", diagnosis: "Head kotor", status: "DELIVERED", labor: 0, jasa: [{ name: "Perawatan printer (head cleaning)", price: 80000, cat: "printer" }], paid: 80000, method: "TRANSFER", completedAgo: 98 });
     await ticket({ when: at(10), cu: "Siti Nurhaliza", phone: "081298760002", device: "Laptop", brand: "Lenovo", info: "IdeaPad 3", complaint: "Laptop lemot/hang", diagnosis: "Upgrade SSD + RAM", status: "DELIVERED", labor: 100000, parts: [{ k: "ssd1tb", qty: 1 }], paid: 1250000, method: "TRANSFER", completedAgo: 6 });
     await ticket({ when: at(5), cu: "Budi Santoso", phone: "081298760003", device: "PC", brand: "Rakitan", info: "Gaming", complaint: "Layar blank/bergaris", diagnosis: "VGA bermasalah, menunggu unit klaim", status: "WAITING_PARTS", labor: 0 });
     await ticket({ when: at(3), cu: "Dewi Lestari", phone: "081234567801", device: "Laptop", brand: "Acer", info: "Aspire 5", complaint: "Keyboard error/tidak fungsi", status: "IN_PROGRESS", labor: 75000, parts: [{ k: "keyboard", qty: 1 }] });

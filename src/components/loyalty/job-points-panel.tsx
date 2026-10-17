@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Star, Undo2, Loader2 } from "lucide-react";
-import { cancelTicketPointsAction, redeemTicketPointsAction } from "@/server/service-jobs/actions";
+import { cancelTicketPointsAction, linkTicketCustomerAction, redeemTicketPointsAction } from "@/server/service-jobs/actions";
 import { cancelBuildPointsAction, redeemBuildPointsAction } from "@/server/pcbuild/actions";
 import {
   formatStartDate,
@@ -36,11 +36,14 @@ export function JobPointsPanel({
   id,
   info,
   outstanding,
+  linkable = false,
 }: {
   kind: "service" | "build";
   id: string;
   info: JobLoyaltyInfo;
   outstanding: number;
+  /** Tiket servis tanpa pelanggan tapi ada No. HP → bisa ditautkan / didaftarkan member. */
+  linkable?: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -82,10 +85,22 @@ export function JobPointsPanel({
 
       <div className="space-y-1.5 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs">
         {!customer ? (
-          <p className="text-muted-foreground">
-            <Star className="mr-1 inline size-3.5 text-amber-500" />
-            Tautkan pelanggan terdaftar agar mendapat poin member ({rateText}).
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-muted-foreground">
+              <Star className="mr-1 inline size-3.5 text-amber-500" />
+              Tautkan pelanggan terdaftar agar mendapat poin member ({rateText}).
+            </p>
+            {kind === "service" && linkable && (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => run(() => linkTicketCustomerAction(id))}
+                className="font-semibold text-amber-700 hover:underline dark:text-amber-300"
+              >
+                Tautkan / daftarkan member
+              </button>
+            )}
+          </div>
         ) : !started ? (
           <p className="text-muted-foreground">
             <Star className="mr-1 inline size-3.5 text-amber-500" />

@@ -8,6 +8,7 @@ import { createCustomerAction, deactivateCustomerAction } from "@/server/custome
 import { cashbackPercent, formatStartDate, isProgramStarted, pointsWorth, RUPIAH_PER_POINT } from "@/lib/loyalty";
 import { formatRupiah } from "@/lib/utils";
 import { ContactManager } from "@/components/contacts/contact-manager";
+import { LinkHistoryButton } from "./link-history-button";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -25,9 +26,12 @@ export default async function CustomersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Pelanggan</h1>
-        <p className="text-muted-foreground">Daftar pelanggan toko Anda.</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Pelanggan</h1>
+          <p className="text-muted-foreground">Daftar pelanggan toko Anda.</p>
+        </div>
+        <LinkHistoryButton />
       </div>
 
       {/* Ringkasan KPI */}

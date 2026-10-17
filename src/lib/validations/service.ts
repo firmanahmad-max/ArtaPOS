@@ -12,6 +12,8 @@ export const serviceTicketSchema = z.object({
   technicianId: z.string().min(1).optional().nullable(),
   laborCost: z.coerce.number().int().min(0).default(0),
   note: z.string().max(500).trim().optional().or(z.literal("")),
+  // Daftarkan sebagai member bila No. HP belum terdaftar (dicocokkan otomatis).
+  registerMember: z.preprocess((v) => v === true || v === "on" || v === "true", z.boolean()).default(false),
   // Sinkronisasi offline (opsional): idempotensi + waktu asli di perangkat.
   clientOpId: z.string().min(8).max(64).optional(),
   clientCreatedAt: z.string().datetime().optional(),

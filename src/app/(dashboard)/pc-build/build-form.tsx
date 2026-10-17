@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { createBuildAction } from "@/server/pcbuild/actions";
@@ -10,10 +10,16 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 
-interface Option { id: string; name: string }
+import { phoneKey } from "@/lib/phone";
+
+interface Option { id: string; name: string; phone?: string | null }
 
 export function BuildForm({ customers }: { customers: Option[] }) {
   const [state, action, pending] = useActionState(createBuildAction, undefined);
+  const [customerId, setCustomerId] = useState("");
+  const [phone, setPhone] = useState("");
+  const typedKey = phoneKey(phone);
+  const phoneMatch = !customerId && typedKey ? customers.find((c) => phoneKey(c.phone) === typedKey) : undefined;
 
   return (
     <form action={action} className="space-y-6">
@@ -30,11 +36,27 @@ export function BuildForm({ customers }: { customers: Option[] }) {
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="customerId">Tautkan pelanggan terdaftar</Label>
-            <Select id="customerId" name="customerId" defaultValue="">
+            <Select id="customerId" name="customerId" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
               <option value="">— Tidak ditautkan —</option>
               {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
           </div>
+          {!customerId && (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="customerPhone">No. WA Pelanggan</Label>
+              <Input id="customerPhone" name="customerPhone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="08… (untuk member & poin)" />
+              {phoneMatch ? (
+                <p className="text-xs text-success">✓ Terdaftar atas nama {phoneMatch.name} — rakitan ditautkan otomatis.</p>
+              ) : (
+                typedKey && (
+                  <label className="flex items-center gap-2 text-xs">
+                    <input type="checkbox" name="registerMember" defaultChecked className="size-4 accent-[var(--primary)]" />
+                    Daftarkan sebagai member (dapat poin)
+                  </label>
+                )
+              )}
+            </div>
+          )}
           <div className="flex flex-col gap-2">
             <Label htmlFor="buildFee">Biaya Rakit (Rp)</Label>
             <Input id="buildFee" name="buildFee" type="number" min="0" defaultValue={0} />

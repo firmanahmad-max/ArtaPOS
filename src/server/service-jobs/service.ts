@@ -8,6 +8,7 @@ import type { ServiceStatus, PaymentMethod } from "@/generated/prisma/enums";
 import type { ServiceTicketInput } from "@/lib/validations/service";
 import { earnedPointsTarget, jobEligibleRupiah } from "@/lib/loyalty";
 import { awardPointsUpTo, loadLoyalty, redeemPointsOnJob, refundRedeemedOnJob } from "@/server/loyalty/service";
+import { matchOrCreateCustomer } from "@/server/customers/service";
 
 /** Service Jasa Servis — ter-scope tenantId, mutasi stok transaksional. */
 
@@ -103,11 +104,17 @@ export async function createTicket(
           select: { number: true },
         }),
       );
+      // Tanpa pelanggan dipilih → cocokkan No. HP ke member; daftarkan bila diminta.
+      let customerId = input.customerId ?? null;
+      if (!customerId && input.customerPhone) {
+        const m = await matchOrCreateCustomer(tx, tenantId, { name: customerName, phone: input.customerPhone }, input.registerMember);
+        customerId = m?.id ?? null;
+      }
       const t = await tx.serviceTicket.create({
         data: {
           tenantId,
           number,
-          customerId: input.customerId ?? null,
+          customerId,
           customerName,
           customerPhone: input.customerPhone || null,
           deviceType: input.deviceType,
@@ -275,14 +282,20 @@ export async function addLine(
   name: string,
   price: number,
   qty: number,
+  /** Jasa dari Katalog Jasa (opsional) — dasar pengingat servis berkala. */
+  catalogItemId?: string | null,
 ) {
   if (!name?.trim()) throw new Error("Nama item wajib diisi.");
   assertPositiveInt(qty, "Jumlah");
   assertNonNegativeInt(price, "Harga");
   await ensureTicket(tenantId, ticketId);
+  if (catalogItemId) {
+    const c = await db.serviceCatalogItem.findFirst({ where: { id: catalogItemId, tenantId }, select: { id: true } });
+    if (!c) throw new Error("Jasa katalog tidak ditemukan.");
+  }
   return db.$transaction(async (tx) => {
     await tx.serviceItem.create({
-      data: { ticketId, name: name.trim(), qty, price, subtotal: price * qty, isPart: false },
+      data: { ticketId, name: name.trim(), qty, price, subtotal: price * qty, isPart: false, catalogItemId: catalogItemId || null },
     });
     await recompute(tx, ticketId);
   });

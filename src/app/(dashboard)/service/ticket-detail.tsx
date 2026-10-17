@@ -20,6 +20,7 @@ import { formatLocalDateTime } from "@/lib/timezone";
 import { buildServiceStatusText, waLink } from "@/lib/whatsapp";
 import { buildTrackUrl, type TrackExtras } from "@/lib/track-link";
 import { JobPointsPanel, type JobLoyaltyInfo } from "@/components/loyalty/job-points-panel";
+import { intervalText } from "@/lib/service-reminder";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -74,6 +75,7 @@ export function TicketDetail({
   storeName,
   track,
   points,
+  catalog = [],
 }: {
   ticket: TicketData;
   products: ServiceProduct[];
@@ -85,6 +87,8 @@ export function TicketDetail({
   track?: ({ slug: string | null } & TrackExtras) | null;
   /** Poin member (pelanggan tertaut, tukar poin, poin didapat). */
   points?: JobLoyaltyInfo;
+  /** Katalog jasa aktif (harga standar + interval perawatan). */
+  catalog?: { id: string; name: string; price: number; intervalMonths: number }[];
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -102,6 +106,7 @@ export function TicketDetail({
   const [labor, setLabor] = useState(ticket.laborCost);
   const [discount, setDiscount] = useState(ticket.discount);
   const [lineName, setLineName] = useState("");
+  const [lineCatalogId, setLineCatalogId] = useState("");
   const [linePrice, setLinePrice] = useState(0);
   const [lineQty, setLineQty] = useState(1);
   const [payAmount, setPayAmount] = useState(0);
@@ -307,8 +312,39 @@ export function TicketDetail({
               Tambah jasa / biaya lain{" "}
               <span className="font-normal text-muted-foreground">— tidak mengurangi stok</span>
             </p>
+            {catalog.length > 0 && (
+              <Select
+                value={lineCatalogId}
+                onChange={(e) => {
+                  const c = catalog.find((x) => x.id === e.target.value);
+                  setLineCatalogId(e.target.value);
+                  if (c) {
+                    setLineName(c.name);
+                    setLinePrice(c.price);
+                  }
+                }}
+                className="h-9"
+                aria-label="Pilih dari katalog jasa"
+              >
+                <option value="">— Pilih dari Katalog Jasa (atau ketik bebas di bawah) —</option>
+                {catalog.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} · {formatRupiah(c.price)}
+                    {c.intervalMonths > 0 ? ` · ingatkan tiap ${intervalText(c.intervalMonths)}` : ""}
+                  </option>
+                ))}
+              </Select>
+            )}
             <div className="flex flex-col gap-2 sm:flex-row">
-              <Input value={lineName} onChange={(e) => setLineName(e.target.value)} placeholder="Jasa lain (mis. Pasang OS)" className="flex-1" />
+              <Input
+                value={lineName}
+                onChange={(e) => {
+                  setLineName(e.target.value);
+                  setLineCatalogId(""); // diketik ulang → bukan jasa katalog lagi
+                }}
+                placeholder="Jasa lain (mis. Pasang OS)"
+                className="flex-1"
+              />
               <Input type="number" min="0" value={linePrice} onChange={(e) => setLinePrice(Math.max(0, Number(e.target.value)))} placeholder="Harga" className="sm:w-36" />
               <Input
                 type="number"
@@ -322,8 +358,8 @@ export function TicketDetail({
               />
               <Button variant="outline" disabled={pending || !lineName.trim()}
                 onClick={() => {
-                  run(() => addLineAction(ticket.id, lineName.trim(), linePrice, clampQty(lineQty)));
-                  setLineName(""); setLinePrice(0); setLineQty(1);
+                  run(() => addLineAction(ticket.id, lineName.trim(), linePrice, clampQty(lineQty), lineCatalogId || null));
+                  setLineName(""); setLinePrice(0); setLineQty(1); setLineCatalogId("");
                 }}>
                 <Plus /> Tambah Jasa
               </Button>
@@ -394,7 +430,7 @@ export function TicketDetail({
               <span>Potongan diskon</span><span>-{formatRupiah(ticket.discount)}</span>
             </div>
           )}
-          {points && <JobPointsPanel kind="service" id={ticket.id} info={points} outstanding={outstanding} />}
+          {points && <JobPointsPanel kind="service" id={ticket.id} info={points} outstanding={outstanding} linkable={!!customerPhone} />}
           <div className="flex justify-between border-t pt-2 text-base font-bold"><span>Total</span><span>{formatRupiah(ticket.total)}</span></div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">

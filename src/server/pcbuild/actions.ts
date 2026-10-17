@@ -27,6 +27,8 @@ export async function createBuildAction(_prev: FormState, formData: FormData): P
     customerName: formData.get("customerName") || undefined,
     buildFee: formData.get("buildFee") ?? 0,
     note: formData.get("note") || undefined,
+    customerPhone: formData.get("customerPhone") || undefined,
+    registerMember: formData.get("registerMember") === "on",
   });
   if (!parsed.success) return { errors: toFieldErrors(parsed.error) };
   let id: string;

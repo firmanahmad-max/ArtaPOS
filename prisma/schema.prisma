@@ -96,6 +96,8 @@ model Tenant {
   consignments   Consignment[]
   linkVisitStats LinkVisitStat[]
   usedItems      UsedItem[]
+  serviceCatalog ServiceCatalogItem[]
+  serviceReminders ServiceReminder[]
 
   @@map("tenants")
 }
@@ -260,6 +262,11 @@ model Customer {
   email     String?
   address   String?
   points    Int      @default(0) // saldo poin loyalitas
+  // No. HP ternormalisasi (62xxxxxxxx) — kunci pencocokan otomatis tiket/rakitan ↔ pelanggan.
+  phoneKey  String?
+  // Izin dihubungi via WhatsApp (pengingat servis & promo). Pelanggan yang menolak
+  // tidak muncul tombol WA di pengingat.
+  waConsent Boolean  @default(true)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -268,6 +275,7 @@ model Customer {
   pointEntries PointEntry[]
 
   @@index([tenantId])
+  @@index([tenantId, phoneKey])
   @@map("customers")
 }
 
@@ -940,11 +948,57 @@ model ServiceItem {
   costPrice   Int     @default(0) // snapshot modal saat sparepart dipakai (untuk laba)
   subtotal    Int // qty * price
   isPart      Boolean @default(false) // true = sparepart (mengurangi stok)
+  // Jasa dari Katalog Jasa (opsional) — dasar pengingat servis berkala.
+  catalogItemId String?
 
   ticket ServiceTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
   @@index([ticketId])
+  @@index([catalogItemId])
   @@map("service_items")
+}
+
+/// Katalog jasa servis (harga standar + interval perawatan berkala).
+/// intervalMonths > 0 → pelanggan diingatkan untuk servis serupa setelah N bulan.
+model ServiceCatalogItem {
+  id             String   @id @default(cuid())
+  tenantId       String
+  name           String
+  price          Int      @default(0)
+  intervalMonths Int      @default(0) // 0 = bukan jasa berkala
+  isActive       Boolean  @default(true)
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("service_catalog_items")
+}
+
+/// Status tindak lanjut pengingat servis berkala.
+enum ServiceReminderStatus {
+  REMINDED // sudah diingatkan via WA
+  SKIPPED // dilewati (tidak perlu diingatkan)
+}
+
+/// Catatan tindak lanjut satu pengingat: (tiket sumber × jasa katalog) — unik.
+/// Daftar jatuh tempo dihitung dinamis; tabel ini hanya menyimpan tindakan toko.
+model ServiceReminder {
+  id             String                @id @default(cuid())
+  tenantId       String
+  sourceTicketId String
+  catalogItemId  String
+  status         ServiceReminderStatus
+  actedAt        DateTime              @default(now())
+  actedById      String?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceTicketId, catalogItemId])
+  @@index([tenantId])
+  @@map("service_reminders")
 }
 
 // ──────────────────────────────────────────────────────────────────────────

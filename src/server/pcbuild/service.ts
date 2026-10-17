@@ -8,6 +8,7 @@ import type { BuildStatus } from "@/generated/prisma/enums";
 import type { PcBuildInput } from "@/lib/validations/pcbuild";
 import { earnedPointsTarget } from "@/lib/loyalty";
 import { awardPointsUpTo, loadLoyalty, redeemPointsOnJob, refundRedeemedOnJob } from "@/server/loyalty/service";
+import { matchOrCreateCustomer } from "@/server/customers/service";
 
 /** Service Rakit PC — ter-scope tenantId, mutasi stok transaksional. */
 
@@ -68,12 +69,26 @@ export async function createBuild(
         select: { number: true },
       }),
     );
+    // Tanpa pelanggan dipilih → cocokkan No. WA ke member; daftarkan bila diminta.
+    let customerId = input.customerId ?? null;
+    if (!customerId && input.customerPhone) {
+      const m = await matchOrCreateCustomer(
+        tx,
+        tenantId,
+        { name: customerName ?? "", phone: input.customerPhone },
+        input.registerMember,
+      );
+      if (m) {
+        customerId = m.id;
+        customerName = customerName || m.name;
+      }
+    }
     return tx.pcBuild.create({
       data: {
         tenantId,
         number,
         name: input.name,
-        customerId: input.customerId ?? null,
+        customerId,
         customerName,
         buildFee: input.buildFee,
         total: input.buildFee,

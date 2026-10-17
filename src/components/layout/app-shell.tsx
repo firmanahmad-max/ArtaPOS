@@ -54,6 +54,11 @@ export function AppShell({
     g.items.map((i) => ({ href: i.href, label: i.label })),
   );
 
+  const activeHref = groups
+    .flatMap((g) => g.items.map((i) => i.href))
+    .filter((href) => pathname === href || pathname.startsWith(`${href}/`))
+    .sort((a, b) => b.length - a.length)[0];
+
   const SidebarContent = (
     <div className="flex h-full flex-col">
       <div className="flex h-[66px] items-center gap-2.5 border-b px-4">
@@ -71,8 +76,8 @@ export function AppShell({
               {group.label}
             </p>
             {group.items.map((item) => {
-              const active =
-                pathname === item.href || pathname.startsWith(`${item.href}/`);
+              // Aktif = cocok paling spesifik (mis. /service/reminders tak ikut menyalakan /service).
+              const active = item.href === activeHref;
               const Icon = item.icon;
               const badge = badges[item.href] ?? 0;
               return (

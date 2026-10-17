@@ -33,6 +33,7 @@ export default async function EditCustomerPage({
       <ContactForm
         action={updateCustomerAction.bind(null, customer.id)}
         backHref="/customers"
+        waConsent={customer.waConsent}
         initial={{
           name: customer.name,
           phone: customer.phone ?? "",

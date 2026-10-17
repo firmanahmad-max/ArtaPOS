@@ -81,7 +81,10 @@ export default async function ServicePage({
           <h1 className="text-2xl font-bold tracking-tight">Jasa Servis</h1>
           <p className="text-muted-foreground">Tiket servis perangkat pelanggan.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Link href="/service/catalog" className={buttonVariants({ variant: "outline" })}>
+            Katalog Jasa
+          </Link>
           <a href="/lacak" target="_blank" rel="noopener noreferrer" className={buttonVariants({ variant: "outline" })}>
             Halaman Lacak Publik
           </a>

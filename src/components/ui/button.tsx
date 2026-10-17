@@ -17,6 +17,8 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
+        // Hijau WhatsApp (tanpa gradien merek) — tombol kirim/ingatkan via WA.
+        whatsapp: "bg-[#25D366] text-white shadow-sm hover:bg-[#1ebe5b] active:brightness-95",
       },
       size: {
         default: "h-10 px-4 py-2",

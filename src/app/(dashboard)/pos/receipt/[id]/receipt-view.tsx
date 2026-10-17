@@ -231,7 +231,7 @@ export function ReceiptView({ data }: { data: ReceiptData }) {
 
       <div className="no-print mx-auto w-[300px] space-y-2">
         <Button
-          className="w-full bg-[#25D366] text-white hover:bg-[#1ebe5b]"
+          variant="whatsapp" className="w-full"
           onClick={shareImage}
           disabled={sharing}
         >

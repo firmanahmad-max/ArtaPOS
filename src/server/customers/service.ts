@@ -1,6 +1,8 @@
 import "server-only";
 import { db } from "@/lib/db";
 import type { ContactInput } from "@/lib/validations/contacts";
+import type { Prisma } from "@/generated/prisma/client";
+import { disambiguatedName, phoneKey } from "@/lib/phone";
 import { loyaltyNoteLines, programStarted, type LoyaltyConfig } from "@/lib/loyalty";
 
 /** Service Customer — semua query ter-scope tenantId. */
@@ -51,8 +53,10 @@ export async function createCustomer(tenantId: string, input: ContactInput) {
       tenantId,
       name: input.name,
       phone: input.phone || null,
+      phoneKey: phoneKey(input.phone),
       email: input.email || null,
       address: input.address || null,
+      ...(input.waConsent !== undefined ? { waConsent: input.waConsent } : {}),
     },
   });
 }
@@ -66,9 +70,98 @@ export async function updateCustomer(tenantId: string, id: string, input: Contac
     data: {
       name: input.name,
       phone: input.phone || null,
+      phoneKey: phoneKey(input.phone),
       email: input.email || null,
       address: input.address || null,
+      ...(input.waConsent !== undefined ? { waConsent: input.waConsent } : {}),
     },
+  });
+}
+
+type Db = Prisma.TransactionClient | typeof db;
+
+/** Pelanggan aktif dengan No. HP yang sama (ternormalisasi). Ambigu (>1) → null. */
+export async function findCustomerByPhone(client: Db, tenantId: string, phone: string | null | undefined) {
+  const key = phoneKey(phone);
+  if (!key) return null;
+  const rows = await client.customer.findMany({
+    where: { tenantId, isActive: true, phoneKey: key },
+    select: { id: true, name: true },
+    take: 2,
+  });
+  return rows.length === 1 ? rows[0] : null;
+}
+
+/**
+ * Cocokkan kontak (nama + No. HP) ke pelanggan terdaftar; bila belum ada & `create`,
+ * daftarkan sebagai member baru (nama kembar → diberi akhiran 4 digit HP).
+ * Mengembalikan id pelanggan, atau null bila tak bisa/tak boleh dibuat.
+ */
+export async function matchOrCreateCustomer(
+  client: Db,
+  tenantId: string,
+  contact: { name: string; phone: string | null | undefined },
+  create: boolean,
+): Promise<{ id: string; name: string; created: boolean } | null> {
+  const found = await findCustomerByPhone(client, tenantId, contact.phone);
+  if (found) return { ...found, created: false };
+  const key = phoneKey(contact.phone);
+  const name = contact.name.trim();
+  if (!create || !key || !name) return null;
+  const dup = await client.customer.findFirst({
+    where: { tenantId, isActive: true, name: { equals: name, mode: "insensitive" } },
+    select: { id: true },
+  });
+  const finalName = dup ? disambiguatedName(name, contact.phone) : name;
+  const c = await client.customer.create({
+    data: { tenantId, name: finalName, phone: contact.phone?.trim() || null, phoneKey: key },
+    select: { id: true, name: true },
+  });
+  return { ...c, created: true };
+}
+
+/**
+ * Tautkan riwayat lama: tiket servis TANPA pelanggan yang No. HP-nya cocok persis
+ * (ternormalisasi) dengan SATU pelanggan terdaftar. Tidak membuat pelanggan baru.
+ */
+export async function linkHistoryByPhone(tenantId: string): Promise<{ tickets: number }> {
+  const [customers, tickets] = await Promise.all([
+    db.customer.findMany({ where: { tenantId, isActive: true, phoneKey: { not: null } }, select: { id: true, phoneKey: true } }),
+    db.serviceTicket.findMany({
+      where: { tenantId, customerId: null, customerPhone: { not: null } },
+      select: { id: true, customerPhone: true },
+      take: 5000,
+    }),
+  ]);
+  const byKey = new Map<string, string | null>();
+  for (const c of customers) byKey.set(c.phoneKey!, byKey.has(c.phoneKey!) ? null : c.id); // ambigu → null
+  const groups = new Map<string, string[]>();
+  for (const t of tickets) {
+    const cid = byKey.get(phoneKey(t.customerPhone) ?? "");
+    if (cid) groups.set(cid, [...(groups.get(cid) ?? []), t.id]);
+  }
+  let n = 0;
+  for (const [customerId, ids] of groups) {
+    const r = await db.serviceTicket.updateMany({ where: { tenantId, id: { in: ids }, customerId: null }, data: { customerId } });
+    n += r.count;
+  }
+  return { tickets: n };
+}
+
+/** Tautkan satu tiket servis ke pelanggan (cocok No. HP, atau daftarkan member baru). */
+export async function linkTicketCustomer(tenantId: string, ticketId: string) {
+  return db.$transaction(async (tx) => {
+    const t = await tx.serviceTicket.findFirst({
+      where: { id: ticketId, tenantId },
+      select: { id: true, customerId: true, customerName: true, customerPhone: true },
+    });
+    if (!t) throw new Error("Tiket tidak ditemukan.");
+    if (t.customerId) throw new Error("Tiket sudah tertaut ke pelanggan.");
+    if (!phoneKey(t.customerPhone)) throw new Error("Isi No. HP pelanggan di tiket dulu untuk menautkan.");
+    const c = await matchOrCreateCustomer(tx, tenantId, { name: t.customerName ?? "Pelanggan", phone: t.customerPhone }, true);
+    if (!c) throw new Error("Gagal menautkan pelanggan.");
+    await tx.serviceTicket.update({ where: { id: t.id }, data: { customerId: c.id } });
+    return c;
   });
 }
 

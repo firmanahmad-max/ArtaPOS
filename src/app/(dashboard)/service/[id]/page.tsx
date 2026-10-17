@@ -7,6 +7,7 @@ import { can } from "@/lib/rbac";
 import { getTicket, listProductsForService } from "@/server/service-jobs/service";
 import { getTrackExtras } from "@/server/public/track-info";
 import { jobLoyaltyInfo } from "@/server/customers/service";
+import { listCatalog } from "@/server/service-catalog/service";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TicketDetail } from "../ticket-detail";
@@ -88,6 +89,12 @@ export default async function TicketDetailPage({
         storeName={user.tenant.name}
         track={track}
         points={await jobLoyaltyInfo(user.tenantId, ticket.customerId, { serviceTicketId: ticket.id }, ticket)}
+        catalog={(await listCatalog(user.tenantId, true).catch(() => [])).map((c) => ({
+          id: c.id,
+          name: c.name,
+          price: c.price,
+          intervalMonths: c.intervalMonths,
+        }))}
       />
 
       <ServicePhotos
