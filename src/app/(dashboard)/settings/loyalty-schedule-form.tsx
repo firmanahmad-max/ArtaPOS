@@ -34,6 +34,7 @@ export function LoyaltyScheduleForm({
   const [date, setDate] = useState(defaultDate);
   const [reset, setReset] = useState(true);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [startNowOpen, setStartNowOpen] = useState(false);
 
   /** Reset saldo butuh konfirmasi; tanpa reset langsung simpan. */
   function onSave() {
@@ -92,7 +93,7 @@ export function LoyaltyScheduleForm({
           {pending ? <Loader2 className="animate-spin" /> : <CalendarClock />} Simpan jadwal
         </Button>
         {startsAt && !started && (
-          <Button variant="outline" onClick={() => submit(null, false)} disabled={pending}>
+          <Button variant="outline" onClick={() => setStartNowOpen(true)} disabled={pending}>
             <Play /> Mulai sekarang
           </Button>
         )}
@@ -106,6 +107,17 @@ export function LoyaltyScheduleForm({
         title={`Nolkan poin ${holders} pelanggan?`}
         description={`Total ${totalPoints.toLocaleString("id-ID")} poin akan menjadi 0. Setiap reset tercatat di riwayat poin pelanggan dan tidak bisa dibatalkan otomatis.`}
         confirmText="Ya, nolkan & simpan jadwal"
+      />
+
+      {/* "Mulai sekarang" membatalkan jadwal & langsung mengaktifkan program — wajib konfirmasi. */}
+      <ConfirmDialog
+        open={startNowOpen}
+        onOpenChange={setStartNowOpen}
+        onConfirm={() => submit(null, false)}
+        title="Mulai program poin sekarang?"
+        description={`Jadwal ${startsAt ? formatStartDate(startsAt) : "yang tersimpan"} dibatalkan dan program langsung aktif: transaksi berikutnya mendapat poin & poin bisa ditukar. Saldo pelanggan tidak direset.`}
+        confirmText="Ya, mulai sekarang"
+        cancelText="Tetap sesuai jadwal"
       />
     </div>
   );
