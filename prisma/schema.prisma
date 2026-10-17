@@ -267,6 +267,10 @@ model Customer {
   // Izin dihubungi via WhatsApp (pengingat servis & promo). Pelanggan yang menolak
   // tidak muncul tombol WA di pengingat.
   waConsent Boolean  @default(true)
+  // Portal Pelanggan: token rahasia link pribadi /member/<token> (null = belum dibuat /
+  // dinonaktifkan). Dibuat ulang → link lama tak berlaku.
+  portalToken   String?   @unique
+  portalTokenAt DateTime?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

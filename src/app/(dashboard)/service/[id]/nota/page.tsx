@@ -6,6 +6,7 @@ import { getTicket } from "@/server/service-jobs/service";
 import { getReceiptStoreInfo } from "@/server/users/service";
 import { getTrackExtras } from "@/server/public/track-info";
 import { customerLoyaltyLines } from "@/server/customers/service";
+import { ensurePortalToken } from "@/server/portal/service";
 import { Card } from "@/components/ui/card";
 import { SERVICE_STATUS_META } from "../../status-config";
 import { ServiceNotaView } from "./service-nota-view";
@@ -29,7 +30,10 @@ export default async function ServiceNotaPage({
     getTrackExtras(user.tenantId),
   ]);
   if (!ticket) notFound();
-  const loyaltyLines = await customerLoyaltyLines(user.tenantId, ticket.customerId, { serviceTicketId: ticket.id });
+  const [loyaltyLines, portalToken] = await Promise.all([
+    customerLoyaltyLines(user.tenantId, ticket.customerId, { serviceTicketId: ticket.id }),
+    ticket.customerId ? ensurePortalToken(user.tenantId, ticket.customerId).catch(() => null) : null,
+  ]);
 
   return (
     <div className="py-4">
@@ -70,6 +74,7 @@ export default async function ServiceNotaPage({
           paid: ticket.paid,
           paymentMethod: ticket.paymentMethod,
           loyaltyLines,
+          portalToken,
         }}
       />
     </div>

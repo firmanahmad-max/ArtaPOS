@@ -26,6 +26,7 @@ import {
   Handshake,
   Recycle,
   BellRing,
+  UserRound,
   type LucideIcon,
 } from "lucide-react";
 
@@ -267,6 +268,19 @@ const SECTIONS: Section[] = [
       "Halaman lacak juga menampilkan promo (diatur di Pengaturan) & tombol Galeri Publik toko Anda. Pesan WhatsApp status/nota servis & klaim RMA otomatis mengajak pelanggan melihatnya — hanya bila memang ada promo/galeri.",
       "Pelanggan pilih tab Servis atau Klaim Garansi, masukkan nomor + No. HP → lihat status & estimasi/total biaya.",
     ],
+  },
+  {
+    icon: UserRound,
+    title: "Portal Member (Poin & Rekam Servis Pelanggan)",
+    desc: "Link pribadi untuk pelanggan terdaftar: cek poin, riwayat servis per perangkat, jadwal perawatan berikutnya, garansi & belanja — tanpa password.",
+    steps: [
+      "Buka Pelanggan → edit pelanggan → kartu Portal Pelanggan → \"Buat link portal\" atau \"Buat & kirim via WA\".",
+      "Link juga otomatis ikut di struk, nota servis & pesan Pengingat Servis yang dikirim via WhatsApp ke member (baris \"Cek poin & riwayat servis Anda\").",
+      "Pelanggan membuka link → melihat saldo & nilai poin, servis yang sedang diproses, rekam servis per perangkat (keluhan, diagnosa, jasa/part) + perkiraan perawatan berikutnya, garansi & klaim, riwayat belanja, rakit PC, dan titip jual.",
+      "Tidak menampilkan harga modal atau data internal toko. Halaman tidak diindeks mesin pencari.",
+      "Link bocor ke orang lain? Tekan \"Buat ulang\" — link lama langsung tidak berlaku. \"Nonaktifkan\" untuk menutup akses.",
+    ],
+    example: "Dewi menerima struk via WA → klik link member → melihat 9.727 poin (senilai Rp 97.270) & jadwal cleaning laptop berikutnya 17 April 2027.",
   },
   {
     icon: Calculator,

@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { listServiceReminders } from "@/server/service-reminders/service";
 import { getLoyaltyConfig } from "@/server/customers/service";
+import { ensurePortalTokens } from "@/server/portal/service";
 import { isProgramStarted } from "@/lib/loyalty";
 import { monthsSince } from "@/lib/service-reminder";
 import { daysFromNow, formatLocalDate } from "@/lib/timezone";
@@ -45,6 +46,12 @@ export default async function ServiceRemindersPage({
   const shown =
     filter === "soon" ? soon : filter === "reminded" ? reminded : filter === "skipped" ? skipped : filter === "later" ? later : due;
 
+  // Link Portal Pelanggan untuk member pada daftar yang tampil (riwayat + jadwal perawatan).
+  const portalTokens = await ensurePortalTokens(
+    user.tenantId,
+    shown.flatMap((r) => (r.customerId ? [r.customerId] : [])),
+  ).catch(() => new Map<string, string>());
+
   const toView = (r: (typeof rows)[number]): ReminderView => ({
     key: r.key,
     sourceTicketId: r.sourceTicketId,
@@ -53,6 +60,7 @@ export default async function ServiceRemindersPage({
     serviceName: r.serviceName,
     customerName: r.customerName,
     customerId: r.customerId,
+    portalToken: r.customerId ? (portalTokens.get(r.customerId) ?? null) : null,
     isMember: r.isMember,
     phone: r.phone,
     waConsent: r.waConsent,

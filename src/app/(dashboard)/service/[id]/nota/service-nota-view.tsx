@@ -9,6 +9,7 @@ import { formatRupiah } from "@/lib/utils";
 import { buildServiceNotaText, waLink } from "@/lib/whatsapp";
 import { buildTrackUrl, type TrackExtras } from "@/lib/track-link";
 import { shareNodeAsImage } from "@/lib/share-image";
+import { buildPortalUrl } from "@/lib/portal";
 import { LoyaltyNoteBlock } from "@/components/loyalty/loyalty-note-block";
 
 export interface NotaItem {
@@ -30,6 +31,8 @@ export interface ServiceNotaData {
   statusLabel: string;
   customerName: string | null;
   customerPhone: string | null;
+  /** Token Portal Pelanggan (member) → link pribadi di pesan WA. */
+  portalToken?: string | null;
   device: string;
   technicianName: string | null;
   accessories?: string | null;
@@ -109,6 +112,7 @@ export function ServiceNotaView({
       trackUrl,
       trackExtras: track,
       loyaltyLines: data.loyaltyLines,
+      portalUrl: data.portalToken ? buildPortalUrl(window.location.origin, data.portalToken) : null,
     });
     window.open(waLink(text, data.customerPhone ?? undefined), "_blank", "noopener,noreferrer");
   }

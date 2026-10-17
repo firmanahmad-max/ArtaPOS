@@ -61,6 +61,11 @@ export function buildServiceStatusText(args: {
 }
 
 /** Baris tautan lacak + (bila ada) ajakan melihat promo/galeri di halaman yang sama. */
+/** Baris ajakan buka Portal Pelanggan (link pribadi member). */
+export function portalLine(url?: string | null): string | null {
+  return url ? `👤 Cek poin & riwayat servis Anda: ${url}` : null;
+}
+
 function pushTrackLink(rows: string[], label: string, url?: string, extras?: TrackExtras | null) {
   if (!url) return;
   rows.push(`${label}: ${url}`);
@@ -108,6 +113,8 @@ export function buildServiceNotaText(n: {
   trackExtras?: TrackExtras | null;
   /** Info poin pelanggan (loyaltyNoteLines). */
   loyaltyLines?: string[];
+  /** Link Portal Pelanggan (hanya untuk member). */
+  portalUrl?: string | null;
 }): string {
   const line = "────────────────";
   const rows = [
@@ -142,6 +149,8 @@ export function buildServiceNotaText(n: {
     rows.push(line);
     rows.push(`⭐ ${n.loyaltyLines.join("\n")}`);
   }
+  const np = portalLine(n.portalUrl);
+  if (np) rows.push(np);
   rows.push("Terima kasih 🙏");
   return rows.join("\n");
 }
@@ -229,6 +238,8 @@ export function buildSaleReceiptText(r: {
   footer?: string;
   /** Tautan Galeri Publik toko (hanya bila ada pajangan aktif). */
   galleryUrl?: string | null;
+  /** Link Portal Pelanggan (hanya untuk member). */
+  portalUrl?: string | null;
 }): string {
   const line = "────────────────";
   const rows = [`*${r.storeName}*`, "STRUK PENJUALAN", `No: ${r.number}`, `Tgl: ${r.dateText}`];
@@ -255,6 +266,8 @@ export function buildSaleReceiptText(r: {
   }
   rows.push(r.footer || "Terima kasih telah berbelanja 🙏");
   if (r.galleryUrl) rows.push(`🛍️ Lihat produk pilihan kami lainnya: ${r.galleryUrl}`);
+  const rp = portalLine(r.portalUrl);
+  if (rp) rows.push(rp);
   return rows.join("\n");
 }
 
@@ -359,6 +372,8 @@ export function buildServiceReminderText(r: {
   serviceName: string;
   monthsAgo: number;
   pointsMultiplier?: number | null;
+  /** Link Portal Pelanggan (riwayat servis + jadwal perawatan berikutnya). */
+  portalUrl?: string | null;
 }): string {
   const rows = [
     `Halo ${r.customerName} 👋`,
@@ -369,7 +384,26 @@ export function buildServiceReminderText(r: {
     rows.push(`Bonus: jasa servis dapat *poin member ${r.pointsMultiplier}×* 🎁`);
   }
   rows.push("Balas pesan ini untuk atur jadwal ya. Terima kasih 🙏");
+  const rpl = portalLine(r.portalUrl);
+  if (rpl) rows.push(rpl);
   return rows.join("\n");
+}
+
+/** Undangan Portal Pelanggan (link pribadi tanpa password). */
+export function buildPortalInviteText(r: { storeName: string; customerName: string; portalUrl: string }): string {
+  return [
+    `Halo ${r.customerName} 👋`,
+    `Ini link *member pribadi* Anda di *${r.storeName}*:`,
+    r.portalUrl,
+    "",
+    "Di sana Anda bisa cek kapan saja:",
+    "⭐ Saldo & riwayat poin member",
+    "🔧 Riwayat servis per perangkat + jadwal perawatan berikutnya",
+    "🛡️ Status garansi & klaim",
+    "🧾 Riwayat belanja",
+    "",
+    "_Link ini khusus untuk Anda — mohon tidak dibagikan ke orang lain._ 🙏",
+  ].join("\n");
 }
 
 /** Normalisasi no. HP Indonesia ke format internasional (62…) untuk wa.me. */

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { MessageCircle, SkipForward, Undo2, Check } from "lucide-react";
 import { clearReminderStatusAction, setReminderStatusAction } from "@/server/service-catalog/actions";
 import { buildServiceReminderText, waLink } from "@/lib/whatsapp";
+import { buildPortalUrl } from "@/lib/portal";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +21,7 @@ export interface ReminderView {
   serviceName: string;
   customerName: string;
   customerId: string | null;
+  portalToken: string | null;
   isMember: boolean;
   phone: string | null;
   waConsent: boolean;
@@ -64,6 +66,7 @@ export function ReminderList({
       serviceName: r.serviceName,
       monthsAgo: r.monthsAgo,
       pointsMultiplier,
+      portalUrl: r.portalToken ? buildPortalUrl(window.location.origin, r.portalToken) : null,
     });
     // Buka WA dulu (harus sinkron di event klik agar tak diblokir popup), lalu tandai.
     window.open(waLink(text, r.phone), "_blank", "noopener,noreferrer");

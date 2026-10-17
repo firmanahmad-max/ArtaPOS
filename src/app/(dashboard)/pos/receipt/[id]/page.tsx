@@ -5,6 +5,7 @@ import { getSale } from "@/server/pos/service";
 import { getReceiptStoreInfo } from "@/server/users/service";
 import { getCustomer, getLoyaltyConfig } from "@/server/customers/service";
 import { getTrackExtras } from "@/server/public/track-info";
+import { ensurePortalToken } from "@/server/portal/service";
 import { loyaltyNoteLines } from "@/lib/loyalty";
 import { ReceiptView } from "./receipt-view";
 
@@ -27,6 +28,10 @@ export default async function ReceiptPage({
 
   // HP pelanggan terdaftar (untuk kirim struk via WhatsApp).
   const customer = sale.customerId ? await getCustomer(user.tenantId, sale.customerId) : null;
+  // Link Portal Pelanggan (dibuat otomatis untuk member) ikut di pesan WA.
+  const portalToken = customer?.isActive
+    ? await ensurePortalToken(user.tenantId, customer.id).catch(() => null)
+    : null;
 
   return (
     <div className="py-4">
@@ -43,6 +48,7 @@ export default async function ReceiptPage({
           createdAt: sale.createdAt.toISOString(),
           customerName: sale.customerName,
           customerPhone: customer?.phone ?? null,
+          portalToken,
           cashierName: sale.cashierName,
           subtotal: sale.subtotal,
           discount: sale.discount,

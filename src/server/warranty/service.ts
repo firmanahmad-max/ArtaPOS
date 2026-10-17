@@ -64,7 +64,7 @@ export interface WarrantyRow {
   daysLeft: number | null;
 }
 
-function displayStatus(
+export function warrantyDisplayStatus(
   status: string,
   warrantyUntil: Date | null,
   now: number,
@@ -97,7 +97,7 @@ export async function listWarranties(tenantId: string, search?: string): Promise
   });
   const now = Date.now();
   return rows.map((r) => {
-    const d = displayStatus(r.status, r.warrantyUntil, now);
+    const d = warrantyDisplayStatus(r.status, r.warrantyUntil, now);
     return {
       id: r.id,
       productName: r.productName,

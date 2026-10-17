@@ -12,6 +12,8 @@ import { imageToEscposRaster } from "@/lib/escpos-image";
 import { printViaBluetooth } from "@/lib/bluetooth-printer";
 import { shareNodeAsImage } from "@/lib/share-image";
 import { buildGalleryUrl } from "@/lib/track-link";
+import { buildPortalUrl } from "@/lib/portal";
+import { formatLocalDateTime } from "@/lib/timezone";
 import { LoyaltyNoteBlock } from "@/components/loyalty/loyalty-note-block";
 
 export interface ReceiptItem {
@@ -32,6 +34,8 @@ export interface ReceiptData {
   createdAt: string;
   customerName: string | null;
   customerPhone?: string | null;
+  /** Token Portal Pelanggan (member) → link pribadi di pesan WA. */
+  portalToken?: string | null;
   cashierName: string | null;
   subtotal: number;
   discount: number;
@@ -56,8 +60,13 @@ export function ReceiptView({ data }: { data: ReceiptData }) {
   const [printing, setPrinting] = useState(false);
   const [sharing, setSharing] = useState(false);
 
+  // Zona tetap (WIB) → SSR & browser sama (cegah hydration mismatch).
+  const dateText = () => formatLocalDateTime(data.createdAt, { dateStyle: "short", timeStyle: "short" });
+
   const galleryUrl = () =>
     data.gallerySlug ? buildGalleryUrl(window.location.origin, data.gallerySlug, "struk") : null;
+
+  const portalUrl = () => (data.portalToken ? buildPortalUrl(window.location.origin, data.portalToken) : null);
 
   async function shareImage() {
     if (!receiptRef.current) return;
@@ -68,7 +77,9 @@ export function ReceiptView({ data }: { data: ReceiptData }) {
         fileName: `Struk-${data.number}.png`,
         title: `Struk ${data.number}`,
         // Caption gambar (Web Share) ikut membawa tautan galeri yang bisa diklik.
-        text: `Struk penjualan ${data.storeName} — ${data.number}${gUrl ? `\n🛍️ Lihat produk pilihan kami lainnya: ${gUrl}` : ""}`,
+        text: `Struk penjualan ${data.storeName} — ${data.number}${gUrl ? `\n🛍️ Lihat produk pilihan kami lainnya: ${gUrl}` : ""}${
+          portalUrl() ? `\n👤 Cek poin & riwayat servis Anda: ${portalUrl()}` : ""
+        }`,
       });
       if (mode === "downloaded") {
         toast.info("Gambar struk diunduh. Buka WhatsApp lalu lampirkan gambarnya.");
@@ -93,10 +104,7 @@ export function ReceiptView({ data }: { data: ReceiptData }) {
         storeName: data.storeName,
         logo,
         number: data.number,
-        dateText: new Date(data.createdAt).toLocaleString("id-ID", {
-          dateStyle: "short",
-          timeStyle: "short",
-        }),
+        dateText: dateText(),
         cashierName: data.cashierName,
         customerName: data.customerName,
         addressLines: data.storeAddress ? data.storeAddress.split("\n") : undefined,
@@ -137,7 +145,7 @@ export function ReceiptView({ data }: { data: ReceiptData }) {
     const text = buildSaleReceiptText({
       storeName: data.storeName,
       number: data.number,
-      dateText: new Date(data.createdAt).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" }),
+      dateText: dateText(),
       cashierName: data.cashierName,
       customerName: data.customerName,
       items: data.items.map((i) => ({ name: i.productName, qty: i.qty, price: i.price, subtotal: i.subtotal })),
@@ -154,6 +162,7 @@ export function ReceiptView({ data }: { data: ReceiptData }) {
       loyaltyLines: data.loyaltyLines,
       footer: data.receiptFooter || undefined,
       galleryUrl: galleryUrl(),
+      portalUrl: portalUrl(),
     });
     window.open(waLink(text, data.customerPhone ?? undefined), "_blank", "noopener,noreferrer");
   }
@@ -189,7 +198,7 @@ export function ReceiptView({ data }: { data: ReceiptData }) {
           <div className="flex justify-between"><span>No</span><span>{data.number}</span></div>
           <div className="flex justify-between">
             <span>Tanggal</span>
-            <span>{new Date(data.createdAt).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}</span>
+            <span>{dateText()}</span>
           </div>
           <div className="flex justify-between"><span>Kasir</span><span>{data.cashierName ?? "-"}</span></div>
           <div className="flex justify-between"><span>Pelanggan</span><span>{data.customerName ?? "Umum"}</span></div>

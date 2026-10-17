@@ -7,6 +7,7 @@ import { can } from "@/lib/rbac";
 import { toFieldErrors, type FormState } from "@/lib/form";
 import { contactSchema } from "@/lib/validations/contacts";
 import * as svc from "@/server/customers/service";
+import * as portal from "@/server/portal/service";
 import { startOfDay } from "@/lib/timezone";
 
 const NO_PERM = "Anda tidak punya izin mengelola pelanggan.";
@@ -167,5 +168,56 @@ export async function linkHistoryByPhoneAction(): Promise<{ ok: boolean; message
     };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Gagal menautkan riwayat." };
+  }
+}
+
+/* ── Portal Pelanggan (link pribadi /member/<token>) ── */
+
+type PortalResult = { ok: boolean; token?: string | null; message?: string };
+
+function portalError(e: unknown): PortalResult {
+  const msg = e instanceof Error ? e.message : "";
+  if (/portalToken|column .* does not exist/i.test(msg)) {
+    return { ok: false, message: "Database produksi belum dimigrasi (kolom portal belum ada)." };
+  }
+  return { ok: false, message: msg || "Gagal memproses link portal." };
+}
+
+/** Buat link portal bila belum ada (dipakai tombol "Buat link" / "Kirim via WA"). */
+export async function ensurePortalLinkAction(customerId: string): Promise<PortalResult> {
+  const ctx = await getAuthContext();
+  if (!can(ctx.role, "pos.use")) return { ok: false, message: NO_PERM };
+  try {
+    const token = await portal.ensurePortalToken(ctx.tenantId, customerId);
+    if (!token) return { ok: false, message: "Pelanggan tidak ditemukan / nonaktif." };
+    revalidatePath(`/customers/${customerId}/edit`);
+    return { ok: true, token };
+  } catch (e) {
+    return portalError(e);
+  }
+}
+
+/** Buat ulang link — link lama langsung tak berlaku (mis. link tersebar ke orang lain). */
+export async function regeneratePortalLinkAction(customerId: string): Promise<PortalResult> {
+  const ctx = await getAuthContext();
+  if (!can(ctx.role, "pos.use")) return { ok: false, message: NO_PERM };
+  try {
+    const token = await portal.regeneratePortalToken(ctx.tenantId, customerId);
+    revalidatePath(`/customers/${customerId}/edit`);
+    return { ok: true, token, message: "Link baru dibuat. Link lama tidak berlaku lagi." };
+  } catch (e) {
+    return portalError(e);
+  }
+}
+
+export async function revokePortalLinkAction(customerId: string): Promise<PortalResult> {
+  const ctx = await getAuthContext();
+  if (!can(ctx.role, "pos.use")) return { ok: false, message: NO_PERM };
+  try {
+    await portal.revokePortalToken(ctx.tenantId, customerId);
+    revalidatePath(`/customers/${customerId}/edit`);
+    return { ok: true, token: null, message: "Link portal dinonaktifkan." };
+  } catch (e) {
+    return portalError(e);
   }
 }

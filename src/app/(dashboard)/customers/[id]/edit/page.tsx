@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { getAuthContext } from "@/lib/auth/guard";
+import { getCurrentUser } from "@/lib/auth/dal";
 import { getCustomer, getLoyaltyConfig, listPointEntries } from "@/server/customers/service";
 import { updateCustomerAction } from "@/server/customers/actions";
 import { buttonVariants } from "@/components/ui/button";
 import { ContactForm } from "@/components/contacts/contact-form";
 import { PointsManager } from "../../points-manager";
+import { PortalCard } from "../../portal-card";
 
 export const metadata: Metadata = { title: "Edit Pelanggan" };
 
@@ -17,7 +18,8 @@ export default async function EditCustomerPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { tenantId } = await getAuthContext();
+  const user = await getCurrentUser();
+  const { tenantId } = user;
   const customer = await getCustomer(tenantId, id);
   if (!customer) notFound();
   const [entries, loyalty] = await Promise.all([listPointEntries(tenantId, id), getLoyaltyConfig(tenantId)]);
@@ -41,6 +43,16 @@ export default async function EditCustomerPage({
           address: customer.address ?? "",
         }}
       />
+      {customer.isActive && (
+        <PortalCard
+          customerId={customer.id}
+          customerName={customer.name}
+          phone={customer.phone}
+          storeName={user.tenant.name}
+          initialToken={customer.portalToken}
+          tokenAt={customer.portalTokenAt?.toISOString() ?? null}
+        />
+      )}
       <PointsManager
         customerId={customer.id}
         balance={customer.points}

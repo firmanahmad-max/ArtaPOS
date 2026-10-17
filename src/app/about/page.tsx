@@ -13,6 +13,7 @@ import {
   MessageCircle,
   Images,
   Recycle,
+  UserRound,
   Handshake,
   Building2,
   MonitorSmartphone,
@@ -73,6 +74,7 @@ const FEATURES = [
   { icon: Images, label: "Galeri Publik (Etalase Produk Online)" },
   { icon: Recycle, label: "Barang Bekas (Grade, Garansi & Margin)" },
   { icon: Handshake, label: "Titip Jual (Konsinyasi + Komisi)" },
+  { icon: UserRound, label: "Portal Member (Poin & Rekam Servis)" },
   { icon: Building2, label: "Multi-Tenant (SaaS Ready)" },
   { icon: MonitorSmartphone, label: "Responsive (Desktop, Tablet, Mobile)" },
 ];
