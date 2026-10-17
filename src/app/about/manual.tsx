@@ -52,13 +52,18 @@ const SECTIONS: Section[] = [
   },
   {
     icon: LayoutDashboard,
-    title: "Dashboard",
-    desc: "Ringkasan aktivitas toko hari ini: penjualan, produk, servis aktif, stok habis, tren, dan penjualan terbaru.",
+    title: "Dashboard — Pusat Kendali Toko",
+    desc: "Sekali lihat: kondisi toko hari ini, pekerjaan yang menunggu, performa bulan ini, dan dampak program pelanggan.",
     steps: [
-      "Kartu statistik: Penjualan Hari Ini (dengan mini-grafik & perubahan vs kemarin), Produk Aktif (bar cakupan stok), Servis Aktif (rincian per status), dan Stok Habis (pintasan 'Buat pesanan pembelian').",
-      "Panel Tren: pilih periode 14 hari / 30 hari / 3 bulan untuk melihat tren Penjualan (ungu) & Jasa Servis (amber) beserta total, rata-rata, dan hari tertinggi.",
-      "Panel Tanya Arta & Penjualan Terbaru tampil di kolom kanan; klik kartu atau 'Lihat semua' untuk masuk ke modul terkait.",
+      "Hero: sapaan, status shift, dan 3 angka hari ini — pendapatan semua kanal (penjualan + servis + rakit PC, dibanding kemarin), transaksi, dan laba kotor. Tombol Buka Kasir & Tiket Servis Baru.",
+      "Perlu tindakan: laporan WA siap kirim (ketuk untuk membuka daftar kirim), servis siap diambil, pengingat servis jatuh tempo, piutang lewat tempo, stok habis, dan hak pemilik titipan — tiap kartu punya 1 tombol aksi dan hilang otomatis setelah ditangani.",
+      "KPI bulan berjalan dibanding tanggal yang sama bulan lalu (perbandingan adil): pendapatan + porsi per kanal, estimasi laba bersih, rata-rata transaksi, dan porsi transaksi oleh member.",
+      "Grafik performa bertumpuk Penjualan / Servis / Rakit PC (7 / 14 / 30 hari) + Tanya Arta di sebelahnya.",
+      "Konten harian: motivasi bisnis, tips teknologi & fakta IT yang berganti setiap hari. Tekan 'Bagikan ke Status / Story' (di HP membuka menu bagikan) atau 'Unduh gambar' — gambar 1080×1920 berisi logo, nama & No. WA toko dari Pengaturan.",
+      "Operasional: alur servis (Diterima → Dikerjakan → Tunggu part → Siap diambil) + tiket tertua dengan penanda SLA, terlaris 7 hari, dan aktivitas terbaru.",
+      "Pelanggan & program dan Aset & inventaris bisa dilipat (pilihan tersimpan di perangkat); datanya baru dimuat saat dibuka agar Dashboard tetap ringan.",
     ],
+    example: "Pagi hari: cek Perlu tindakan → kabari 2 servis yang siap diambil → bagikan konten harian ke Status WA toko.",
   },
   {
     icon: Sparkles,

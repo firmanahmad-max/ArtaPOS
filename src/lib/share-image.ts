@@ -9,13 +9,22 @@ export type ShareMode = "shared" | "downloaded";
  */
 export async function shareNodeAsImage(
   node: HTMLElement,
-  opts: { fileName: string; title?: string; text?: string },
+  opts: {
+    fileName: string;
+    title?: string;
+    text?: string;
+    /** Default 2 (struk tajam). Gambar besar (story 1080×1920) cukup 1. */
+    pixelRatio?: number;
+    backgroundColor?: string;
+    /** true = langsung unduh, tanpa share sheet. */
+    downloadOnly?: boolean;
+  },
 ): Promise<{ mode: ShareMode }> {
   // pixelRatio 2 agar tajam; latar putih; cacheBust agar logo termuat.
   // width/height + margin:0 mencegah pergeseran/terpotong akibat `mx-auto`.
   const renderOpts = {
-    pixelRatio: 2,
-    backgroundColor: "#ffffff",
+    pixelRatio: opts.pixelRatio ?? 2,
+    backgroundColor: opts.backgroundColor ?? "#ffffff",
     cacheBust: true,
     width: node.offsetWidth,
     height: node.offsetHeight,
@@ -29,7 +38,7 @@ export async function shareNodeAsImage(
   const file = new File([blob], opts.fileName, { type: "image/png" });
   const nav = navigator as Navigator & { canShare?: (d: unknown) => boolean };
 
-  if (nav.canShare && nav.canShare({ files: [file] }) && typeof nav.share === "function") {
+  if (!opts.downloadOnly && nav.canShare && nav.canShare({ files: [file] }) && typeof nav.share === "function") {
     try {
       await nav.share({ files: [file], title: opts.title, text: opts.text });
       return { mode: "shared" };

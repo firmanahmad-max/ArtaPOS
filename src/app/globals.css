@@ -404,6 +404,17 @@
     background-clip: text;
     color: transparent;
   }
+  /* Hero dashboard: gradien tema; di mode gelap digelapkan agar teks putih tetap kontras (semua tema). */
+  .gradient-hero {
+    background-image: linear-gradient(135deg, var(--primary), var(--primary-accent));
+  }
+  .dark .gradient-hero {
+    background-image: linear-gradient(
+      135deg,
+      color-mix(in oklch, var(--primary) 58%, #120a26),
+      color-mix(in oklch, var(--primary-accent) 62%, #120a26)
+    );
+  }
   /* Panel gelap "Tanya Arta" (redesign) — aksen violet pekat. */
   .gradient-arta {
     background-image: linear-gradient(160deg, #211043, #3b1d7e);
