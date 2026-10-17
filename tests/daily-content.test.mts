@@ -7,6 +7,10 @@ import {
   dailyShareText,
   splitEmphasis,
   wibDayNumber,
+  pickDaily,
+  activeCustom,
+  dailyKinds,
+  validateDailyItem,
 } from "../src/lib/daily-content.ts";
 
 const at = (iso: string) => new Date(`${iso}+07:00`).getTime();
@@ -46,4 +50,39 @@ test("splitEmphasis & teks bagikan", () => {
   assert.match(txt, /1\. Bersihkan kipas/);
   assert.match(txt, /Max Computer/);
   assert.match(txt, /Chat WA: 0812-0000-0000/);
+});
+
+test("konten kustom: periode, giliran genap/ganjil, promo", () => {
+  const base = { body: "Isi konten toko yang cukup panjang.", cta: "Chat kami" };
+  const custom = [
+    { id: "m1", kind: "motivasi" as const, title: "Motivasi toko", ...base },
+    { id: "p1", kind: "promo" as const, title: "Diskon SSD 10%", ...base, startsOn: "2026-10-18", endsOn: "2026-10-20" },
+  ];
+  const d18 = at("2026-10-18T10:00:00"); // hari ke-n (genap/ganjil diuji relatif)
+  const even = wibDayNumber(d18) % 2 === 0 ? d18 : at("2026-10-19T10:00:00");
+  const odd = even + 86_400_000;
+  assert.equal(pickDaily("motivasi", even, custom)?.customId, "m1");
+  assert.equal(pickDaily("motivasi", odd, custom)?.customId, null);
+  // Jenis tanpa konten toko → selalu bawaan.
+  assert.equal(pickDaily("tips", even, custom)?.customId, null);
+  // Promo hanya dari toko & hanya dalam periode.
+  assert.equal(pickDaily("promo", at("2026-10-19T10:00:00"), custom)?.customId, "p1");
+  assert.equal(pickDaily("promo", at("2026-10-21T10:00:00"), custom), null);
+  assert.equal(activeCustom(custom, at("2026-10-17T23:59:00")).length, 1);
+  assert.equal(activeCustom(custom, at("2026-10-20T23:59:00")).length, 2); // akhir periode inklusif
+  // Rotasi 4 jenis saat ada promo aktif.
+  const seen = new Set(Array.from({ length: 4 }, (_, i) => dailyKind(d18 + i * 86_400_000, true)));
+  assert.deepEqual([...seen].sort(), ["fakta", "motivasi", "promo", "tips"]);
+  assert.deepEqual(dailyKinds(true)[0], "promo");
+  assert.equal(dailyKinds(false).includes("promo"), false);
+});
+
+test("validateDailyItem", () => {
+  const ok = { kind: "motivasi" as const, title: "Judul bagus", body: "Isi yang cukup panjang.", cta: "Chat kami" };
+  assert.deepEqual(validateDailyItem(ok), {});
+  assert.ok(validateDailyItem({ ...ok, emphasis: "tidak ada" }).emphasis);
+  assert.ok(validateDailyItem({ ...ok, title: "x".repeat(71) }).title);
+  assert.ok(validateDailyItem({ ...ok, kind: "tips", steps: ["a", "", "c"] }).steps);
+  assert.deepEqual(validateDailyItem({ ...ok, kind: "tips", steps: ["a", "b", "c"] }), {});
+  assert.ok(validateDailyItem({ ...ok, startsOn: "2026-10-20", endsOn: "2026-10-19" }).endsOn);
 });

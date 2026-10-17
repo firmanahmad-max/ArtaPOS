@@ -4,7 +4,8 @@ import { getCurrentUser } from "@/lib/auth/dal";
 import { ROLE_LABELS, can } from "@/lib/rbac";
 import { daysFromNow, formatLocalDate } from "@/lib/timezone";
 import { greeting } from "@/lib/dashboard-calc";
-import { dailyKind } from "@/lib/daily-content";
+import { activeCustom, dailyKind } from "@/lib/daily-content";
+import { listActiveDailyContent } from "@/server/daily-content/service";
 import { getOpenShift } from "@/server/shift/service";
 import { getReceiptStoreInfo } from "@/server/users/service";
 import {
@@ -32,10 +33,12 @@ export default async function DashboardPage() {
   const user = await getCurrentUser();
   const now = daysFromNow(0); // = sekarang (helper agar lolos aturan purity)
   const ctx = { tenantId: user.tenantId, role: user.role, now };
-  const [shift, store] = await Promise.all([
+  const [shift, store, customContent] = await Promise.all([
     can(user.role, "pos.use") ? getOpenShift(user.tenantId, user.id).catch(() => null) : Promise.resolve(undefined),
     getReceiptStoreInfo(user.tenantId),
+    listActiveDailyContent(user.tenantId, now),
   ]);
+  const hasPromo = activeCustom(customContent, now).some((c) => c.kind === "promo");
   const dateLabel = formatLocalDate(new Date(now), { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
   return (
@@ -68,7 +71,9 @@ export default async function DashboardPage() {
 
       <DailyContentCard
         now={now}
-        defaultKind={dailyKind(now)}
+        defaultKind={dailyKind(now, hasPromo)}
+        custom={customContent}
+        canManage={can(user.role, "settings.manage")}
         dateLabel={formatLocalDate(new Date(now), { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
         store={{
           name: user.tenant.name,

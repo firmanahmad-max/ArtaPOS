@@ -2,14 +2,22 @@
 
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { Copy, Download, Loader2, Quote, Share2 } from "lucide-react";
-import { DAILY_KIND_META, dailyItem, dailyShareText, type DailyKind } from "@/lib/daily-content";
+import Link from "next/link";
+import { Copy, Download, Loader2, PencilLine, Quote, Share2, Store } from "lucide-react";
+import {
+  DAILY_KIND_META,
+  activeCustom,
+  dailyKinds,
+  dailyShareText,
+  pickDaily,
+  type CustomDailyItem,
+  type DailyKind,
+} from "@/lib/daily-content";
 import { shareNodeAsImage } from "@/lib/share-image";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { StoryCanvas, STORY_H, STORY_W, type StoryStore } from "./story-canvas";
 
-const KINDS: DailyKind[] = ["motivasi", "tips", "fakta"];
 const PREVIEW_W = 176;
 const SCALE = PREVIEW_W / STORY_W;
 
@@ -23,17 +31,27 @@ export function DailyContentCard({
   defaultKind,
   dateLabel,
   store,
+  custom = [],
+  canManage = false,
 }: {
   now: number;
   defaultKind: DailyKind;
   dateLabel: string;
   store: StoryStore;
+  /** Konten kustom toko yang aktif (bergilir bersama konten bawaan). */
+  custom?: CustomDailyItem[];
+  canManage?: boolean;
 }) {
+  const hasPromo = activeCustom(custom, now).some((c) => c.kind === "promo");
+  const kinds = dailyKinds(hasPromo);
   const [kind, setKind] = useState<DailyKind>(defaultKind);
   const [busy, setBusy] = useState<"share" | "download" | null>(null);
   const storyRef = useRef<HTMLDivElement>(null);
-  const item = dailyItem(kind, now);
-  const fileName = `${store.name.replace(/[^a-z0-9]+/gi, "-")}-${kind}-${dateLabel.replace(/[^0-9a-z]+/gi, "-")}.png`;
+  // Jenis tanpa konten (mis. promo kedaluwarsa) → kembali ke motivasi.
+  const picked = pickDaily(kind, now, custom) ?? pickDaily("motivasi", now, custom)!;
+  const shownKind: DailyKind = pickDaily(kind, now, custom) ? kind : "motivasi";
+  const item = picked.item;
+  const fileName = `${store.name.replace(/[^a-z0-9]+/gi, "-")}-${shownKind}-${dateLabel.replace(/[^0-9a-z]+/gi, "-")}.png`;
 
   const exportImage = async (downloadOnly: boolean) => {
     if (!storyRef.current) return;
@@ -41,8 +59,8 @@ export function DailyContentCard({
     try {
       const { mode } = await shareNodeAsImage(storyRef.current, {
         fileName,
-        title: DAILY_KIND_META[kind].kicker,
-        text: dailyShareText(kind, item, store.name, store.phone),
+        title: DAILY_KIND_META[shownKind].kicker,
+        text: dailyShareText(shownKind, item, store.name, store.phone),
         pixelRatio: 1,
         backgroundColor: "#111111",
         downloadOnly,
@@ -58,7 +76,7 @@ export function DailyContentCard({
   };
 
   const copyText = () =>
-    navigator.clipboard.writeText(dailyShareText(kind, item, store.name, store.phone)).then(
+    navigator.clipboard.writeText(dailyShareText(shownKind, item, store.name, store.phone)).then(
       () => toast.success("Teks disalin."),
       () => toast.error("Gagal menyalin."),
     );
@@ -76,8 +94,13 @@ export function DailyContentCard({
               <p className="text-xs text-muted-foreground">Berganti setiap hari · siap dibagikan ke Status WA &amp; Story IG</p>
             </div>
           </div>
+          {canManage && (
+            <Link href="/daily-content" className="order-last inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline sm:order-none sm:ml-auto sm:mr-1">
+              <PencilLine className="size-3.5" /> Kelola konten toko
+            </Link>
+          )}
           <div className="flex gap-0.5 rounded-lg bg-muted p-0.5" role="group" aria-label="Jenis konten">
-            {KINDS.map((k) => (
+            {kinds.map((k) => (
               <button
                 key={k}
                 type="button"
@@ -95,7 +118,14 @@ export function DailyContentCard({
         </div>
 
         <div className="rounded-2xl bg-muted/70 px-5 py-4">
-          <p className="text-[10.5px] font-bold uppercase tracking-[.1em] text-primary">{DAILY_KIND_META[kind].kicker}</p>
+          <p className="flex flex-wrap items-center gap-2 text-[10.5px] font-bold uppercase tracking-[.1em] text-primary">
+            {DAILY_KIND_META[shownKind].kicker}
+            {picked.customId && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] tracking-normal normal-case">
+                <Store className="size-3" /> Konten toko
+              </span>
+            )}
+          </p>
           <p className="mt-2 text-lg font-bold leading-snug tracking-tight sm:text-xl">{item.body}</p>
           {item.steps && (
             <ol className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-muted-foreground">
@@ -131,7 +161,7 @@ export function DailyContentCard({
           role="img"
         >
           <div style={{ transform: `scale(${SCALE})`, transformOrigin: "top left", width: STORY_W, height: STORY_H }}>
-            <StoryCanvas ref={storyRef} kind={kind} item={item} store={store} dateLabel={dateLabel} />
+            <StoryCanvas ref={storyRef} kind={shownKind} item={item} store={store} dateLabel={dateLabel} />
           </div>
         </div>
       </div>

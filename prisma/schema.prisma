@@ -106,6 +106,7 @@ model Tenant {
   serviceCatalog ServiceCatalogItem[]
   serviceReminders ServiceReminder[]
   reportDispatches ReportDispatch[]
+  dailyContents  DailyContentItem[]
 
   @@map("tenants")
 }
@@ -1295,4 +1296,35 @@ model ReportDispatch {
   @@unique([tenantId, kind, periodKey])
   @@index([tenantId, actedAt])
   @@map("report_dispatches")
+}
+
+enum DailyContentKind {
+  MOTIVASI
+  TIPS
+  FAKTA
+  PROMO
+}
+
+/// Konten Harian kustom milik toko — ikut bergilir bersama konten bawaan ArtaPOS di
+/// Dashboard dan dibagikan sebagai gambar story bermerek toko.
+model DailyContentItem {
+  id        String           @id @default(cuid())
+  tenantId  String
+  kind      DailyContentKind
+  title     String // judul gambar (≤ 70 karakter)
+  emphasis  String? // bagian judul yang diberi warna aksen (harus ada di judul)
+  body      String // penjelasan / kalimat lengkap
+  steps     String[] // TIPS: tepat 3 langkah; jenis lain: kosong
+  cta       String // ajakan di kaki gambar
+  startsOn  DateTime?        @db.Date // periode tampil (tanggal WIB), opsional
+  endsOn    DateTime?        @db.Date
+  isActive  Boolean          @default(true)
+  createdById String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, isActive])
+  @@map("daily_content_items")
 }

@@ -5,7 +5,9 @@
  * dan bergilir otomatis per hari WIB. Murni (tanpa I/O), unit-tested.
  */
 
-export type DailyKind = "motivasi" | "tips" | "fakta";
+export type DailyKind = "motivasi" | "tips" | "fakta" | "promo";
+/** Jenis yang punya pustaka bawaan (promo hanya dari toko). */
+export type BuiltinKind = Exclude<DailyKind, "promo">;
 
 export interface DailyItem {
   /** Judul pendek untuk gambar story. `emphasis` = bagian judul yang diberi warna aksen. */
@@ -25,11 +27,12 @@ export const DAILY_KIND_META: Record<DailyKind, { label: string; kicker: string 
   motivasi: { label: "Motivasi", kicker: "MOTIVASI BISNIS" },
   tips: { label: "Tips IT", kicker: "TIPS TEKNOLOGI" },
   fakta: { label: "Fakta IT", kicker: "TAHUKAH ANDA?" },
+  promo: { label: "Promo", kicker: "PROMO TOKO" },
 };
 
 const CTA_GENERAL = "Butuh servis atau upgrade?";
 
-export const DAILY_CONTENT: Record<DailyKind, DailyItem[]> = {
+export const DAILY_CONTENT: Record<BuiltinKind, DailyItem[]> = {
   motivasi: [
     { title: "Pelanggan yang puas adalah iklan terbaik.", emphasis: "iklan terbaik.", body: "Pelanggan yang puas adalah iklan terbaik — dan satu-satunya iklan yang tidak perlu dibayar.", cta: CTA_GENERAL },
     { title: "Kepercayaan dibangun dari janji kecil yang ditepati.", emphasis: "ditepati.", body: "Kepercayaan pelanggan tidak lahir dari promosi besar, tapi dari janji kecil yang selalu ditepati: estimasi yang jujur, servis tepat waktu.", cta: CTA_GENERAL },
@@ -128,23 +131,102 @@ export const DAILY_CONTENT: Record<DailyKind, DailyItem[]> = {
   ],
 };
 
-const KINDS: DailyKind[] = ["motivasi", "tips", "fakta"];
+const BASE_KINDS: DailyKind[] = ["motivasi", "tips", "fakta"];
 
 /** Nomor hari WIB sejak epoch (berganti tiap 00:00 WIB). */
 export function wibDayNumber(now: number): number {
   return Math.floor((now + 7 * 3_600_000) / 86_400_000);
 }
 
-/** Jenis konten yang tampil default hari ini (bergilir motivasi → tips → fakta). */
-export function dailyKind(now: number): DailyKind {
-  return KINDS[wibDayNumber(now) % KINDS.length];
+/** Tanggal WIB "YYYY-MM-DD" untuk sebuah instant. */
+export function wibDateKey(now: number): string {
+  return new Date(now + 7 * 3_600_000).toISOString().slice(0, 10);
 }
 
-/** Konten hari ini untuk jenis tertentu (indeks bergilir per hari, berbeda tiap jenis). */
-export function dailyItem(kind: DailyKind, now: number): DailyItem {
-  const list = DAILY_CONTENT[kind];
+/** Konten kustom toko (dari DB; tanggal periode "YYYY-MM-DD" WIB, inklusif). */
+export interface CustomDailyItem extends DailyItem {
+  id: string;
+  kind: DailyKind;
+  startsOn?: string | null;
+  endsOn?: string | null;
+}
+
+/** Konten kustom yang tampil pada hari `now` (dalam periode, bila ada). */
+export function activeCustom<T extends CustomDailyItem>(items: T[], now: number): T[] {
+  const today = wibDateKey(now);
+  return items.filter((i) => (!i.startsOn || i.startsOn <= today) && (!i.endsOn || i.endsOn >= today));
+}
+
+/** Tab jenis konten: Promo hanya muncul bila toko punya promo aktif hari ini. */
+export function dailyKinds(hasPromo: boolean): DailyKind[] {
+  return hasPromo ? ["promo", ...BASE_KINDS] : BASE_KINDS;
+}
+
+/** Jenis default hari ini — bergilir motivasi → tips → fakta (→ promo bila ada promo aktif). */
+export function dailyKind(now: number, hasPromo = false): DailyKind {
+  const kinds: DailyKind[] = hasPromo ? [...BASE_KINDS, "promo"] : BASE_KINDS;
+  return kinds[wibDayNumber(now) % kinds.length];
+}
+
+/**
+ * Konten hari ini untuk satu jenis. Bila toko punya konten kustom aktif untuk jenis itu,
+ * konten toko tampil di hari GENAP & bawaan di hari ganjil (bergilir, tak tenggelam di
+ * antara 30 konten bawaan). Promo hanya dari toko.
+ */
+export function pickDaily(
+  kind: DailyKind,
+  now: number,
+  custom: CustomDailyItem[] = [],
+): { item: DailyItem; customId: string | null } | null {
   const day = wibDayNumber(now);
-  return list[day % list.length];
+  const mine = activeCustom(custom, now).filter((c) => c.kind === kind);
+  const builtin = kind === "promo" ? [] : DAILY_CONTENT[kind];
+  if (mine.length === 0) return builtin.length ? { item: builtin[day % builtin.length], customId: null } : null;
+  if (builtin.length === 0 || day % 2 === 0) {
+    const c = mine[(builtin.length === 0 ? day : Math.floor(day / 2)) % mine.length];
+    return { item: c, customId: c.id };
+  }
+  return { item: builtin[Math.floor(day / 2) % builtin.length], customId: null };
+}
+
+/** Konten bawaan hari ini (tanpa konten toko). */
+export function dailyItem(kind: BuiltinKind, now: number): DailyItem {
+  return pickDaily(kind, now)!.item;
+}
+
+/** Validasi konten kustom (dipakai form klien & server). Objek kosong = valid. */
+export function validateDailyItem(v: {
+  kind: DailyKind;
+  title: string;
+  emphasis?: string | null;
+  body: string;
+  steps?: string[];
+  cta: string;
+  startsOn?: string | null;
+  endsOn?: string | null;
+}): Record<string, string> {
+  const e: Record<string, string> = {};
+  const title = v.title.trim();
+  if (title.length < 3) e.title = "Judul minimal 3 karakter.";
+  else if (title.length > 70) e.title = "Judul maksimal 70 karakter.";
+  const em = (v.emphasis ?? "").trim();
+  if (em && !title.includes(em)) e.emphasis = "Kata yang diwarnai harus persis ada di judul.";
+  const body = v.body.trim();
+  if (body.length < 10) e.body = "Isi minimal 10 karakter.";
+  else if (body.length > 240) e.body = "Isi maksimal 240 karakter.";
+  if (v.kind === "tips") {
+    const steps = (v.steps ?? []).map((x) => x.trim());
+    if (steps.length !== 3 || steps.some((x) => !x)) e.steps = "Tips wajib 3 langkah singkat.";
+    else if (steps.some((x) => x.length > 40)) e.steps = "Tiap langkah maksimal 40 karakter.";
+  }
+  const cta = v.cta.trim();
+  if (cta.length < 3) e.cta = "Ajakan minimal 3 karakter.";
+  else if (cta.length > 60) e.cta = "Ajakan maksimal 60 karakter.";
+  const iso = /^\d{4}-\d{2}-\d{2}$/;
+  if (v.startsOn && !iso.test(v.startsOn)) e.startsOn = "Tanggal tidak valid.";
+  if (v.endsOn && !iso.test(v.endsOn)) e.endsOn = "Tanggal tidak valid.";
+  if (v.startsOn && v.endsOn && v.endsOn < v.startsOn) e.endsOn = "Tanggal selesai harus setelah tanggal mulai.";
+  return e;
 }
 
 /** Pecah judul jadi [sebelum, aksen, sesudah] untuk diwarnai. */

@@ -22,6 +22,13 @@ const THEME: Record<DailyKind, { bg: string; glow: string; pill: string; accent:
     accent: "#ffd5d6",
     stepText: "#8e0b0f",
   },
+  promo: {
+    bg: "linear-gradient(165deg, #0f1220 0%, #141827 55%, #3d2a05 100%)",
+    glow: "radial-gradient(circle at 85% 8%, rgba(245,158,11,.42), transparent 45%)",
+    pill: "#b45309",
+    accent: "#fbbf24",
+    stepText: "#78350f",
+  },
   fakta: {
     bg: "linear-gradient(165deg, #211043 0%, #2a1460 50%, #3b1d7e 100%)",
     glow: "radial-gradient(circle at 85% 8%, rgba(168,85,247,.5), transparent 45%)",
