@@ -7,6 +7,9 @@ import { Copy, Download, Loader2, PencilLine, Quote, Share2, Store } from "lucid
 import {
   DAILY_KIND_META,
   activeCustom,
+  discountPct,
+  effectivePrice,
+  stockLabel,
   dailyKinds,
   dailyShareText,
   pickDaily,
@@ -15,7 +18,7 @@ import {
 } from "@/lib/daily-content";
 import { shareNodeAsImage } from "@/lib/share-image";
 import { recordDailyContentAction } from "@/server/daily-content/actions";
-import { cn } from "@/lib/utils";
+import { cn, formatRupiah } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { StoryCanvas, STORY_H, STORY_W, type StoryStore } from "./story-canvas";
 
@@ -151,6 +154,16 @@ export function DailyContentCard({
                 </li>
               ))}
             </ol>
+          )}
+          {item.product && (
+            <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+              <span className="font-semibold">{item.product.name}</span>
+              {discountPct(item.product) > 0 && (
+                <span className="text-muted-foreground line-through">{formatRupiah(item.product.price)}</span>
+              )}
+              <span className="font-mono font-bold text-primary">{formatRupiah(effectivePrice(item.product))}</span>
+              <span className="text-xs text-muted-foreground">· {stockLabel(item.product.stock)}</span>
+            </p>
           )}
           <p className="mt-2 text-xs text-muted-foreground">Ajakan di gambar: {item.cta}</p>
         </div>

@@ -86,3 +86,31 @@ test("validateDailyItem", () => {
   assert.deepEqual(validateDailyItem({ ...ok, kind: "tips", steps: ["a", "b", "c"] }), {});
   assert.ok(validateDailyItem({ ...ok, startsOn: "2026-10-20", endsOn: "2026-10-19" }).endsOn);
 });
+
+test("promo bertaut produk: harga, hemat, stok & berhenti otomatis", async () => {
+  const { effectivePrice, discountPct, stockLabel } = await import("../src/lib/daily-content.ts");
+  const p = { name: "SSD NVMe 1TB", price: 1_250_000, promoPrice: 1_100_000, stock: 3 };
+  assert.equal(effectivePrice(p), 1_100_000);
+  assert.equal(discountPct(p), 12);
+  assert.equal(effectivePrice({ ...p, promoPrice: 1_300_000 }), 1_250_000); // promo > normal diabaikan
+  assert.equal(discountPct({ ...p, promoPrice: null }), 0);
+  assert.equal(stockLabel(0), "Stok habis");
+  assert.equal(stockLabel(3), "Sisa 3 unit — stok terbatas");
+  assert.equal(stockLabel(20), "Stok tersedia");
+  const now = at("2026-10-18T10:00:00");
+  const base = { kind: "promo" as const, title: "Promo", body: "Isi promo cukup panjang.", cta: "Pesan" };
+  const items = [
+    { id: "a", ...base, product: p },
+    { id: "b", ...base, product: { ...p, stock: 0 } },
+  ];
+  assert.deepEqual(activeCustom(items, now).map((i) => i.id), ["a"]);
+  const txt = dailyShareText("promo", { ...base, product: p }, "Max Computer");
+  assert.match(txt, /SSD NVMe 1TB/);
+  assert.match(txt, /~Rp 1\.250\.000~ \*Rp 1\.100\.000\* \(hemat 12%\)/);
+  assert.match(txt, /Sisa 3 unit/);
+  // Validasi tautan & harga promo.
+  const ok = { kind: "promo" as const, title: "Judul promo", body: "Isi yang cukup panjang.", cta: "Pesan" };
+  assert.deepEqual(validateDailyItem({ ...ok, productId: "p1", promoPrice: 900_000 }), {});
+  assert.ok(validateDailyItem({ ...ok, promoPrice: 900_000 }).promoPrice);
+  assert.ok(validateDailyItem({ ...ok, kind: "tips", steps: ["a", "b", "c"], productId: "p1" }).productId);
+});

@@ -25,6 +25,8 @@ function parse(raw: unknown): { input?: svc.DailyContentInput; errors?: Record<s
     startsOn: str(r.startsOn) || null,
     endsOn: str(r.endsOn) || null,
     isActive: typeof r.isActive === "boolean" ? r.isActive : undefined,
+    productId: kind === "promo" ? str(r.productId) || null : null,
+    promoPrice: typeof r.promoPrice === "number" && r.promoPrice > 0 ? Math.round(r.promoPrice) : null,
   };
   const errors = validateDailyItem(input);
   return Object.keys(errors).length ? { errors } : { input };
@@ -91,5 +93,16 @@ export async function recordDailyContentAction(contentKey: string, action: strin
     await svc.recordDailyContentUse(ctx.tenantId, contentKey, action, Date.now());
   } catch {
     /* statistik tak boleh mengganggu pengguna */
+  }
+}
+
+/** Cari produk untuk ditautkan ke promo (form Konten Harian). */
+export async function searchPromoProductsAction(q: string) {
+  const ctx = await getAuthContext();
+  if (!can(ctx.role, "settings.manage")) return [];
+  try {
+    return await svc.searchPromoProducts(ctx.tenantId, typeof q === "string" ? q.slice(0, 60) : "");
+  } catch {
+    return [];
   }
 }

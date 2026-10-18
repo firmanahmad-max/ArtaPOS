@@ -1,17 +1,27 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { CalendarRange, Loader2, PencilLine, Plus, Power, Save, Trash2, X } from "lucide-react";
+import { CalendarRange, Loader2, Package, PencilLine, Plus, Power, Save, Search, Trash2, X } from "lucide-react";
 import {
   deleteDailyContentAction,
   saveDailyContentAction,
+  searchPromoProductsAction,
   toggleDailyContentAction,
 } from "@/server/daily-content/actions";
 import type { DailyContentView } from "@/server/daily-content/service";
-import { DAILY_KIND_META, validateDailyItem, type DailyItem, type DailyKind } from "@/lib/daily-content";
-import { cn } from "@/lib/utils";
+import {
+  DAILY_KIND_META,
+  discountPct,
+  effectivePrice,
+  stockLabel,
+  validateDailyItem,
+  type DailyItem,
+  type DailyKind,
+} from "@/lib/daily-content";
+import { cn, formatRupiah } from "@/lib/utils";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,6 +72,18 @@ interface FormState {
   startsOn: string;
   endsOn: string;
   isActive: boolean;
+  /** PROMO: produk yang dipromosikan (opsional) + harga promo (0 = tanpa potongan). */
+  product: PickedProduct | null;
+  promoPrice: number;
+}
+
+interface PickedProduct {
+  id: string;
+  name: string;
+  sku: string;
+  price: number;
+  stock: number;
+  photo?: string | null;
 }
 
 const EMPTY: FormState = {
@@ -75,10 +97,14 @@ const EMPTY: FormState = {
   startsOn: "",
   endsOn: "",
   isActive: true,
+  product: null,
+  promoPrice: 0,
 };
 
 function status(it: DailyContentView, today: string): { label: string; cls: string } {
   if (!it.isActive) return { label: "Nonaktif", cls: "bg-muted text-muted-foreground" };
+  if (it.product && !it.product.isActive) return { label: "Produk nonaktif", cls: "bg-rose-500/12 text-rose-700 dark:text-rose-400" };
+  if (it.product && it.product.stock <= 0) return { label: "Stok habis", cls: "bg-rose-500/12 text-rose-700 dark:text-rose-400" };
   if (it.endsOn && it.endsOn < today) return { label: "Berakhir", cls: "bg-muted text-muted-foreground" };
   if (it.startsOn && it.startsOn > today) return { label: "Terjadwal", cls: "bg-amber-500/15 text-amber-700 dark:text-amber-400" };
   return { label: "Tampil", cls: "bg-emerald-500/12 text-emerald-700 dark:text-emerald-400" };
@@ -135,7 +161,40 @@ export function ContentManager({
       startsOn: it.startsOn ?? "",
       endsOn: it.endsOn ?? "",
       isActive: it.isActive,
+      product: it.product,
+      promoPrice: it.promoPrice ?? 0,
     });
+  };
+
+  // Cari produk (debounce di event handler, bukan effect).
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState<PickedProduct[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const search = (term: string) => {
+    setQ(term);
+    if (timer.current) clearTimeout(timer.current);
+    setSearching(true);
+    timer.current = setTimeout(async () => {
+      const r = await searchPromoProductsAction(term);
+      setResults(r);
+      setSearching(false);
+    }, 250);
+  };
+  const pickProduct = (p: PickedProduct) => {
+    setForm((f) =>
+      f
+        ? {
+            ...f,
+            product: p,
+            promoPrice: 0,
+            title: f.title || `Promo ${p.name}`.slice(0, 70),
+            cta: f.cta || "Stok terbatas — pesan sekarang",
+          }
+        : f,
+    );
+    setResults(null);
+    setQ("");
   };
 
   const payload = (f: FormState) => ({
@@ -148,6 +207,8 @@ export function ContentManager({
     startsOn: f.startsOn || null,
     endsOn: f.endsOn || null,
     isActive: f.isActive,
+    productId: f.kind === "promo" ? (f.product?.id ?? null) : null,
+    promoPrice: f.kind === "promo" && f.product && f.promoPrice > 0 ? f.promoPrice : null,
   });
 
   const save = () => {
@@ -191,6 +252,16 @@ export function ContentManager({
         body: form.body || HINT[form.kind].body,
         steps: form.kind === "tips" ? (form.steps.map((s, i) => s || `Langkah ${i + 1}`) as [string, string, string]) : undefined,
         cta: form.cta || HINT[form.kind].cta,
+        product:
+          form.kind === "promo" && form.product
+            ? {
+                name: form.product.name,
+                price: form.product.price,
+                promoPrice: form.promoPrice || null,
+                stock: form.product.stock,
+                photo: form.product.photo ?? null,
+              }
+            : undefined,
       }
     : null;
 
@@ -270,6 +341,97 @@ export function ContentManager({
                   ))}
                 </div>
               </Field>
+            )}
+            {form.kind === "promo" && (
+              <div className="space-y-2 rounded-xl border bg-muted/40 p-3">
+                <div className="flex items-baseline justify-between gap-2">
+                  <Label htmlFor="dc-prod">Produk yang dipromosikan (opsional)</Label>
+                  <span className="text-[11px] text-muted-foreground">Harga &amp; stok tampil di gambar</span>
+                </div>
+                {form.product ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 rounded-lg border bg-card p-2.5">
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent text-primary">
+                        <Package className="size-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold">{form.product.name}</span>
+                        <span className="block text-[11.5px] text-muted-foreground">
+                          {form.product.sku} · {formatRupiah(form.product.price)} ·{" "}
+                          <span className={form.product.stock <= 0 ? "font-semibold text-destructive" : ""}>stok {form.product.stock}</span>
+                        </span>
+                      </span>
+                      <Button variant="ghost" size="sm" onClick={() => set("product", null)}>
+                        <X /> Lepas
+                      </Button>
+                    </div>
+                    {form.product.stock <= 0 && (
+                      <p className="text-xs text-destructive">Stok produk habis — promo tidak akan tampil di Dashboard sampai stok tersedia lagi.</p>
+                    )}
+                    <Field id="dc-promo" label="Harga promo (opsional)" hint="Kosongkan bila tanpa potongan" error={errors.promoPrice}>
+                      <CurrencyInput id="dc-promo" value={form.promoPrice} onValueChange={(v) => set("promoPrice", v)} placeholder={form.product.price.toLocaleString("id-ID")} />
+                    </Field>
+                    {form.promoPrice > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        {form.promoPrice >= form.product.price ? (
+                          <span className="text-amber-700 dark:text-amber-400">Harga promo tidak lebih murah dari harga normal — tampil tanpa coretan.</span>
+                        ) : (
+                          <>
+                            Pelanggan hemat <b className="text-success">{discountPct({ ...form.product, promoPrice: form.promoPrice })}%</b> (
+                            {formatRupiah(form.product.price - form.promoPrice)}).
+                          </>
+                        )}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="dc-prod"
+                      value={q}
+                      onChange={(e) => search(e.target.value)}
+                      onFocus={() => results === null && search(q)}
+                      placeholder="Cari nama, SKU, atau barcode produk…"
+                      className="pl-9"
+                      autoComplete="off"
+                    />
+                    {(results || searching) && (
+                      <div className="absolute inset-x-0 top-full z-20 mt-1 max-h-72 overflow-auto rounded-xl border bg-popover p-1 shadow-lg">
+                        {searching && !results ? (
+                          <p className="px-3 py-2 text-sm text-muted-foreground">Mencari…</p>
+                        ) : results && results.length === 0 ? (
+                          <p className="px-3 py-2 text-sm text-muted-foreground">Produk tidak ditemukan.</p>
+                        ) : (
+                          results?.map((p) => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => pickProduct(p)}
+                              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-accent"
+                            >
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm font-medium">{p.name}</span>
+                                <span className="block text-[11.5px] text-muted-foreground">{p.sku}</span>
+                              </span>
+                              <span className="shrink-0 text-right text-xs">
+                                <span className="block font-mono font-semibold">{formatRupiah(p.price)}</span>
+                                <span className={p.stock <= 0 ? "text-destructive" : "text-muted-foreground"}>stok {p.stock}</span>
+                              </span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {errors.productId && <p className="text-xs text-destructive">{errors.productId}</p>}
+                {!form.product && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Promo bertaut produk berhenti tampil otomatis saat stok habis. Foto diambil dari Galeri Publik bila produk dipajang.
+                  </p>
+                )}
+              </div>
             )}
             <Field id="dc-cta" label="Ajakan di kaki gambar" hint={`${form.cta.length}/60`} error={errors.cta}>
               <Input id="dc-cta" value={form.cta} maxLength={60} placeholder={HINT[form.kind].cta} onChange={(e) => set("cta", e.target.value)} />
@@ -354,6 +516,21 @@ export function ContentManager({
                 </div>
                 <p className="font-semibold leading-snug">{it.title}</p>
                 <p className="line-clamp-2 text-sm text-muted-foreground">{it.body}</p>
+                {it.product && (
+                  <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-lg bg-muted/60 px-2.5 py-1.5 text-xs">
+                    <Package className="size-3.5 text-muted-foreground" />
+                    <span className="font-medium">{it.product.name}</span>
+                    {discountPct({ ...it.product, promoPrice: it.promoPrice }) > 0 && (
+                      <span className="text-muted-foreground line-through">{formatRupiah(it.product.price)}</span>
+                    )}
+                    <span className="font-mono font-semibold text-primary">
+                      {formatRupiah(effectivePrice({ ...it.product, promoPrice: it.promoPrice }))}
+                    </span>
+                    <span className={it.product.stock <= 0 ? "font-semibold text-destructive" : "text-muted-foreground"}>
+                      · {stockLabel(it.product.stock)}
+                    </span>
+                  </p>
+                )}
                 <p className="flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">
                   <span>Ajakan: {it.cta}</span>
                   <span>

@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import type { DailyContentKind } from "@/generated/prisma/enums";
+import type { Prisma } from "@/generated/prisma/client";
 import { builtinByKey, wibDateKey, type CustomDailyItem, type DailyKind } from "@/lib/daily-content";
 import { summarizeDailyStats } from "@/lib/daily-content-stats";
 
@@ -19,13 +20,37 @@ export interface DailyContentInput {
   startsOn?: string | null;
   endsOn?: string | null;
   isActive?: boolean;
+  /** PROMO saja: produk inventory yang dipromosikan + harga promo opsional. */
+  productId?: string | null;
+  promoPrice?: number | null;
 }
 
 /** "YYYY-MM-DD" ⇄ kolom DATE (disimpan sebagai tengah malam UTC tanggal itu). */
 const toDate = (d?: string | null) => (d ? new Date(`${d}T00:00:00.000Z`) : null);
 const fromDate = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
 
-type Row = Awaited<ReturnType<typeof db.dailyContentItem.findMany>>[number];
+const PRODUCT_SELECT = { id: true, name: true, sku: true, sellPrice: true, stock: true, isActive: true } as const;
+
+async function findRows(
+  where: Prisma.DailyContentItemWhereInput,
+  opts: { take?: number; orderBy?: Prisma.DailyContentItemOrderByWithRelationInput | Prisma.DailyContentItemOrderByWithRelationInput[] } = {},
+) {
+  return db.dailyContentItem.findMany({
+    where,
+    include: {
+      product: {
+        select: {
+          ...PRODUCT_SELECT,
+          // Foto dari Galeri Publik (bila produk dipajang) untuk gambar promo.
+          galleryItems: { where: { isActive: true, photo: { not: null } }, select: { photo: true }, take: 1 },
+        },
+      },
+    },
+    ...opts,
+  });
+}
+type Row = Awaited<ReturnType<typeof findRows>>[number];
+
 const toView = (r: Row) => ({
   id: r.id,
   kind: FROM_DB[r.kind],
@@ -38,11 +63,24 @@ const toView = (r: Row) => ({
   endsOn: fromDate(r.endsOn),
   isActive: r.isActive,
   updatedAt: r.updatedAt.toISOString(),
+  promoPrice: r.promoPrice,
+  product: r.product
+    ? {
+        id: r.product.id,
+        name: r.product.name,
+        sku: r.product.sku,
+        price: r.product.sellPrice,
+        stock: r.product.isActive ? r.product.stock : 0,
+        isActive: r.product.isActive,
+        photo: r.product.galleryItems[0]?.photo ?? null,
+      }
+    : null,
 });
 export type DailyContentView = ReturnType<typeof toView>;
 
 function data(input: DailyContentInput) {
   const isTips = input.kind === "tips";
+  const productId = input.kind === "promo" ? input.productId || null : null;
   return {
     kind: TO_DB[input.kind],
     title: input.title.trim(),
@@ -52,38 +90,89 @@ function data(input: DailyContentInput) {
     cta: input.cta.trim(),
     startsOn: toDate(input.startsOn),
     endsOn: toDate(input.endsOn),
+    productId,
+    promoPrice: productId && input.promoPrice && input.promoPrice > 0 ? input.promoPrice : null,
     ...(input.isActive === undefined ? {} : { isActive: input.isActive }),
   };
 }
 
+/** Pastikan produk yang ditautkan milik toko ini (cegah tautan lintas-tenant). */
+async function assertProduct(tenantId: string, input: DailyContentInput) {
+  if (input.kind !== "promo" || !input.productId) return;
+  const p = await db.product.findFirst({ where: { id: input.productId, tenantId }, select: { id: true } });
+  if (!p) throw new Error("Produk tidak ditemukan.");
+}
+
 export async function listDailyContent(tenantId: string) {
-  const rows = await db.dailyContentItem.findMany({ where: { tenantId }, orderBy: [{ isActive: "desc" }, { updatedAt: "desc" }] });
+  const rows = await findRows({ tenantId }, { orderBy: [{ isActive: "desc" }, { updatedAt: "desc" }] });
   return rows.map(toView);
 }
 
-/** Konten aktif yang belum kedaluwarsa (untuk Dashboard). Tabel belum ada → []. */
+/**
+ * Konten aktif yang belum kedaluwarsa (untuk Dashboard). Promo bertaut produk membawa
+ * harga/stok/foto terkini; produk nonaktif dihitung stok 0 → berhenti tampil otomatis
+ * (disaring `activeCustom`). Tabel belum ada → [].
+ */
 export async function listActiveDailyContent(tenantId: string, now: number): Promise<CustomDailyItem[]> {
   try {
-    const rows = await db.dailyContentItem.findMany({
-      where: { tenantId, isActive: true, OR: [{ endsOn: null }, { endsOn: { gte: toDate(wibDateKey(now))! } }] },
-      orderBy: { createdAt: "asc" },
-      take: 200,
-    });
+    const rows = await findRows(
+      { tenantId, isActive: true, OR: [{ endsOn: null }, { endsOn: { gte: toDate(wibDateKey(now))! } }] },
+      { orderBy: { createdAt: "asc" }, take: 200 },
+    );
     return rows.map((r) => {
       const v = toView(r);
-      return { id: v.id, kind: v.kind, title: v.title, emphasis: v.emphasis, body: v.body, steps: v.steps, cta: v.cta, startsOn: v.startsOn, endsOn: v.endsOn };
+      return {
+        id: v.id,
+        kind: v.kind,
+        title: v.title,
+        emphasis: v.emphasis,
+        body: v.body,
+        steps: v.steps,
+        cta: v.cta,
+        startsOn: v.startsOn,
+        endsOn: v.endsOn,
+        product: v.product
+          ? { name: v.product.name, price: v.product.price, promoPrice: v.promoPrice, stock: v.product.stock, photo: v.product.photo }
+          : undefined,
+      };
     });
   } catch {
     return [];
   }
 }
 
+/** Cari produk aktif untuk ditautkan ke promo (nama / SKU / barcode). */
+export async function searchPromoProducts(tenantId: string, q: string) {
+  const term = q.trim();
+  const rows = await db.product.findMany({
+    where: {
+      tenantId,
+      isActive: true,
+      ...(term
+        ? {
+            OR: [
+              { name: { contains: term, mode: "insensitive" as const } },
+              { sku: { contains: term, mode: "insensitive" as const } },
+              { barcode: { contains: term, mode: "insensitive" as const } },
+            ],
+          }
+        : {}),
+    },
+    orderBy: [{ stock: "desc" }, { name: "asc" }],
+    take: 12,
+    select: { id: true, name: true, sku: true, sellPrice: true, stock: true },
+  });
+  return rows.map((r) => ({ id: r.id, name: r.name, sku: r.sku, price: r.sellPrice, stock: r.stock }));
+}
+
 export async function createDailyContent(tenantId: string, userId: string, input: DailyContentInput) {
+  await assertProduct(tenantId, input);
   const r = await db.dailyContentItem.create({ data: { tenantId, createdById: userId, ...data(input) } });
-  return toView(r);
+  return r.id;
 }
 
 export async function updateDailyContent(tenantId: string, id: string, input: DailyContentInput) {
+  await assertProduct(tenantId, input);
   const r = await db.dailyContentItem.updateMany({ where: { id, tenantId }, data: data(input) });
   if (r.count === 0) throw new Error("Konten tidak ditemukan.");
 }

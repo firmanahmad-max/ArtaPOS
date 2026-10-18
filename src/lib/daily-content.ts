@@ -21,7 +21,40 @@ export interface DailyItem {
   compare?: { a: { label: string; value: string; pct: number }; b: { label: string; value: string; pct: number } };
   /** Ajakan di kaki gambar (jasa/produk toko yang relevan). */
   cta: string;
+  /** PROMO bertaut produk inventory: harga & stok tampil di gambar. */
+  product?: PromoProduct;
 }
+
+export interface PromoProduct {
+  name: string;
+  /** Harga jual normal. */
+  price: number;
+  /** Harga promo (null/kosong = tanpa potongan). */
+  promoPrice?: number | null;
+  stock: number;
+  /** Foto produk dari Galeri Publik (data URL), bila ada. */
+  photo?: string | null;
+}
+
+/** Harga yang dibayar pelanggan: harga promo bila lebih murah dari harga normal. */
+export function effectivePrice(p: PromoProduct): number {
+  return p.promoPrice && p.promoPrice > 0 && p.promoPrice < p.price ? p.promoPrice : p.price;
+}
+
+/** Persen hemat (dibulatkan), 0 bila tanpa potongan. */
+export function discountPct(p: PromoProduct): number {
+  const eff = effectivePrice(p);
+  return p.price > 0 && eff < p.price ? Math.round(((p.price - eff) / p.price) * 100) : 0;
+}
+
+/** Label stok untuk gambar promo. */
+export function stockLabel(stock: number): string {
+  if (stock <= 0) return "Stok habis";
+  if (stock <= 5) return `Sisa ${stock} unit — stok terbatas`;
+  return "Stok tersedia";
+}
+
+const rp = (n: number) => `Rp ${n.toLocaleString("id-ID")}`;
 
 export const DAILY_KIND_META: Record<DailyKind, { label: string; kicker: string }> = {
   motivasi: { label: "Motivasi", kicker: "MOTIVASI BISNIS" },
@@ -151,10 +184,16 @@ export interface CustomDailyItem extends DailyItem {
   endsOn?: string | null;
 }
 
-/** Konten kustom yang tampil pada hari `now` (dalam periode, bila ada). */
+/**
+ * Konten kustom yang tampil pada hari `now`: dalam periode (bila ada) dan — untuk promo
+ * bertaut produk — stok masih ada (promo berhenti otomatis saat stok habis).
+ */
 export function activeCustom<T extends CustomDailyItem>(items: T[], now: number): T[] {
   const today = wibDateKey(now);
-  return items.filter((i) => (!i.startsOn || i.startsOn <= today) && (!i.endsOn || i.endsOn >= today));
+  return items.filter(
+    (i) =>
+      (!i.startsOn || i.startsOn <= today) && (!i.endsOn || i.endsOn >= today) && !(i.product && i.product.stock <= 0),
+  );
 }
 
 /** Tab jenis konten: Promo hanya muncul bila toko punya promo aktif hari ini. */
@@ -214,8 +253,15 @@ export function validateDailyItem(v: {
   cta: string;
   startsOn?: string | null;
   endsOn?: string | null;
+  productId?: string | null;
+  promoPrice?: number | null;
 }): Record<string, string> {
   const e: Record<string, string> = {};
+  if (v.productId && v.kind !== "promo") e.productId = "Produk hanya bisa ditautkan ke konten Promo.";
+  if (v.promoPrice !== null && v.promoPrice !== undefined && v.promoPrice !== 0) {
+    if (!v.productId) e.promoPrice = "Harga promo butuh produk yang ditautkan.";
+    else if (!Number.isInteger(v.promoPrice) || v.promoPrice < 1 || v.promoPrice > 10_000_000_000) e.promoPrice = "Harga promo tidak valid.";
+  }
   const title = v.title.trim();
   if (title.length < 3) e.title = "Judul minimal 3 karakter.";
   else if (title.length > 70) e.title = "Judul maksimal 70 karakter.";
@@ -251,6 +297,16 @@ export function splitEmphasis(title: string, emphasis?: string): [string, string
 export function dailyShareText(kind: DailyKind, item: DailyItem, storeName: string, phone?: string | null): string {
   const rows = [`*${DAILY_KIND_META[kind].kicker}*`, item.body];
   if (item.steps) rows.push(item.steps.map((s, i) => `${i + 1}. ${s}`).join("\n"));
+  if (item.product) {
+    const p = item.product;
+    const pct = discountPct(p);
+    rows.push(
+      "",
+      `🏷️ *${p.name}*`,
+      pct > 0 ? `Harga: ~${rp(p.price)}~ *${rp(effectivePrice(p))}* (hemat ${pct}%)` : `Harga: *${rp(p.price)}*`,
+    );
+    if (p.stock > 0 && p.stock <= 5) rows.push(`⏳ ${stockLabel(p.stock)}`);
+  }
   rows.push("", `${item.cta} — *${storeName}*${phone ? `\nChat WA: ${phone}` : ""}`);
   return rows.join("\n");
 }

@@ -349,6 +349,7 @@ model Product {
   unit      Unit?           @relation(fields: [unitId], references: [id], onDelete: SetNull)
   movements StockMovement[]
   galleryItems GalleryItem[]
+  dailyContents DailyContentItem[]
 
   @@unique([tenantId, sku])
   @@unique([tenantId, barcode])
@@ -1320,11 +1321,16 @@ model DailyContentItem {
   startsOn  DateTime?        @db.Date // periode tampil (tanggal WIB), opsional
   endsOn    DateTime?        @db.Date
   isActive  Boolean          @default(true)
+  // PROMO bertaut produk (opsional): harga & stok tampil di gambar; promo berhenti
+  // tampil otomatis saat stok habis / produk nonaktif. Produk dihapus → tautan lepas.
+  productId  String?
+  promoPrice Int? // harga promo (rupiah); kosong = pakai harga jual produk
   createdById String?
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, isActive])
   @@map("daily_content_items")

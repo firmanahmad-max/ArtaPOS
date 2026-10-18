@@ -1,6 +1,15 @@
 import { forwardRef } from "react";
 import { Playfair_Display } from "next/font/google";
-import { DAILY_KIND_META, splitEmphasis, type DailyItem, type DailyKind } from "@/lib/daily-content";
+import {
+  DAILY_KIND_META,
+  discountPct,
+  effectivePrice,
+  splitEmphasis,
+  stockLabel,
+  type DailyItem,
+  type DailyKind,
+  type PromoProduct,
+} from "@/lib/daily-content";
 
 const display = Playfair_Display({ subsets: ["latin"], weight: ["800"], style: ["normal", "italic"], display: "swap" });
 
@@ -152,8 +161,9 @@ export const StoryCanvas = forwardRef<
           ) : null}
 
           {!item.steps && (
-            <p style={{ margin: "40px 0 0", fontSize: 38, lineHeight: 1.45, color: "rgba(255,255,255,.84)", maxWidth: 880 }}>{item.body}</p>
+            <p style={{ margin: "40px 0 0", fontSize: item.product ? 34 : 38, lineHeight: 1.45, color: "rgba(255,255,255,.84)", maxWidth: 880 }}>{item.body}</p>
           )}
+          {item.product && <ProductBox p={item.product} accent={t.accent} />}
         </div>
       </div>
 
@@ -180,3 +190,52 @@ export const StoryCanvas = forwardRef<
     </div>
   );
 });
+
+const rp = (n: number) => `Rp ${n.toLocaleString("id-ID")}`;
+
+/** Kartu produk promo: foto galeri (bila ada), harga normal dicoret + harga promo, hemat %, stok. */
+function ProductBox({ p, accent }: { p: PromoProduct; accent: string }) {
+  const pct = discountPct(p);
+  const limited = p.stock > 0 && p.stock <= 5;
+  return (
+    <div
+      style={{
+        marginTop: 44,
+        display: "flex",
+        alignItems: "center",
+        gap: 32,
+        padding: 28,
+        borderRadius: 32,
+        background: "rgba(255,255,255,.1)",
+        border: "1px solid rgba(255,255,255,.2)",
+      }}
+    >
+      {p.photo ? (
+        <div style={{ flex: "none", width: 220, height: 220, borderRadius: 24, background: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={p.photo} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", display: "block" }} />
+        </div>
+      ) : null}
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ fontSize: 36, fontWeight: 700, lineHeight: 1.2, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+          {p.name}
+        </div>
+        {pct > 0 && (
+          <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 16 }}>
+            <span style={{ fontSize: 30, color: "rgba(255,255,255,.6)", textDecoration: "line-through" }}>{rp(p.price)}</span>
+            <span style={{ padding: "6px 16px", borderRadius: 999, background: "#f59e0b", color: "#1a1206", fontSize: 24, fontWeight: 800, letterSpacing: ".04em" }}>
+              HEMAT {pct}%
+            </span>
+          </div>
+        )}
+        <div style={{ marginTop: pct > 0 ? 4 : 14, fontSize: 68, fontWeight: 800, color: accent, fontFamily: "var(--font-jetbrains), monospace", letterSpacing: "-.02em" }}>
+          {rp(effectivePrice(p))}
+        </div>
+        <div style={{ marginTop: 8, fontSize: 26, fontWeight: limited ? 700 : 500, color: limited ? "#fde68a" : "rgba(255,255,255,.75)" }}>
+          <span style={{ display: "inline-block", width: 14, height: 14, borderRadius: 999, marginRight: 12, background: limited ? "#fbbf24" : "#34d399" }} />
+          {stockLabel(p.stock)}
+        </div>
+      </div>
+    </div>
+  );
+}
