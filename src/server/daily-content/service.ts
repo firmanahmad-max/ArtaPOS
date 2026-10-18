@@ -1,7 +1,8 @@
 import "server-only";
 import { db } from "@/lib/db";
 import type { DailyContentKind } from "@/generated/prisma/enums";
-import { wibDateKey, type CustomDailyItem, type DailyKind } from "@/lib/daily-content";
+import { builtinByKey, wibDateKey, type CustomDailyItem, type DailyKind } from "@/lib/daily-content";
+import { summarizeDailyStats } from "@/lib/daily-content-stats";
 
 /** Konten Harian kustom toko. Semua query ter-scope tenantId. */
 
@@ -95,4 +96,76 @@ export async function setDailyContentActive(tenantId: string, id: string, isActi
 export async function deleteDailyContent(tenantId: string, id: string) {
   const r = await db.dailyContentItem.deleteMany({ where: { id, tenantId } });
   if (r.count === 0) throw new Error("Konten tidak ditemukan.");
+}
+
+// ── Statistik pemakaian ─────────────────────────────────────────────────────
+
+export type DailyContentActionKind = "SHARE" | "DOWNLOAD" | "COPY";
+
+/**
+ * Catat satu tindakan atas konten (bagikan/unduh/salin). Kunci divalidasi di server:
+ * konten toko harus milik tenant ini, konten bawaan harus ada di pustaka — judul &
+ * jenis diambil dari sumbernya, bukan dari klien. Kunci tak dikenal → diam.
+ */
+export async function recordDailyContentUse(tenantId: string, contentKey: string, action: DailyContentActionKind, now: number) {
+  let kind: DailyContentKind;
+  let title: string;
+  let isCustom: boolean;
+  if (contentKey.startsWith("custom:")) {
+    const item = await db.dailyContentItem.findFirst({
+      where: { id: contentKey.slice(7), tenantId },
+      select: { kind: true, title: true },
+    });
+    if (!item) return;
+    ({ kind, title } = item);
+    isCustom = true;
+  } else {
+    const b = builtinByKey(contentKey);
+    if (!b) return;
+    kind = TO_DB[b.kind];
+    title = b.item.title;
+    isCustom = false;
+  }
+  const key = { tenantId, day: toDate(wibDateKey(now))!, contentKey, action };
+  try {
+    await db.dailyContentStat.upsert({
+      where: { tenantId_day_contentKey_action: key },
+      create: { ...key, kind, isCustom, title, count: 1 },
+      update: { count: { increment: 1 }, title },
+    });
+  } catch {
+    // Dua catatan pertama bersamaan → salah satu create bentrok unik; ulang sebagai increment.
+    await db.dailyContentStat.updateMany({ where: key, data: { count: { increment: 1 } } });
+  }
+}
+
+/** Ringkasan `days` hari terakhir (termasuk hari ini). null bila tabel belum ada. */
+export async function getDailyContentStats(tenantId: string, now: number, days = 30) {
+  try {
+    const from = toDate(wibDateKey(now - (days - 1) * 86_400_000))!;
+    const rows = await db.dailyContentStat.findMany({
+      where: { tenantId, day: { gte: from } },
+      select: { day: true, contentKey: true, kind: true, isCustom: true, title: true, action: true, count: true },
+    });
+    return summarizeDailyStats(
+      rows.map((r) => ({ ...r, day: fromDate(r.day)! })),
+      days,
+    );
+  } catch {
+    return null;
+  }
+}
+
+/** Jumlah dibagikan + diunduh dalam `days` hari terakhir (baris kecil di kartu Dashboard). */
+export async function countDailyContentShares(tenantId: string, now: number, days = 7) {
+  try {
+    const from = toDate(wibDateKey(now - (days - 1) * 86_400_000))!;
+    const agg = await db.dailyContentStat.aggregate({
+      where: { tenantId, day: { gte: from }, action: { in: ["SHARE", "DOWNLOAD"] } },
+      _sum: { count: true },
+    });
+    return agg._sum.count ?? 0;
+  } catch {
+    return 0;
+  }
 }

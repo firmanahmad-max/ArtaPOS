@@ -81,3 +81,15 @@ export async function deleteDailyContentAction(id: string): Promise<Result> {
   revalidate();
   return { ok: true, message: "Konten dihapus." };
 }
+
+/** Catat pemakaian konten (dipanggil klien setelah bagikan/unduh/salin; best-effort). */
+export async function recordDailyContentAction(contentKey: string, action: string): Promise<void> {
+  const ctx = await getAuthContext();
+  if (action !== "SHARE" && action !== "DOWNLOAD" && action !== "COPY") return;
+  if (typeof contentKey !== "string" || contentKey.length > 80) return;
+  try {
+    await svc.recordDailyContentUse(ctx.tenantId, contentKey, action, Date.now());
+  } catch {
+    /* statistik tak boleh mengganggu pengguna */
+  }
+}

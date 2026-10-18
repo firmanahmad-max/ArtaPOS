@@ -97,11 +97,14 @@ const periodText = (it: { startsOn: string | null; endsOn: string | null }) =>
 
 export function ContentManager({
   items,
+  uses = {},
   today,
   dateLabel,
   store,
 }: {
   items: DailyContentView[];
+  /** Total pemakaian 30 hari per konten ("custom:<id>" → jumlah). */
+  uses?: Record<string, number>;
   today: string;
   dateLabel: string;
   store: StoryStore;
@@ -351,7 +354,12 @@ export function ContentManager({
                 </div>
                 <p className="font-semibold leading-snug">{it.title}</p>
                 <p className="line-clamp-2 text-sm text-muted-foreground">{it.body}</p>
-                <p className="text-xs text-muted-foreground">Ajakan: {it.cta}</p>
+                <p className="flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">
+                  <span>Ajakan: {it.cta}</span>
+                  <span>
+                    Dipakai <b className="font-mono text-foreground">{(uses[`custom:${it.id}`] ?? 0).toLocaleString("id-ID")}×</b> · 30 hari
+                  </span>
+                </p>
                 <div className="mt-1 flex flex-wrap gap-1.5">
                   <Button variant="outline" size="sm" onClick={() => openEdit(it)} disabled={pending}>
                     <PencilLine /> Ubah

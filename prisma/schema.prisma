@@ -107,6 +107,7 @@ model Tenant {
   serviceReminders ServiceReminder[]
   reportDispatches ReportDispatch[]
   dailyContents  DailyContentItem[]
+  dailyContentStats DailyContentStat[]
 
   @@map("tenants")
 }
@@ -1327,4 +1328,30 @@ model DailyContentItem {
 
   @@index([tenantId, isActive])
   @@map("daily_content_items")
+}
+
+enum DailyContentAction {
+  SHARE // dibagikan lewat menu bagikan (selesai, bukan dibatalkan)
+  DOWNLOAD // gambar diunduh
+  COPY // teks disalin
+}
+
+/// Penghitung harian (tanggal WIB) pemakaian Konten Harian per konten & tindakan.
+/// Hanya angka agregat + judul snapshot (tetap terbaca walau konten toko dihapus).
+model DailyContentStat {
+  id         String             @id @default(cuid())
+  tenantId   String
+  day        DateTime           @db.Date
+  contentKey String // "custom:<id>" atau "builtin:<jenis>:<indeks>"
+  kind       DailyContentKind
+  isCustom   Boolean
+  title      String
+  action     DailyContentAction
+  count      Int                @default(0)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, day, contentKey, action])
+  @@index([tenantId, day])
+  @@map("daily_content_stats")
 }

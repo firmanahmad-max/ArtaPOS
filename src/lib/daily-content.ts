@@ -177,16 +177,26 @@ export function pickDaily(
   kind: DailyKind,
   now: number,
   custom: CustomDailyItem[] = [],
-): { item: DailyItem; customId: string | null } | null {
+): { item: DailyItem; customId: string | null; key: string } | null {
   const day = wibDayNumber(now);
   const mine = activeCustom(custom, now).filter((c) => c.kind === kind);
   const builtin = kind === "promo" ? [] : DAILY_CONTENT[kind];
-  if (mine.length === 0) return builtin.length ? { item: builtin[day % builtin.length], customId: null } : null;
+  const fromBuiltin = (i: number) => ({ item: builtin[i], customId: null, key: `builtin:${kind}:${i}` });
+  if (mine.length === 0) return builtin.length ? fromBuiltin(day % builtin.length) : null;
   if (builtin.length === 0 || day % 2 === 0) {
     const c = mine[(builtin.length === 0 ? day : Math.floor(day / 2)) % mine.length];
-    return { item: c, customId: c.id };
+    return { item: c, customId: c.id, key: `custom:${c.id}` };
   }
-  return { item: builtin[Math.floor(day / 2) % builtin.length], customId: null };
+  return fromBuiltin(Math.floor(day / 2) % builtin.length);
+}
+
+/** Konten bawaan dari kunci statistik "builtin:<jenis>:<indeks>" (validasi server). */
+export function builtinByKey(key: string): { kind: BuiltinKind; item: DailyItem } | null {
+  const m = /^builtin:(motivasi|tips|fakta):(\d{1,3})$/.exec(key);
+  if (!m) return null;
+  const kind = m[1] as BuiltinKind;
+  const item = DAILY_CONTENT[kind][Number(m[2])];
+  return item ? { kind, item } : null;
 }
 
 /** Konten bawaan hari ini (tanpa konten toko). */

@@ -1,6 +1,7 @@
 import { toBlob } from "html-to-image";
 
-export type ShareMode = "shared" | "downloaded";
+/** "cancelled" = pengguna menutup menu bagikan tanpa memilih aplikasi. */
+export type ShareMode = "shared" | "downloaded" | "cancelled";
 
 /**
  * Render sebuah elemen (struk/nota) menjadi gambar PNG lalu:
@@ -45,7 +46,7 @@ export async function shareNodeAsImage(
     } catch (e) {
       // Pengguna membatalkan share sheet → anggap selesai, jangan unduh.
       const msg = e instanceof Error ? e.message : "";
-      if (/abort|cancel|dismiss/i.test(msg)) return { mode: "shared" };
+      if (/abort|cancel|dismiss/i.test(msg)) return { mode: "cancelled" };
       // Error lain → lanjut ke fallback unduh.
     }
   }

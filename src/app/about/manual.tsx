@@ -61,6 +61,7 @@ const SECTIONS: Section[] = [
       "Grafik performa bertumpuk Penjualan / Servis / Rakit PC (7 / 14 / 30 hari) + Tanya Arta di sebelahnya.",
       "Konten harian: motivasi bisnis, tips teknologi & fakta IT yang berganti setiap hari. Tekan 'Bagikan ke Status / Story' (di HP membuka menu bagikan) atau 'Unduh gambar' — gambar 1080×1920 berisi logo, nama & No. WA toko dari Pengaturan.",
       "Konten toko sendiri: menu Penjualan → Konten Harian (pemilik/admin). Tulis promo, motivasi, tips (3 langkah), atau fakta dengan pratinjau gambar langsung; atur periode tampil (mis. promo 1 minggu) dan aktif/nonaktif. Konten toko tampil selang sehari dengan konten bawaan; promo aktif menambah tab Promo di Dashboard.",
+      "Statistik konten: setiap kali konten dibagikan, diunduh, atau teksnya disalin, angkanya tercatat. Lihat di halaman Konten Harian (30 hari: total per tindakan, hari aktif berbagi, per jenis, konten toko vs bawaan, 5 konten paling sering dipakai) dan 'Dibagikan N× · 7 hari' di kartu Dashboard.",
       "Operasional: alur servis (Diterima → Dikerjakan → Tunggu part → Siap diambil) + tiket tertua dengan penanda SLA, terlaris 7 hari, dan aktivitas terbaru.",
       "Pelanggan & program dan Aset & inventaris bisa dilipat (pilihan tersimpan di perangkat); datanya baru dimuat saat dibuka agar Dashboard tetap ringan.",
     ],

@@ -3,10 +3,11 @@ import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { daysFromNow, formatLocalDate } from "@/lib/timezone";
 import { wibDateKey } from "@/lib/daily-content";
-import { listDailyContent } from "@/server/daily-content/service";
+import { getDailyContentStats, listDailyContent } from "@/server/daily-content/service";
 import { getReceiptStoreInfo } from "@/server/users/service";
 import { Card } from "@/components/ui/card";
 import { ContentManager } from "./content-manager";
+import { StatsPanel } from "./stats-panel";
 
 export const metadata: Metadata = { title: "Konten Harian" };
 
@@ -16,9 +17,10 @@ export default async function DailyContentPage() {
     return <Card className="p-8 text-center text-sm text-muted-foreground">Tidak punya izin.</Card>;
   }
   const now = daysFromNow(0);
-  const [items, store] = await Promise.all([
+  const [items, store, stats] = await Promise.all([
     listDailyContent(user.tenantId).catch(() => null),
     getReceiptStoreInfo(user.tenantId),
+    getDailyContentStats(user.tenantId, now),
   ]);
 
   return (
@@ -37,6 +39,7 @@ export default async function DailyContentPage() {
       ) : (
         <ContentManager
           items={items}
+          uses={stats?.perCustom ?? {}}
           today={wibDateKey(now)}
           dateLabel={formatLocalDate(new Date(now), { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
           store={{
@@ -47,6 +50,7 @@ export default async function DailyContentPage() {
           }}
         />
       )}
+      {stats && <StatsPanel stats={stats} />}
     </div>
   );
 }

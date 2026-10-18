@@ -14,6 +14,7 @@ import {
   type DailyKind,
 } from "@/lib/daily-content";
 import { shareNodeAsImage } from "@/lib/share-image";
+import { recordDailyContentAction } from "@/server/daily-content/actions";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { StoryCanvas, STORY_H, STORY_W, type StoryStore } from "./story-canvas";
@@ -33,6 +34,7 @@ export function DailyContentCard({
   store,
   custom = [],
   canManage = false,
+  sharesThisWeek = 0,
 }: {
   now: number;
   defaultKind: DailyKind;
@@ -41,6 +43,8 @@ export function DailyContentCard({
   /** Konten kustom toko yang aktif (bergilir bersama konten bawaan). */
   custom?: CustomDailyItem[];
   canManage?: boolean;
+  /** Dibagikan + diunduh 7 hari terakhir (statistik). */
+  sharesThisWeek?: number;
 }) {
   const hasPromo = activeCustom(custom, now).some((c) => c.kind === "promo");
   const kinds = dailyKinds(hasPromo);
@@ -51,6 +55,12 @@ export function DailyContentCard({
   const picked = pickDaily(kind, now, custom) ?? pickDaily("motivasi", now, custom)!;
   const shownKind: DailyKind = pickDaily(kind, now, custom) ? kind : "motivasi";
   const item = picked.item;
+  const [shares, setShares] = useState(sharesThisWeek);
+  /** Catat pemakaian (best-effort, tak menunggu). */
+  const track = (action: "SHARE" | "DOWNLOAD" | "COPY") => {
+    if (action !== "COPY") setShares((n) => n + 1);
+    void recordDailyContentAction(picked.key, action).catch(() => {});
+  };
   const fileName = `${store.name.replace(/[^a-z0-9]+/gi, "-")}-${shownKind}-${dateLabel.replace(/[^0-9a-z]+/gi, "-")}.png`;
 
   const exportImage = async (downloadOnly: boolean) => {
@@ -67,6 +77,9 @@ export function DailyContentCard({
       });
       if (mode === "downloaded") {
         toast.success(downloadOnly ? "Gambar diunduh." : "Gambar diunduh — unggah ke Status WA / Story IG dari galeri HP.");
+        track("DOWNLOAD");
+      } else if (mode === "shared") {
+        track("SHARE");
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal membuat gambar.");
@@ -77,7 +90,10 @@ export function DailyContentCard({
 
   const copyText = () =>
     navigator.clipboard.writeText(dailyShareText(shownKind, item, store.name, store.phone)).then(
-      () => toast.success("Teks disalin."),
+      () => {
+        toast.success("Teks disalin.");
+        track("COPY");
+      },
       () => toast.error("Gagal menyalin."),
     );
 
@@ -149,6 +165,11 @@ export function DailyContentCard({
           <Button variant="outline" onClick={copyText}>
             <Copy /> Salin teks
           </Button>
+          {shares > 0 && (
+            <span className="ml-auto text-[11.5px] text-muted-foreground">
+              Dibagikan <b className="font-mono text-foreground">{shares.toLocaleString("id-ID")}×</b> · 7 hari
+            </span>
+          )}
         </div>
       </div>
 
