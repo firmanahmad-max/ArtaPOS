@@ -8,7 +8,7 @@ import * as svc from "@/server/daily-content/service";
 
 type Result = { ok: boolean; message?: string; errors?: Record<string, string> };
 const NO_PERM = "Anda tidak punya izin mengelola konten harian.";
-const KINDS: DailyKind[] = ["motivasi", "tips", "fakta", "promo"];
+const KINDS: DailyKind[] = ["motivasi", "tips", "fakta", "gaming", "promo"];
 
 function parse(raw: unknown): { input?: svc.DailyContentInput; errors?: Record<string, string> } {
   const r = (raw ?? {}) as Record<string, unknown>;

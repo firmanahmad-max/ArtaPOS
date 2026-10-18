@@ -7,8 +7,8 @@ import { summarizeDailyStats } from "@/lib/daily-content-stats";
 
 /** Konten Harian kustom toko. Semua query ter-scope tenantId. */
 
-const TO_DB: Record<DailyKind, DailyContentKind> = { motivasi: "MOTIVASI", tips: "TIPS", fakta: "FAKTA", promo: "PROMO" };
-const FROM_DB: Record<DailyContentKind, DailyKind> = { MOTIVASI: "motivasi", TIPS: "tips", FAKTA: "fakta", PROMO: "promo" };
+const TO_DB: Record<DailyKind, DailyContentKind> = { motivasi: "MOTIVASI", tips: "TIPS", fakta: "FAKTA", gaming: "GAMING", promo: "PROMO" };
+const FROM_DB: Record<DailyContentKind, DailyKind> = { MOTIVASI: "motivasi", TIPS: "tips", FAKTA: "fakta", GAMING: "gaming", PROMO: "promo" };
 
 export interface DailyContentInput {
   kind: DailyKind;
@@ -57,7 +57,7 @@ const toView = (r: Row) => ({
   title: r.title,
   emphasis: r.emphasis ?? undefined,
   body: r.body,
-  steps: r.kind === "TIPS" && r.steps.length === 3 ? (r.steps as [string, string, string]) : undefined,
+  steps: (r.kind === "TIPS" || r.kind === "GAMING") && r.steps.length === 3 ? (r.steps as [string, string, string]) : undefined,
   cta: r.cta,
   startsOn: fromDate(r.startsOn),
   endsOn: fromDate(r.endsOn),
@@ -79,14 +79,16 @@ const toView = (r: Row) => ({
 export type DailyContentView = ReturnType<typeof toView>;
 
 function data(input: DailyContentInput) {
-  const isTips = input.kind === "tips";
+  // Langkah disimpan untuk Tips (wajib) & PC Gaming (opsional: hanya bila lengkap 3).
+  const rawSteps = (input.steps ?? []).map((s) => s.trim());
+  const keepSteps = input.kind === "tips" || (input.kind === "gaming" && rawSteps.length === 3 && rawSteps.every(Boolean));
   const productId = input.kind === "promo" ? input.productId || null : null;
   return {
     kind: TO_DB[input.kind],
     title: input.title.trim(),
     emphasis: input.emphasis?.trim() || null,
     body: input.body.trim(),
-    steps: isTips ? (input.steps ?? []).map((s) => s.trim()) : [],
+    steps: keepSteps ? rawSteps : [],
     cta: input.cta.trim(),
     startsOn: toDate(input.startsOn),
     endsOn: toDate(input.endsOn),

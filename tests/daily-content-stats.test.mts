@@ -28,7 +28,7 @@ test("summarizeDailyStats: total, hari aktif, jenis, konten teratas", () => {
   assert.deepEqual(s.totals, { SHARE: 3, DOWNLOAD: 1, COPY: 3 });
   assert.equal(s.uses, 7);
   assert.equal(s.activeDays, 2);
-  assert.deepEqual(s.byKind, { MOTIVASI: 0, TIPS: 3, FAKTA: 0, PROMO: 4 });
+  assert.deepEqual(s.byKind, { MOTIVASI: 0, TIPS: 3, FAKTA: 0, GAMING: 0, PROMO: 4 });
   assert.equal(s.custom, 4);
   assert.equal(s.builtin, 3);
   assert.equal(s.top[0].contentKey, "custom:p1");

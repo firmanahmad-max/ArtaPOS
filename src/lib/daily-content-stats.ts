@@ -4,7 +4,7 @@
  */
 
 export type StatAction = "SHARE" | "DOWNLOAD" | "COPY";
-export type StatKind = "MOTIVASI" | "TIPS" | "FAKTA" | "PROMO";
+export type StatKind = "MOTIVASI" | "TIPS" | "FAKTA" | "GAMING" | "PROMO";
 
 export interface StatRow {
   day: string; // YYYY-MM-DD (WIB)
@@ -33,7 +33,7 @@ export interface DailyStatsSummary {
 
 export function summarizeDailyStats(rows: StatRow[], days: number): DailyStatsSummary {
   const totals: Record<StatAction, number> = { SHARE: 0, DOWNLOAD: 0, COPY: 0 };
-  const byKind: Record<StatKind, number> = { MOTIVASI: 0, TIPS: 0, FAKTA: 0, PROMO: 0 };
+  const byKind: Record<StatKind, number> = { MOTIVASI: 0, TIPS: 0, FAKTA: 0, GAMING: 0, PROMO: 0 };
   const dayset = new Set<string>();
   const items = new Map<string, DailyStatsSummary["top"][number]>();
   let custom = 0;

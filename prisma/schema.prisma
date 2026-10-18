@@ -1305,6 +1305,7 @@ enum DailyContentKind {
   TIPS
   FAKTA
   PROMO
+  GAMING // info & tips PC gaming
 }
 
 /// Konten Harian kustom milik toko — ikut bergilir bersama konten bawaan ArtaPOS di

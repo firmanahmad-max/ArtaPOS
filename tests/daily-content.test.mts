@@ -70,9 +70,11 @@ test("konten kustom: periode, giliran genap/ganjil, promo", () => {
   assert.equal(pickDaily("promo", at("2026-10-21T10:00:00"), custom), null);
   assert.equal(activeCustom(custom, at("2026-10-17T23:59:00")).length, 1);
   assert.equal(activeCustom(custom, at("2026-10-20T23:59:00")).length, 2); // akhir periode inklusif
-  // Rotasi 4 jenis saat ada promo aktif.
-  const seen = new Set(Array.from({ length: 4 }, (_, i) => dailyKind(d18 + i * 86_400_000, true)));
-  assert.deepEqual([...seen].sort(), ["fakta", "motivasi", "promo", "tips"]);
+  // Rotasi 5 jenis saat ada promo aktif (4 bawaan + promo).
+  const seen = new Set(Array.from({ length: 5 }, (_, i) => dailyKind(d18 + i * 86_400_000, true)));
+  assert.deepEqual([...seen].sort(), ["fakta", "gaming", "motivasi", "promo", "tips"]);
+  const seen4 = new Set(Array.from({ length: 4 }, (_, i) => dailyKind(d18 + i * 86_400_000)));
+  assert.deepEqual([...seen4].sort(), ["fakta", "gaming", "motivasi", "tips"]);
   assert.deepEqual(dailyKinds(true)[0], "promo");
   assert.equal(dailyKinds(false).includes("promo"), false);
 });
@@ -113,4 +115,22 @@ test("promo bertaut produk: harga, hemat, stok & berhenti otomatis", async () =>
   assert.deepEqual(validateDailyItem({ ...ok, productId: "p1", promoPrice: 900_000 }), {});
   assert.ok(validateDailyItem({ ...ok, promoPrice: 900_000 }).promoPrice);
   assert.ok(validateDailyItem({ ...ok, kind: "tips", steps: ["a", "b", "c"], productId: "p1" }).productId);
+});
+
+test("PC Gaming: pustaka 30 konten, langkah opsional, kunci statistik", async () => {
+  const { builtinByKey } = await import("../src/lib/daily-content.ts");
+  const g = DAILY_CONTENT.gaming;
+  assert.equal(g.length, 30);
+  assert.ok(g.filter((x) => x.steps).length >= 10, "cukup banyak tips berlangkah");
+  for (const x of g) {
+    if (x.steps) assert.equal(x.steps.length, 3);
+    for (const st of x.steps ?? []) assert.ok(st.length <= 40, st);
+    if (x.compare) assert.ok(x.compare.a.pct >= 0 && x.compare.b.pct <= 100);
+  }
+  assert.equal(builtinByKey("builtin:gaming:0")?.kind, "gaming");
+  assert.equal(pickDaily("gaming", at("2026-10-18T10:00:00"))?.key.startsWith("builtin:gaming:"), true);
+  const ok = { kind: "gaming" as const, title: "Judul gaming", body: "Isi konten gaming yang cukup.", cta: "Rakit PC" };
+  assert.deepEqual(validateDailyItem(ok), {}); // tanpa langkah boleh
+  assert.deepEqual(validateDailyItem({ ...ok, steps: ["a", "b", "c"] }), {});
+  assert.ok(validateDailyItem({ ...ok, steps: ["a", "", ""] }).steps); // sebagian → ditolak
 });

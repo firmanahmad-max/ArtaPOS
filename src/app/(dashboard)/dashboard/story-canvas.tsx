@@ -38,6 +38,15 @@ const THEME: Record<DailyKind, { bg: string; glow: string; pill: string; accent:
     accent: "#fbbf24",
     stepText: "#78350f",
   },
+  gaming: {
+    // Nuansa "RGB": hitam-biru pekat dengan glow cyan & magenta.
+    bg: "linear-gradient(165deg, #04050d 0%, #0a1030 55%, #2a0b3d 100%)",
+    // SATU gradien saja: daftar background-size di kanvas berpasangan per lapisan.
+    glow: "radial-gradient(circle at 85% 8%, rgba(34,211,238,.42), transparent 45%)",
+    pill: "#0e7490",
+    accent: "#22d3ee",
+    stepText: "#0e7490",
+  },
   fakta: {
     bg: "linear-gradient(165deg, #211043 0%, #2a1460 50%, #3b1d7e 100%)",
     glow: "radial-gradient(circle at 85% 8%, rgba(168,85,247,.5), transparent 45%)",

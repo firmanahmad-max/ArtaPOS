@@ -2,12 +2,13 @@ import { BarChart3, CalendarCheck, Copy, Download, Share2, Store } from "lucide-
 import type { DailyStatsSummary, StatKind } from "@/lib/daily-content-stats";
 import { cn } from "@/lib/utils";
 
-const KIND_LABEL: Record<StatKind, string> = { PROMO: "Promo", MOTIVASI: "Motivasi", TIPS: "Tips IT", FAKTA: "Fakta IT" };
+const KIND_LABEL: Record<StatKind, string> = { PROMO: "Promo", MOTIVASI: "Motivasi", TIPS: "Tips IT", FAKTA: "Fakta IT", GAMING: "PC Gaming" };
 const KIND_BAR: Record<StatKind, string> = {
   PROMO: "bg-amber-500",
   MOTIVASI: "bg-rose-500",
   TIPS: "bg-primary",
   FAKTA: "bg-violet-400",
+  GAMING: "bg-cyan-500",
 };
 const shortDate = (d: string) =>
   new Date(`${d}T00:00:00Z`).toLocaleDateString("id-ID", { day: "numeric", month: "short", timeZone: "UTC" });

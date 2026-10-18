@@ -5,7 +5,7 @@
  * dan bergilir otomatis per hari WIB. Murni (tanpa I/O), unit-tested.
  */
 
-export type DailyKind = "motivasi" | "tips" | "fakta" | "promo";
+export type DailyKind = "motivasi" | "tips" | "fakta" | "gaming" | "promo";
 /** Jenis yang punya pustaka bawaan (promo hanya dari toko). */
 export type BuiltinKind = Exclude<DailyKind, "promo">;
 
@@ -60,6 +60,7 @@ export const DAILY_KIND_META: Record<DailyKind, { label: string; kicker: string 
   motivasi: { label: "Motivasi", kicker: "MOTIVASI BISNIS" },
   tips: { label: "Tips IT", kicker: "TIPS TEKNOLOGI" },
   fakta: { label: "Fakta IT", kicker: "TAHUKAH ANDA?" },
+  gaming: { label: "PC Gaming", kicker: "PC GAMING" },
   promo: { label: "Promo", kicker: "PROMO TOKO" },
 };
 
@@ -162,9 +163,41 @@ export const DAILY_CONTENT: Record<BuiltinKind, DailyItem[]> = {
     { title: "SSD tidak punya bagian yang berputar.", emphasis: "tidak punya bagian", body: "Tanpa piringan dan motor, SSD lebih tahan guncangan, hening, dan hemat daya dibanding hard disk.", cta: "Upgrade ke SSD sekarang" },
     { title: "Debu & panas memperpendek umur komponen.", emphasis: "memperpendek umur", body: "Suhu kerja yang terlalu tinggi dalam jangka panjang mempercepat penuaan komponen elektronik.", cta: "Perawatan berkala laptop & PC" },
   ],
+  gaming: [
+    { title: "FPS tiba-tiba drop?", emphasis: "drop?", body: "Penurunan FPS sering bukan karena hardware kurang kuat, tapi suhu tinggi, driver lama, atau aplikasi latar.", steps: ["Cek suhu CPU & GPU", "Update driver kartu grafis", "Tutup aplikasi latar"], cta: "Tune-up PC gaming di sini" },
+    { title: "RAM 3200 MHz tapi jalan 2133?", emphasis: "jalan 2133?", body: "Tanpa XMP/EXPO, RAM biasanya berjalan di kecepatan standar yang lebih rendah dari yang tertera di kemasan.", steps: ["Masuk ke BIOS", "Aktifkan XMP / EXPO", "Simpan & restart"], cta: "Bantu setting BIOS PC gaming" },
+    { title: "Monitor 144 Hz terasa 60 Hz?", emphasis: "terasa 60 Hz?", body: "Refresh rate monitor gaming sering masih terkunci 60 Hz karena pengaturan atau kabel yang kurang tepat.", steps: ["Atur refresh rate di Display", "Pakai kabel DisplayPort/HDMI sesuai", "Colok ke port kartu grafis"], cta: "Monitor & kabel gaming tersedia" },
+    { title: "Jangan pelit soal PSU.", emphasis: "PSU.", body: "Power supply yang stabil menjaga semua komponen PC gaming tetap aman, terutama kartu grafis yang haus daya.", steps: ["Hitung kebutuhan daya", "Sisakan cadangan ±30%", "Pilih bersertifikat 80 Plus"], cta: "Konsultasi PSU untuk PC gaming" },
+    { title: "Airflow casing menentukan suhu.", emphasis: "Airflow", body: "Aliran udara yang terarah membuat CPU & GPU lebih dingin, sehingga clock tetap tinggi saat main lama.", steps: ["Kipas depan menghisap masuk", "Kipas belakang/atas membuang", "Rapikan kabel di dalam"], cta: "Upgrade casing & kipas" },
+    { title: "Main game baru? Update driver dulu.", emphasis: "Update driver", body: "Pabrikan kartu grafis rutin merilis driver yang dioptimalkan untuk game-game terbaru.", steps: ["Unduh dari situs resmi", "Pilih instalasi bersih (clean)", "Restart sebelum bermain"], cta: "Bantu instal & optimasi PC gaming" },
+    { title: "Windows siap tempur.", emphasis: "siap tempur.", body: "Beberapa pengaturan sederhana di Windows bisa membuat game berjalan lebih lancar.", steps: ["Aktifkan Game Mode", "Mode daya: performa terbaik", "Kurangi aplikasi startup"], cta: "Optimasi Windows untuk gaming" },
+    { title: "Kartu grafis berisik & panas?", emphasis: "berisik & panas?", body: "Debu yang menumpuk di heatsink dan kipas GPU membuat suhu naik dan kipas berputar lebih kencang.", steps: ["Matikan & cabut daya", "Bersihkan debu heatsink", "Cek semua kipas berputar"], cta: "Jasa cleaning PC gaming" },
+    { title: "Pasang game di SSD.", emphasis: "di SSD.", body: "Game yang dipasang di SSD memuat map & tekstur jauh lebih cepat dibanding di hard disk.", steps: ["Pasang SSD khusus game", "Pindahkan library game", "Sisakan ruang kosong ±20%"], cta: "Upgrade SSD NVMe untuk game" },
+    { title: "Ping tinggi saat main online?", emphasis: "Ping tinggi", body: "Koneksi kabel jauh lebih stabil daripada WiFi untuk game kompetitif.", steps: ["Pakai kabel LAN", "Hentikan unduhan latar", "Pilih server terdekat"], cta: "Kabel LAN & router gaming tersedia" },
+    { title: "Atur grafis dengan cerdas.", emphasis: "dengan cerdas.", body: "Tidak semua pengaturan grafis sama beratnya — turunkan yang paling boros dulu sebelum menurunkan resolusi.", steps: ["Turunkan kualitas bayangan", "Atur anti-aliasing", "Aktifkan DLSS/FSR bila ada"], cta: "Konsultasi setting game" },
+    { title: "Rakit PC gaming sesuai bujet.", emphasis: "sesuai bujet.", body: "Kunci PC gaming yang pas: tentukan target game & resolusi dulu, baru pilih komponen.", steps: ["Tentukan game & resolusi", "Porsi bujet terbesar ke GPU", "Jangan korbankan PSU"], cta: "Simulasi rakit PC gaming gratis" },
+    { title: "Overclock? Pelan-pelan saja.", emphasis: "Pelan-pelan", body: "Overclock bisa menambah performa, asal dilakukan bertahap dan suhu tetap terkendali.", steps: ["Naikkan clock bertahap", "Uji stabilitas tiap langkah", "Pantau suhu selalu"], cta: "Pendingin CPU & GPU tersedia" },
+    { title: "Stutter saat main?", emphasis: "Stutter", body: "Patah-patah sesaat sering dipicu RAM penuh, penyimpanan lambat, atau shader yang sedang dikompilasi.", steps: ["Tutup browser & aplikasi berat", "Pasang game di SSD", "Biarkan shader selesai dimuat"], cta: "Upgrade RAM & SSD gaming" },
+    { title: "Jaga suhu saat main lama.", emphasis: "Jaga suhu", body: "Sesi gaming panjang membuat panas menumpuk — pendinginan yang baik menjaga FPS tetap stabil.", steps: ["Ruangan berventilasi baik", "Bersihkan filter debu", "Ganti thermal paste berkala"], cta: "Jasa repaste CPU & GPU" },
+    { title: "240 Hz: 4× lebih banyak gambar per detik.", emphasis: "4× lebih banyak", body: "Monitor 240 Hz menampilkan 240 gambar per detik dibanding 60 pada monitor biasa — gerakan cepat jauh lebih jelas.", compare: { a: { label: "Monitor 60 Hz", value: "60 fps", pct: 25 }, b: { label: "Monitor 240 Hz", value: "240 fps", pct: 100 } }, cta: "Monitor gaming high refresh" },
+    { title: "DLSS & FSR: FPS naik tanpa ganti GPU.", emphasis: "FPS naik", body: "Teknologi upscaling merender game di resolusi lebih rendah lalu memperbesarnya dengan cerdas, sehingga FPS naik signifikan.", cta: "Upgrade kartu grafis terbaru" },
+    { title: "VRAM makin penting di game modern.", emphasis: "VRAM", body: "Tekstur resolusi tinggi butuh memori kartu grafis besar — VRAM yang lega membuat game tetap mulus di setting tinggi.", cta: "Konsultasi pilih kartu grafis" },
+    { title: "16 GB RAM: titik nyaman untuk gaming.", emphasis: "16 GB RAM", body: "Untuk gaming sekaligus streaming atau membuka banyak aplikasi, 32 GB memberi ruang lebih lega.", cta: "Upgrade RAM PC gaming" },
+    { title: "Ray tracing: cahaya serealistis film.", emphasis: "serealistis film.", body: "Ray tracing mensimulasikan pantulan & bayangan cahaya secara nyata — indah, tapi berat, jadi paling pas dipadukan dengan upscaling.", cta: "Kartu grafis siap ray tracing" },
+    { title: "Bottleneck: komponen saling menunggu.", emphasis: "saling menunggu.", body: "CPU yang terlalu lemah bisa membuat GPU kencang tak bekerja maksimal, begitu pula sebaliknya. Kuncinya: seimbang.", cta: "Cek keseimbangan rakitan Anda" },
+    { title: "FPS stabil lebih nikmat daripada FPS tinggi.", emphasis: "FPS stabil", body: "Frame rate yang naik-turun terasa patah-patah. Membatasi FPS sedikit di bawah refresh rate sering membuat permainan lebih halus.", cta: "Optimasi PC gaming" },
+    { title: "Response time 1 ms = gerakan lebih tajam.", emphasis: "1 ms", body: "Monitor dengan response time rendah mengurangi bayangan kabur (ghosting) saat objek bergerak cepat.", cta: "Monitor gaming tersedia" },
+    { title: "SSD NVMe mempercepat loading game.", emphasis: "loading game.", body: "Game modern makin bergantung pada penyimpanan cepat untuk memuat dunia permainan yang luas tanpa jeda.", compare: { a: { label: "Hard disk", value: "±120 MB/s", pct: 2 }, b: { label: "SSD NVMe Gen4", value: "±7.000 MB/s", pct: 100 } }, cta: "Upgrade SSD NVMe" },
+    { title: "6 inti CPU: titik nyaman gaming.", emphasis: "6 inti", body: "Banyak game modern berjalan nyaman dengan prosesor 6 inti ke atas, terutama bila sambil streaming atau voice chat.", cta: "Konsultasi prosesor gaming" },
+    { title: "80 Plus Gold: listrik lebih efisien.", emphasis: "80 Plus Gold", body: "PSU bersertifikat 80 Plus Gold mengubah sekitar 90% listrik dari stopkontak menjadi daya untuk komponen — lebih sedikit panas terbuang.", cta: "PSU bersertifikat tersedia" },
+    { title: "Thermal throttling diam-diam memakan FPS.", emphasis: "memakan FPS.", body: "Saat terlalu panas, CPU & GPU otomatis menurunkan kecepatan untuk melindungi diri — FPS ikut turun.", cta: "Jasa cleaning & repaste" },
+    { title: "1080p atau 1440p?", emphasis: "1440p?", body: "1080p dengan refresh tinggi favorit gamer kompetitif, sementara 1440p menawarkan gambar lebih tajam untuk game petualangan.", cta: "Konsultasi monitor gaming" },
+    { title: "DPI tinggi bukan segalanya.", emphasis: "bukan segalanya.", body: "Banyak gamer FPS memakai DPI rendah hingga menengah agar bidikan lebih presisi — kenyamanan genggaman sama pentingnya.", cta: "Mouse gaming tersedia" },
+    { title: "Air cooler atau AIO? Dua-duanya bisa juara.", emphasis: "Dua-duanya", body: "Air cooler tower berkualitas sanggup menjaga suhu CPU gaming dengan baik; AIO unggul di tampilan & ruang di sekitar socket.", cta: "Pendingin CPU tersedia" },
+  ],
 };
 
-const BASE_KINDS: DailyKind[] = ["motivasi", "tips", "fakta"];
+const BASE_KINDS: DailyKind[] = ["motivasi", "tips", "fakta", "gaming"];
 
 /** Nomor hari WIB sejak epoch (berganti tiap 00:00 WIB). */
 export function wibDayNumber(now: number): number {
@@ -201,7 +234,7 @@ export function dailyKinds(hasPromo: boolean): DailyKind[] {
   return hasPromo ? ["promo", ...BASE_KINDS] : BASE_KINDS;
 }
 
-/** Jenis default hari ini — bergilir motivasi → tips → fakta (→ promo bila ada promo aktif). */
+/** Jenis default hari ini — bergilir motivasi → tips → fakta → PC gaming (→ promo bila ada promo aktif). */
 export function dailyKind(now: number, hasPromo = false): DailyKind {
   const kinds: DailyKind[] = hasPromo ? [...BASE_KINDS, "promo"] : BASE_KINDS;
   return kinds[wibDayNumber(now) % kinds.length];
@@ -231,7 +264,7 @@ export function pickDaily(
 
 /** Konten bawaan dari kunci statistik "builtin:<jenis>:<indeks>" (validasi server). */
 export function builtinByKey(key: string): { kind: BuiltinKind; item: DailyItem } | null {
-  const m = /^builtin:(motivasi|tips|fakta):(\d{1,3})$/.exec(key);
+  const m = /^builtin:(motivasi|tips|fakta|gaming):(\d{1,3})$/.exec(key);
   if (!m) return null;
   const kind = m[1] as BuiltinKind;
   const item = DAILY_CONTENT[kind][Number(m[2])];
@@ -270,9 +303,11 @@ export function validateDailyItem(v: {
   const body = v.body.trim();
   if (body.length < 10) e.body = "Isi minimal 10 karakter.";
   else if (body.length > 240) e.body = "Isi maksimal 240 karakter.";
-  if (v.kind === "tips") {
-    const steps = (v.steps ?? []).map((x) => x.trim());
-    if (steps.length !== 3 || steps.some((x) => !x)) e.steps = "Tips wajib 3 langkah singkat.";
+  // Tips: wajib 3 langkah. PC Gaming: opsional (kosong semua, atau isi lengkap 3).
+  const steps = (v.steps ?? []).map((x) => x.trim());
+  const anyStep = steps.some(Boolean);
+  if (v.kind === "tips" || (v.kind === "gaming" && anyStep)) {
+    if (steps.length !== 3 || steps.some((x) => !x)) e.steps = v.kind === "tips" ? "Tips wajib 3 langkah singkat." : "Isi ketiga langkah, atau kosongkan semua.";
     else if (steps.some((x) => x.length > 40)) e.steps = "Tiap langkah maksimal 40 karakter.";
   }
   const cta = v.cta.trim();

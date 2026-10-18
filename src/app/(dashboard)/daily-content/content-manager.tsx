@@ -29,7 +29,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { StoryCanvas, STORY_H, STORY_W, type StoryStore } from "../dashboard/story-canvas";
 
-const KINDS: DailyKind[] = ["promo", "motivasi", "tips", "fakta"];
+const KINDS: DailyKind[] = ["promo", "motivasi", "tips", "fakta", "gaming"];
 const PREVIEW_W = 220;
 const SCALE = PREVIEW_W / STORY_W;
 
@@ -58,6 +58,12 @@ const HINT: Record<DailyKind, { title: string; emphasis: string; body: string; c
     emphasis: "16 GB",
     body: "Aplikasi kantor, browser & meeting online berjalan jauh lebih lancar dengan RAM 16 GB.",
     cta: "Upgrade RAM di sini",
+  },
+  gaming: {
+    title: "Main lebih mulus dengan GPU terbaru.",
+    emphasis: "lebih mulus",
+    body: "Rakitan PC gaming kami sudah teruji di game populer — siap main sejak hari pertama.",
+    cta: "Simulasi rakit PC gaming gratis",
   },
 };
 
@@ -202,7 +208,7 @@ export function ContentManager({
     title: f.title,
     emphasis: f.emphasis || null,
     body: f.body,
-    steps: f.kind === "tips" ? f.steps : [],
+    steps: f.kind === "tips" || f.kind === "gaming" ? f.steps : [],
     cta: f.cta,
     startsOn: f.startsOn || null,
     endsOn: f.endsOn || null,
@@ -250,7 +256,12 @@ export function ContentManager({
         title: form.title || HINT[form.kind].title,
         emphasis: form.title ? form.emphasis || undefined : HINT[form.kind].emphasis,
         body: form.body || HINT[form.kind].body,
-        steps: form.kind === "tips" ? (form.steps.map((s, i) => s || `Langkah ${i + 1}`) as [string, string, string]) : undefined,
+        steps:
+          form.kind === "tips"
+            ? (form.steps.map((s, i) => s || `Langkah ${i + 1}`) as [string, string, string])
+            : form.kind === "gaming" && form.steps.some((x) => x.trim())
+              ? (form.steps.map((s, i) => s || `Langkah ${i + 1}`) as [string, string, string])
+              : undefined,
         cta: form.cta || HINT[form.kind].cta,
         product:
           form.kind === "promo" && form.product
@@ -321,8 +332,13 @@ export function ContentManager({
             <Field id="dc-body" label="Isi / penjelasan" hint={`${form.body.length}/240`} error={errors.body}>
               <Textarea id="dc-body" rows={3} value={form.body} maxLength={240} placeholder={HINT[form.kind].body} onChange={(e) => set("body", e.target.value)} />
             </Field>
-            {form.kind === "tips" && (
-              <Field id="dc-s0" label="3 langkah singkat" hint="Maks. 40 karakter per langkah" error={errors.steps}>
+            {(form.kind === "tips" || form.kind === "gaming") && (
+              <Field
+                id="dc-s0"
+                label={form.kind === "tips" ? "3 langkah singkat" : "3 langkah singkat (opsional)"}
+                hint="Maks. 40 karakter per langkah"
+                error={errors.steps}
+              >
                 <div className="grid gap-2 sm:grid-cols-3">
                   {form.steps.map((s, i) => (
                     <Input

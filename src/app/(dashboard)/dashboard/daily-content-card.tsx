@@ -118,7 +118,7 @@ export function DailyContentCard({
               <PencilLine className="size-3.5" /> Kelola konten toko
             </Link>
           )}
-          <div className="flex gap-0.5 rounded-lg bg-muted p-0.5" role="group" aria-label="Jenis konten">
+          <div className="flex max-w-full gap-0.5 overflow-x-auto rounded-lg bg-muted p-0.5" role="group" aria-label="Jenis konten">
             {kinds.map((k) => (
               <button
                 key={k}
@@ -126,7 +126,7 @@ export function DailyContentCard({
                 onClick={() => setKind(k)}
                 aria-pressed={k === kind}
                 className={cn(
-                  "h-7 rounded-md px-2.5 text-xs font-semibold transition-colors",
+                  "h-7 shrink-0 whitespace-nowrap rounded-md px-2.5 text-xs font-semibold transition-colors",
                   k === kind ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
                 )}
               >
