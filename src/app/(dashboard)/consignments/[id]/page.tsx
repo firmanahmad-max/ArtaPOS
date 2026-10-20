@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { getConsignment, saleNumbersFor } from "@/server/consignment/service";
 import { summarizeConsignment, soldSplit } from "@/lib/consignment-calc";
+import { parseComponents } from "@/lib/consignment-set";
 import { formatRupiah } from "@/lib/utils";
 import { formatLocalDateTime } from "@/lib/timezone";
 import { buttonVariants } from "@/components/ui/button";
@@ -73,6 +74,7 @@ export default async function ConsignmentDetailPage({ params }: { params: Promis
             name: i.name,
             serialNumber: i.serialNumber,
             condition: i.condition,
+            components: parseComponents(i.components),
             askingPrice: i.askingPrice,
             status: i.status,
             soldPrice: i.soldPrice,

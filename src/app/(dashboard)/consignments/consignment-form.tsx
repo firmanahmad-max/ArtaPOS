@@ -14,7 +14,9 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { componentsError } from "@/lib/consignment-set";
 import { CONSIGNMENT_CATEGORIES } from "./status-config";
+import { SetComponentsEditor, blankPart, partsPayload, type PartRow } from "./set-components-editor";
 
 interface CustomerOption {
   id: string;
@@ -29,9 +31,11 @@ interface Row {
   serialNumber: string;
   condition: string;
   askingPrice: number;
+  /** null = barang tunggal; array = paket/set (rincian isi, satu harga). */
+  parts: PartRow[] | null;
 }
 
-const blankRow = (key: string): Row => ({ key, category: "", name: "", serialNumber: "", condition: "", askingPrice: 0 });
+const blankRow = (key: string): Row => ({ key, category: "", name: "", serialNumber: "", condition: "", askingPrice: 0, parts: null });
 
 export function ConsignmentForm({ customers }: { customers: CustomerOption[] }) {
   const router = useRouter();
@@ -70,9 +74,20 @@ export function ConsignmentForm({ customers }: { customers: CustomerOption[] }) 
   function removeRow(key: string) {
     setRows((rs) => (rs.length > 1 ? rs.filter((r) => r.key !== key) : rs));
   }
+  /** Jadikan paket/set (mulai dengan 2 baris komponen kosong) atau kembali tunggal. */
+  function toggleSet(r: Row, on: boolean) {
+    if (!on) return patchRow(r.key, { parts: null });
+    const parts = [blankPart(`p${seq.current++}`), blankPart(`p${seq.current++}`)];
+    patchRow(r.key, { parts, category: r.category || "1 Set PC" });
+  }
 
   function submit() {
     setError(null);
+    for (const [i, r] of rows.entries()) {
+      if (!r.parts) continue;
+      const err = componentsError(partsPayload(r.parts));
+      if (err) return setError(`Barang ${i + 1}: ${err}`);
+    }
     start(async () => {
       const r = await createConsignmentAction({
         customerId: customerId || null,
@@ -82,8 +97,9 @@ export function ConsignmentForm({ customers }: { customers: CustomerOption[] }) 
         items: rows.map((r) => ({
           category: r.category,
           name: r.name,
-          serialNumber: r.serialNumber,
+          serialNumber: r.parts ? "" : r.serialNumber,
           condition: r.condition,
+          components: r.parts ? partsPayload(r.parts) : [],
           askingPrice: r.askingPrice,
           commissionType,
           commissionValue,
@@ -180,23 +196,51 @@ export function ConsignmentForm({ customers }: { customers: CustomerOption[] }) 
                   </Button>
                 )}
               </div>
+              <label className="flex items-start gap-2 rounded-lg bg-muted/50 px-3 py-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 size-4 accent-[var(--primary)]"
+                  checked={!!r.parts}
+                  onChange={(e) => toggleSet(r, e.target.checked)}
+                />
+                <span>
+                  <span className="font-medium">Barang berupa paket/set</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Mis. 1 set PC + monitor + keyboard + mouse yang dijual sepaket — isinya dirinci, harganya tetap satu.
+                  </span>
+                </span>
+              </label>
               <div className="grid gap-3 sm:grid-cols-[180px_1fr]">
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor={`cs-cat-${r.key}`}>Jenis komponen *</Label>
-                  <Input id={`cs-cat-${r.key}`} list="cs-categories" value={r.category} onChange={(e) => patchRow(r.key, { category: e.target.value })} placeholder="mis. VGA" maxLength={40} />
+                  <Label htmlFor={`cs-cat-${r.key}`}>{r.parts ? "Jenis paket *" : "Jenis komponen *"}</Label>
+                  <Input id={`cs-cat-${r.key}`} list="cs-categories" value={r.category} onChange={(e) => patchRow(r.key, { category: e.target.value })} placeholder={r.parts ? "mis. 1 Set PC" : "mis. VGA"} maxLength={40} />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor={`cs-nm-${r.key}`}>Merk / tipe *</Label>
-                  <Input id={`cs-nm-${r.key}`} value={r.name} onChange={(e) => patchRow(r.key, { name: e.target.value })} placeholder="mis. MSI RTX 3060 Ventus 2X 12GB" maxLength={120} />
+                  <Label htmlFor={`cs-nm-${r.key}`}>{r.parts ? "Nama paket *" : "Merk / tipe *"}</Label>
+                  <Input id={`cs-nm-${r.key}`} value={r.name} onChange={(e) => patchRow(r.key, { name: e.target.value })} placeholder={r.parts ? "mis. Gaming Ryzen 5 + RTX 3060 + Monitor 24\"" : "mis. MSI RTX 3060 Ventus 2X 12GB"} maxLength={120} />
                 </div>
               </div>
+              {r.parts && (
+                <SetComponentsEditor
+                  idPrefix={`cs-${r.key}`}
+                  parts={r.parts}
+                  onChange={(parts) => patchRow(r.key, { parts })}
+                  nextKey={() => `p${seq.current++}`}
+                />
+              )}
               <div className="grid gap-3 sm:grid-cols-[1fr_180px]">
+                {r.parts ? (
+                  <p className="self-end text-xs text-muted-foreground">
+                    No. seri dicatat per komponen di atas — scan salah satunya di kasir akan menemukan paket ini.
+                  </p>
+                ) : (
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor={`cs-sn-${r.key}`}>No. seri (opsional)</Label>
+                    <Input id={`cs-sn-${r.key}`} value={r.serialNumber} onChange={(e) => patchRow(r.key, { serialNumber: e.target.value })} placeholder="Bukti identitas barang" maxLength={60} />
+                  </div>
+                )}
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor={`cs-sn-${r.key}`}>No. seri (opsional)</Label>
-                  <Input id={`cs-sn-${r.key}`} value={r.serialNumber} onChange={(e) => patchRow(r.key, { serialNumber: e.target.value })} placeholder="Bukti identitas barang" maxLength={60} />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor={`cs-pr-${r.key}`}>Harga jual diinginkan *</Label>
+                  <Label htmlFor={`cs-pr-${r.key}`}>{r.parts ? "Harga paket *" : "Harga jual diinginkan *"}</Label>
                   <CurrencyInput id={`cs-pr-${r.key}`} value={r.askingPrice} onValueChange={(v) => patchRow(r.key, { askingPrice: v })} />
                 </div>
               </div>

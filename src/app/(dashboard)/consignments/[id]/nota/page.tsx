@@ -6,6 +6,7 @@ import { getConsignment } from "@/server/consignment/service";
 import { getReceiptStoreInfo } from "@/server/users/service";
 import { getTrackExtras } from "@/server/public/track-info";
 import { commissionLabel, soldSplit, summarizeConsignment } from "@/lib/consignment-calc";
+import { parseComponents } from "@/lib/consignment-set";
 import { formatRupiah } from "@/lib/utils";
 import { formatLocalDateTime } from "@/lib/timezone";
 import { Card } from "@/components/ui/card";
@@ -52,6 +53,7 @@ export default async function ConsignmentNotaPage({ params }: { params: Promise<
               name: i.name,
               serialNumber: i.serialNumber,
               condition: i.condition,
+              components: parseComponents(i.components),
               askingPrice: i.askingPrice,
               commissionText: commissionLabel(i.commissionType, i.commissionValue, formatRupiah),
               // Status hanya ditampilkan bila sudah bukan "Dititipkan" (nota awal tetap bersih).

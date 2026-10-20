@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { gradeText, warrantyText } from "@/lib/used-item";
+import { parseComponents, setGallerySpec } from "@/lib/consignment-set";
 
 /** Service Galeri Publik — etalase produk/promo. Ter-scope tenantId. */
 
@@ -206,13 +207,14 @@ export async function updateGalleryItem(tenantId: string, id: string, input: Gal
 export async function addConsignmentToGallery(tenantId: string, userId: string, consignmentItemId: string) {
   const ci = await db.consignmentItem.findFirst({
     where: { id: consignmentItemId, consignment: { tenantId } },
-    select: { condition: true },
+    select: { condition: true, components: true },
   });
   if (!ci) throw new Error("Barang titipan tidak ditemukan.");
   return createGalleryItem(tenantId, userId, {
     consignmentItemId,
     title: "",
-    spec: ci.condition,
+    // Paket/set → daftar isi + kondisi; barang tunggal → kondisi saja.
+    spec: setGallerySpec(parseComponents(ci.components), ci.condition),
     price: 0,
     photo: null,
     label: null,

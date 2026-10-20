@@ -29,7 +29,14 @@ export interface PosProduct {
   minStock: number;
   unit: { symbol: string | null } | null;
   /** Terisi bila ini BARANG TITIPAN (titip jual): unik 1 unit, hanya dijual online. */
-  consignment?: { owner: string; number: string } | null;
+  consignment?: {
+    owner: string;
+    number: string;
+    /** Paket/set: ringkasan isi ("isi: …") — satu harga untuk seluruh paket. */
+    contents?: string;
+    /** No. seri komponen paket (scan salah satunya menemukan paket). */
+    serials?: string[];
+  } | null;
   /** Terisi bila ini BARANG BEKAS milik toko: unik 1 unit, hanya dijual online. */
   used?: { number: string; gradeCode: string; warrantyDays: number } | null;
 }
@@ -143,6 +150,8 @@ export function PosTerminal({
           p.sku.toLowerCase().includes(q) ||
           (p.barcode ?? "").toLowerCase().includes(q) ||
           (p.consignment?.owner ?? "").toLowerCase().includes(q) ||
+          (p.consignment?.contents ?? "").toLowerCase().includes(q) ||
+          !!p.consignment?.serials?.some((s) => s.toLowerCase() === q) ||
           (p.used?.number ?? "").toLowerCase().includes(q),
       )
       .slice(0, 60);
@@ -219,7 +228,7 @@ export function PosTerminal({
     // Produk dulu, lalu barang titipan (barcode = no. seri), lalu barang bekas (no. seri / no. BK).
     const p =
       catalog.find((x) => x.barcode === code || x.sku === code) ??
-      consignmentItems.find((x) => x.barcode === code) ??
+      consignmentItems.find((x) => x.barcode === code || !!x.consignment?.serials?.includes(code)) ??
       usedItems.find((x) => x.barcode === code || x.used?.number === code.toUpperCase());
     if (p) addToCart(p);
     else setError(`Barcode ${code} tidak ditemukan.`);
@@ -562,8 +571,16 @@ export function PosTerminal({
                     <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
                       Titipan
                     </span>
+                    {p.consignment.contents && (
+                      <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
+                        Paket
+                      </span>
+                    )}
                     <span className="truncate text-muted-foreground">{inCart ? "di keranjang" : p.consignment.owner}</span>
                   </span>
+                  {p.consignment.contents && (
+                    <span className="mt-0.5 line-clamp-2 text-[10.5px] leading-tight text-muted-foreground">{p.consignment.contents}</span>
+                  )}
                   {p.sku && <span className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">SN {p.sku}</span>}
                   <span className="mt-1 font-mono text-sm font-semibold tabular-nums text-primary">{formatRupiah(p.sellPrice)}</span>
                 </button>
@@ -648,6 +665,9 @@ export function PosTerminal({
                 <div className="flex items-center gap-2">
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-medium">{l.product.name}</div>
+                    {l.product.consignment?.contents && (
+                      <div className="truncate text-[11px] text-muted-foreground">{l.product.consignment.contents}</div>
+                    )}
                     <div className="text-xs text-muted-foreground">
                       {formatRupiah(l.product.sellPrice)}
                       {l.product.consignment && (

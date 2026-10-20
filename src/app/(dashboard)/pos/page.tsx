@@ -6,6 +6,7 @@ import { listCustomers } from "@/server/customers/service";
 import { listConsignmentItemsForSale } from "@/server/consignment/service";
 import { listUsedItemsForSale } from "@/server/used-items/service";
 import { gradeMeta } from "@/lib/used-item";
+import { parseComponents, setContentsText, setSerials } from "@/lib/consignment-set";
 import { getLoyaltyConfig } from "@/server/customers/service";
 import { Card } from "@/components/ui/card";
 import { PosTerminal } from "./pos-terminal";
@@ -47,18 +48,27 @@ export default async function PosPage() {
         }))}
         customers={customers.map((c) => ({ id: c.id, name: c.name, points: c.points }))}
         loyalty={loyalty}
-        consignmentItems={consignmentItems.map((ci) => ({
+        consignmentItems={consignmentItems.map((ci) => {
           // Barang titipan tampil seperti produk 1 unit; barcode = no. seri (bisa di-scan).
-          id: ci.id,
-          name: `${ci.category} ${ci.name}`,
-          sku: ci.serialNumber ?? "",
-          barcode: ci.serialNumber,
-          sellPrice: ci.askingPrice,
-          stock: 1,
-          minStock: 0,
-          unit: null,
-          consignment: { owner: ci.consignment.customerName, number: ci.consignment.number },
-        }))}
+          // Paket/set: no. seri komponen mana pun juga menemukan paketnya.
+          const parts = parseComponents(ci.components);
+          return {
+            id: ci.id,
+            name: `${ci.category} ${ci.name}`,
+            sku: ci.serialNumber ?? "",
+            barcode: ci.serialNumber,
+            sellPrice: ci.askingPrice,
+            stock: 1,
+            minStock: 0,
+            unit: null,
+            consignment: {
+              owner: ci.consignment.customerName,
+              number: ci.consignment.number,
+              contents: parts.length ? setContentsText(parts) : undefined,
+              serials: setSerials(parts),
+            },
+          };
+        })}
         usedItems={usedItems.map((u) => ({
           // Barang bekas tampil seperti produk 1 unit; bisa di-scan via no. seri atau no. BK.
           id: u.id,

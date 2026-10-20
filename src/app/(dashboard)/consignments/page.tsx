@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { listConsignments } from "@/server/consignment/service";
 import { summarizeConsignment } from "@/lib/consignment-calc";
+import { parseComponents } from "@/lib/consignment-set";
 import { formatRupiah } from "@/lib/utils";
 import { formatLocalDate } from "@/lib/timezone";
 import { buttonVariants } from "@/components/ui/button";
@@ -36,7 +37,12 @@ export default async function ConsignmentsPage({
           c.number.toLowerCase().includes(needle) ||
           c.customerName.toLowerCase().includes(needle) ||
           (c.customerPhone ?? "").includes(needle) ||
-          c.items.some((i) => `${i.category} ${i.name}`.toLowerCase().includes(needle)),
+          c.items.some((i) =>
+            [i.category, i.name, ...parseComponents(i.components).flatMap((p) => [p.name, p.serialNumber ?? ""])]
+              .join(" ")
+              .toLowerCase()
+              .includes(needle),
+          ),
       )
     : rows;
 
@@ -131,7 +137,12 @@ export default async function ConsignmentsPage({
                   </div>
                   <p className="mt-1 truncate font-semibold">{c.customerName}</p>
                   <p className="truncate text-sm text-muted-foreground">
-                    {c.items.map((i) => `${i.category} ${i.name}`).join(" • ")}
+                    {c.items
+                      .map((i) => {
+                        const n = parseComponents(i.components).length;
+                        return `${i.category} ${i.name}${n ? ` (paket ${n} komponen)` : ""}`;
+                      })
+                      .join(" • ")}
                   </p>
                 </div>
                 <div className="shrink-0 text-right">

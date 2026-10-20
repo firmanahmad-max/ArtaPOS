@@ -5,6 +5,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { nextDocNumber } from "@/server/shared/numbering";
 import type { SaleInput } from "@/lib/validations/pos";
 import { splitConsignment } from "@/lib/consignment-calc";
+import { consignmentSaleName, parseComponents } from "@/lib/consignment-set";
 import { usedSaleName } from "@/lib/used-item";
 import { earnedPointsTarget, programStarted, resolveRedemption, saleEligibleRupiah } from "@/lib/loyalty";
 import { awardPointsUpTo, loadLoyalty } from "@/server/loyalty/service";
@@ -462,6 +463,7 @@ export async function createSale(
             category: true,
             name: true,
             serialNumber: true,
+            components: true,
             askingPrice: true,
             status: true,
             commissionType: true,
@@ -484,7 +486,8 @@ export async function createSale(
         // productId = id barang titipan (BUKAN produk) — lihat komentar model SaleItem.
         productId: r.id,
         consignmentItemId: r.id,
-        productName: `${r.category} ${r.name}`,
+        // Paket/set → nama + daftar isi tercetak di struk (satu baris, satu harga).
+        productName: consignmentSaleName(r.category, r.name, parseComponents(r.components)),
         sku: r.serialNumber ?? null,
         qty: 1,
         price: r.askingPrice,

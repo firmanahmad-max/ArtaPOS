@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { nextDocNumber } from "@/server/shared/numbering";
 import { splitConsignment } from "@/lib/consignment-calc";
+import { componentsError, parseComponents, setGallerySpec, type SetComponent } from "@/lib/consignment-set";
 import type { ConsignmentCommissionType, ConsignmentItemStatus } from "@/generated/prisma/enums";
 import type { ConsignmentInput } from "@/lib/validations/consignment";
 
@@ -15,6 +16,11 @@ import type { ConsignmentInput } from "@/lib/validations/consignment";
 
 const ITEM_ORDER = { orderBy: { sortOrder: "asc" as const } };
 
+/** Rincian isi paket → nilai kolom JSON (null eksplisit utk field kosong). */
+function toJson(list: { name: string; serialNumber?: string | null; note?: string | null }[]) {
+  return parseComponents(list).map((c) => ({ name: c.name, serialNumber: c.serialNumber ?? null, note: c.note ?? null }));
+}
+
 export function listConsignments(tenantId: string) {
   return db.consignment.findMany({
     where: { tenantId },
@@ -26,6 +32,7 @@ export function listConsignments(tenantId: string) {
         select: {
           category: true,
           name: true,
+          components: true,
           askingPrice: true,
           status: true,
           soldPrice: true,
@@ -60,6 +67,7 @@ export function listConsignmentItemsForSale(tenantId: string) {
       serialNumber: true,
       askingPrice: true,
       condition: true,
+      components: true,
       consignment: { select: { number: true, customerName: true } },
       galleryItem: { select: { id: true } },
     },
@@ -99,6 +107,7 @@ export async function createConsignment(tenantId: string, userId: string, input:
             name: it.name,
             serialNumber: it.serialNumber ?? null,
             condition: it.condition ?? null,
+            components: toJson(it.components ?? []),
             askingPrice: it.askingPrice,
             commissionType: it.commissionType,
             commissionValue: it.commissionValue,
@@ -119,6 +128,7 @@ async function ensureItem(tenantId: string, itemId: string) {
       id: true,
       consignmentId: true,
       askingPrice: true,
+      condition: true,
       status: true,
       saleId: true,
       ownerPaidAt: true,
@@ -192,6 +202,27 @@ export async function updateItemTerms(
     }),
     // Harga di Galeri Publik selalu mengikuti harga titipan.
     db.galleryItem.updateMany({ where: { consignmentItemId: item.id }, data: { price: askingPrice } }),
+  ]);
+  return item.consignmentId;
+}
+
+/**
+ * Ubah rincian isi paket (mis. pemilik mengambil kembali monitornya) — hanya selama
+ * barang masih dititipkan. Kosongkan = jadi barang tunggal. Deskripsi pajangan
+ * Galeri ikut diperbarui agar pembeli tak melihat isi yang sudah tidak ada.
+ */
+export async function updateItemComponents(tenantId: string, itemId: string, components: SetComponent[]) {
+  const list = toJson(components);
+  const err = componentsError(list);
+  if (err) throw new Error(err);
+  const item = await ensureItem(tenantId, itemId);
+  if (item.status !== "AVAILABLE") throw new Error("Isi paket hanya bisa diubah selama barang masih dititipkan.");
+  await db.$transaction([
+    db.consignmentItem.update({ where: { id: item.id }, data: { components: list } }),
+    db.galleryItem.updateMany({
+      where: { consignmentItemId: item.id },
+      data: { spec: setGallerySpec(list, item.condition) },
+    }),
   ]);
   return item.consignmentId;
 }

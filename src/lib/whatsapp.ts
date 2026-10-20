@@ -166,6 +166,8 @@ export function buildConsignmentText(n: {
     name: string;
     serialNumber?: string | null;
     condition?: string | null;
+    /** Isi paket/set — dirinci tanpa harga per komponen. */
+    components?: { name: string; serialNumber?: string | null; note?: string | null }[];
     askingPrice: number;
     statusLabel?: string;
     /** Syarat komisi toko, mis. "10%" / "Rp 50.000". */
@@ -192,8 +194,17 @@ export function buildConsignmentText(n: {
   n.items.forEach((it, i) => {
     rows.push(`${i + 1}. *${it.category}* — ${it.name}`);
     if (it.serialNumber) rows.push(`   SN: ${it.serialNumber}`);
+    const parts = it.components ?? [];
+    if (parts.length) {
+      rows.push(`   Isi paket (${parts.length}):`);
+      for (const c of parts) {
+        rows.push(`   - ${c.name}${c.serialNumber ? ` (SN: ${c.serialNumber})` : ""}${c.note ? ` — ${c.note}` : ""}`);
+      }
+    }
     if (it.condition) rows.push(`   Kondisi: ${it.condition}`);
-    rows.push(`   Harga jual: ${formatRupiah(it.askingPrice)}${it.statusLabel ? ` · ${it.statusLabel}` : ""}`);
+    rows.push(
+      `   ${parts.length ? "Harga paket" : "Harga jual"}: ${formatRupiah(it.askingPrice)}${it.statusLabel ? ` · ${it.statusLabel}` : ""}`,
+    );
     if (it.commissionText) rows.push(`   Komisi toko: ${it.commissionText}`);
     if (it.sold) {
       rows.push(`   Laku ${formatRupiah(it.sold.price)} − komisi ${formatRupiah(it.sold.commission)}`);

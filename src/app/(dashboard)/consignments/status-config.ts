@@ -10,6 +10,8 @@ export const CONSIGNMENT_STATUS_META: Record<ConsignmentStatus, { label: string;
 
 /** Saran jenis komponen (tetap bisa diketik bebas). */
 export const CONSIGNMENT_CATEGORIES = [
+  "1 Set PC",
+  "Paket Bundel",
   "Prosesor",
   "VGA",
   "RAM",

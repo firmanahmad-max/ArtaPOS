@@ -879,6 +879,10 @@ model ConsignmentItem {
   name          String // merk / tipe
   serialNumber  String? // no. seri — bukti identitas barang saat diambil kembali
   condition     String? // keterangan kondisi
+  /// Rincian isi bila barang berupa PAKET/SET (mis. 1 set PC + monitor + keyboard + mouse):
+  /// [{ name, serialNumber?, note? }]. Kosong = barang tunggal. Harga, komisi & status
+  /// tetap satu untuk seluruh paket (dijual utuh). Lihat src/lib/consignment-set.ts.
+  components    Json                  @default("[]")
   askingPrice   Int // harga jual yang diinginkan pemilik (rupiah)
   status        ConsignmentItemStatus @default(AVAILABLE)
   soldPrice     Int? // harga terjual aktual (opsional)

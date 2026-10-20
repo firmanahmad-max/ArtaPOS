@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { BadgeCheck, Undo2, PackageX, Pencil, Check, X, Trash2, Wallet, Receipt, Images } from "lucide-react";
+import { BadgeCheck, Undo2, PackageX, Pencil, Check, X, Trash2, Wallet, Receipt, Images, ListChecks, Boxes } from "lucide-react";
 import { addConsignmentToGalleryAction } from "@/server/gallery/actions";
 import {
   setConsignmentItemStatusAction,
   updateConsignmentItemTermsAction,
+  updateConsignmentItemComponentsAction,
   setOwnerPaidAction,
   payAllOwnerAction,
   deleteConsignmentAction,
@@ -21,7 +22,9 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { componentsError, type SetComponent } from "@/lib/consignment-set";
 import { CONSIGNMENT_STATUS_META } from "./status-config";
+import { SetComponentsEditor, blankPart, partsFromComponents, partsPayload, type PartRow } from "./set-components-editor";
 
 export interface DetailItem {
   id: string;
@@ -29,6 +32,8 @@ export interface DetailItem {
   name: string;
   serialNumber: string | null;
   condition: string | null;
+  /** Rincian isi paket/set (kosong = barang tunggal). */
+  components: SetComponent[];
   askingPrice: number;
   status: ConsignmentStatus;
   soldPrice: number | null;
@@ -46,7 +51,8 @@ export interface DetailItem {
 
 type Editing =
   | { id: string; mode: "terms"; price: number; ctype: CommissionType; cvalue: number }
-  | { id: string; mode: "sell"; price: number };
+  | { id: string; mode: "sell"; price: number }
+  | { id: string; mode: "parts"; parts: PartRow[] };
 
 export function ConsignmentDetail({
   consignmentId,
@@ -60,6 +66,8 @@ export function ConsignmentDetail({
   const router = useRouter();
   const [pending, start] = useTransition();
   const [editing, setEditing] = useState<Editing | null>(null);
+  const seq = useRef(0); // key baris komponen (dipakai di event handler saja)
+  const nextKey = () => `p${seq.current++}`;
 
   function run(fn: () => Promise<{ ok: boolean; message?: string }>, success?: string) {
     start(async () => {
@@ -73,7 +81,7 @@ export function ConsignmentDetail({
   }
 
   function confirmEditing() {
-    if (!editing) return;
+    if (!editing || editing.mode === "parts") return;
     if (editing.mode === "terms") {
       run(() =>
         updateConsignmentItemTermsAction(editing.id, {
@@ -130,12 +138,29 @@ export function ConsignmentDetail({
             <div key={it.id} className="space-y-2 rounded-xl border p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">Barang {i + 1} · {it.category}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Barang {i + 1} · {it.category}
+                    {it.components.length > 0 && ` · paket ${it.components.length} komponen`}
+                  </p>
                   <p className="font-semibold">{it.name}</p>
                   {it.serialNumber && <p className="font-mono text-xs text-muted-foreground">SN: {it.serialNumber}</p>}
                 </div>
                 <Badge variant={meta.variant}>{meta.label}</Badge>
               </div>
+              {it.components.length > 0 && !(isEditing && editing?.mode === "parts") && (
+                <ul className="space-y-0.5 rounded-lg bg-muted/40 px-3 py-2 text-sm">
+                  {it.components.map((c, ci) => (
+                    <li key={ci} className="flex gap-2">
+                      <span className="text-muted-foreground">•</span>
+                      <span className="min-w-0">
+                        {c.name}
+                        {c.serialNumber && <span className="ml-1.5 font-mono text-xs text-muted-foreground">SN {c.serialNumber}</span>}
+                        {c.note && <span className="block text-xs text-muted-foreground">{c.note}</span>}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
               {it.condition && (
                 <p className="whitespace-pre-line text-sm"><span className="text-muted-foreground">Kondisi: </span>{it.condition}</p>
               )}
@@ -201,6 +226,23 @@ export function ConsignmentDetail({
                       >
                         <Pencil className="size-3.5" /> Ubah harga & komisi
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={pending}
+                        onClick={() =>
+                          setEditing({
+                            id: it.id,
+                            mode: "parts",
+                            parts: it.components.length
+                              ? partsFromComponents(it.components, nextKey)
+                              : [blankPart(nextKey()), blankPart(nextKey())],
+                          })
+                        }
+                      >
+                        {it.components.length ? <ListChecks className="size-3.5" /> : <Boxes className="size-3.5" />}
+                        {it.components.length ? "Ubah isi paket" : "Rincikan sebagai paket"}
+                      </Button>
                       <Button size="sm" variant="outline" disabled={pending} onClick={() => setEditing({ id: it.id, mode: "sell", price: it.askingPrice })}>
                         <BadgeCheck className="size-3.5" /> Terjual (di luar kasir)
                       </Button>
@@ -209,7 +251,7 @@ export function ConsignmentDetail({
                         variant="outline"
                         disabled={pending}
                         onClick={() => {
-                          if (confirm(`Tandai "${it.name}" sudah diambil kembali oleh pemilik?`)) {
+                          if (confirm(`Tandai "${it.name}"${it.components.length ? " (seluruh isi paket)" : ""} sudah diambil kembali oleh pemilik?`)) {
                             run(() => setConsignmentItemStatusAction(it.id, "RETURNED"), "Ditandai diambil kembali");
                           }
                         }}
@@ -254,7 +296,40 @@ export function ConsignmentDetail({
                 </div>
               )}
 
-              {isEditing && editing && (
+              {isEditing && editing?.mode === "parts" && (
+                <div className="space-y-2">
+                  <SetComponentsEditor
+                    idPrefix={`cd-${it.id}`}
+                    parts={editing.parts}
+                    onChange={(parts) => setEditing({ ...editing, parts })}
+                    nextKey={nextKey}
+                    disabled={pending}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Pemilik mengambil sebagian isi? Hapus komponennya di sini, lalu sesuaikan harga paket lewat
+                    &ldquo;Ubah harga &amp; komisi&rdquo;. Kosongkan semua baris untuk menjadikannya barang tunggal.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      disabled={pending}
+                      onClick={() => {
+                        const list = partsPayload(editing.parts);
+                        const err = componentsError(list);
+                        if (err) return toast.error(err);
+                        run(() => updateConsignmentItemComponentsAction(it.id, list));
+                      }}
+                    >
+                      <Check className="size-3.5" /> Simpan isi paket
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setEditing(null)} disabled={pending}>
+                      <X className="size-3.5" /> Batal
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {isEditing && editing && editing.mode !== "parts" && (
                 <div className="space-y-2 rounded-lg bg-muted/50 p-3">
                   <div className="flex flex-wrap items-end gap-2">
                     <label className="flex flex-col gap-1 text-xs">

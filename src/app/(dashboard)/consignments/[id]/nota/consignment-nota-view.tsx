@@ -9,6 +9,7 @@ import { formatRupiah } from "@/lib/utils";
 import { buildConsignmentText, waLink } from "@/lib/whatsapp";
 import { shareNodeAsImage } from "@/lib/share-image";
 import { buildGalleryUrl } from "@/lib/track-link";
+import type { SetComponent } from "@/lib/consignment-set";
 
 export interface ConsignmentNotaData {
   storeName: string;
@@ -29,6 +30,8 @@ export interface ConsignmentNotaData {
     name: string;
     serialNumber: string | null;
     condition: string | null;
+    /** Isi paket/set (kosong = barang tunggal) — tanpa harga per komponen. */
+    components: SetComponent[];
     askingPrice: number;
     statusLabel?: string;
     commissionText: string;
@@ -114,9 +117,21 @@ export function ConsignmentNotaView({ data, backHref }: { data: ConsignmentNotaD
             <div key={i} className="space-y-0.5">
               <div className="font-semibold">{i + 1}. {it.category} — {it.name}</div>
               {it.serialNumber && <div className="text-[10px]">SN: {it.serialNumber}</div>}
+              {it.components.length > 0 && (
+                <div className="space-y-0.5 pl-2 text-[10px] leading-tight">
+                  <div className="font-semibold">Isi paket ({it.components.length}):</div>
+                  {it.components.map((c, ci) => (
+                    <div key={ci}>
+                      - {c.name}
+                      {c.serialNumber && <span> (SN: {c.serialNumber})</span>}
+                      {c.note && <span className="text-black/60"> — {c.note}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
               {it.condition && <div className="whitespace-pre-line text-[10px] leading-tight">Kondisi: {it.condition}</div>}
               <div className="flex justify-between">
-                <span>Harga jual{it.statusLabel ? ` · ${it.statusLabel}` : ""}</span>
+                <span>{it.components.length > 0 ? "Harga paket" : "Harga jual"}{it.statusLabel ? ` · ${it.statusLabel}` : ""}</span>
                 <span>{formatRupiah(it.askingPrice)}</span>
               </div>
               <div className="text-[10px] text-black/60">Komisi toko: {it.commissionText}</div>

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { revalidateReports } from "@/lib/revalidate";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
-import { consignmentSchema, commissionSchema } from "@/lib/validations/consignment";
+import { consignmentSchema, commissionSchema, setComponentsSchema } from "@/lib/validations/consignment";
 import type { ConsignmentItemStatus } from "@/generated/prisma/enums";
 import * as svc from "@/server/consignment/service";
 
@@ -92,6 +92,23 @@ export async function updateConsignmentItemTermsAction(
     return { ok: true, message: "Harga & komisi diperbarui." };
   } catch (e) {
     return fail(e, "Gagal mengubah harga & komisi.");
+  }
+}
+
+export async function updateConsignmentItemComponentsAction(itemId: string, components: unknown): Promise<Result> {
+  const user = await guard();
+  if (!user) return { ok: false, message: NO_PERM };
+  const parsed = setComponentsSchema.safeParse(components);
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Rincian isi tidak valid." };
+  try {
+    const id = await svc.updateItemComponents(user.tenantId, itemId, parsed.data);
+    refresh(id);
+    return {
+      ok: true,
+      message: parsed.data.length ? "Isi paket diperbarui." : "Rincian dihapus — kini barang tunggal.",
+    };
+  } catch (e) {
+    return fail(e, "Gagal mengubah isi paket.");
   }
 }
 
