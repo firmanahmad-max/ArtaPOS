@@ -34,8 +34,8 @@ export interface ConsignmentNotaData {
     components: SetComponent[];
     askingPrice: number;
     statusLabel?: string;
-    commissionText: string;
-    sold: { price: number; commission: number; ownerShare: number; paid: boolean } | null;
+    /** Komisi toko SENGAJA tak dikirim ke pemilik — hanya harga laku & haknya. */
+    sold: { price: number; ownerShare: number; paid: boolean } | null;
   }[];
 }
 
@@ -134,11 +134,9 @@ export function ConsignmentNotaView({ data, backHref }: { data: ConsignmentNotaD
                 <span>{it.components.length > 0 ? "Harga paket" : "Harga jual"}{it.statusLabel ? ` · ${it.statusLabel}` : ""}</span>
                 <span>{formatRupiah(it.askingPrice)}</span>
               </div>
-              <div className="text-[10px] text-black/60">Komisi toko: {it.commissionText}</div>
               {it.sold && (
                 <div className="mt-0.5 space-y-0.5 rounded border border-dashed border-black/30 p-1 text-[10px]">
                   <div className="flex justify-between"><span>Laku</span><span>{formatRupiah(it.sold.price)}</span></div>
-                  <div className="flex justify-between"><span>Komisi toko</span><span>-{formatRupiah(it.sold.commission)}</span></div>
                   <div className="flex justify-between font-semibold">
                     <span>Hak pemilik ({it.sold.paid ? "dibayar" : "belum"})</span>
                     <span>{formatRupiah(it.sold.ownerShare)}</span>
