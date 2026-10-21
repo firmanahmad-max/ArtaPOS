@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, Save, HandCoins } from "lucide-react";
+import { Trash2, Save, HandCoins, MessageCircle } from "lucide-react";
 import type { BuildStatus } from "@/generated/prisma/enums";
 import {
   addComponentAction,
@@ -14,6 +14,8 @@ import {
   recordBuildPaymentAction,
 } from "@/server/pcbuild/actions";
 import { formatRupiah } from "@/lib/utils";
+import { buildPcBuildStatusText, waLink } from "@/lib/whatsapp";
+import { buildPortalUrl } from "@/lib/portal";
 import { PartPicker } from "@/components/inventory/part-picker";
 import { UnitPicker } from "@/components/inventory/unit-picker";
 import { UNIT_KIND_LABEL, type UnitKind, type UnitOption } from "@/lib/build-units";
@@ -49,12 +51,22 @@ export function BuildDetail({
   build,
   products,
   units = [],
+  notify,
   points,
 }: {
   build: BuildData;
   products: BuildProduct[];
   /** Barang bekas & titipan yang tersedia untuk dijadikan komponen. */
   units?: UnitOption[];
+  /** Data pesan "Beri tahu via WhatsApp" (no. HP dari pelanggan terdaftar). */
+  notify?: {
+    storeName: string;
+    number: string;
+    name: string;
+    customerName: string | null;
+    phone: string | null;
+    portalToken: string | null;
+  };
   /** Poin member (pelanggan tertaut, tukar poin, poin didapat). */
   points?: JobLoyaltyInfo;
 }) {
@@ -78,6 +90,21 @@ export function BuildDetail({
   }
 
   const meta = BUILD_STATUS_META[build.status];
+
+  function notifyWhatsApp() {
+    if (!notify) return;
+    const text = buildPcBuildStatusText({
+      storeName: notify.storeName,
+      number: notify.number,
+      name: notify.name,
+      status: build.status,
+      statusLabel: meta.label,
+      total: build.total,
+      paid: build.paid,
+      portalUrl: notify.portalToken ? buildPortalUrl(window.location.origin, notify.portalToken, "nota") : null,
+    });
+    window.open(waLink(text, notify.phone ?? undefined), "_blank", "noopener,noreferrer");
+  }
   const isClosed = build.status === "DELIVERED" || build.status === "CANCELLED";
 
   return (
@@ -98,6 +125,18 @@ export function BuildDetail({
               onClick={() => { if (confirm("Batalkan rakitan ini? Komponen tidak otomatis dikembalikan — hapus komponennya dulu agar stok, barang bekas & titipan kembali tersedia.")) run(() => updateBuildStatusAction(build.id, "CANCELLED")); }}>
               Batalkan
             </Button>
+          )}
+          {notify && (
+            <div className="flex w-full flex-wrap items-center gap-2 border-t pt-3">
+              <Button variant="whatsapp" size="sm" onClick={notifyWhatsApp}>
+                <MessageCircle /> Beri tahu via WhatsApp
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                {notify.phone
+                  ? `ke ${notify.customerName ?? "pelanggan"} (${notify.phone}) · status, total & sisa pembayaran`
+                  : "Pelanggan belum terdaftar / tanpa No. HP — pilih kontak di WhatsApp."}
+              </span>
+            </div>
           )}
         </CardContent>
       </Card>

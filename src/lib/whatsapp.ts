@@ -60,6 +60,47 @@ export function buildServiceStatusText(args: {
   return lines.join("\n");
 }
 
+/** Kalimat pembuka per status rakitan (pesan "Beri tahu via WhatsApp" Rakit PC). */
+const BUILD_STATUS_INTRO: Record<string, string> = {
+  DRAFT: "Pesanan rakitan PC Anda sudah kami catat dan segera kami siapkan.",
+  ASSEMBLING: "PC Anda sedang dalam proses perakitan. 🔧",
+  DONE: "Kabar baik! PC Anda sudah *selesai dirakit & siap diambil*. ✅",
+  DELIVERED: "PC Anda sudah diserahkan. Terima kasih atas kepercayaannya! 🎉",
+  CANCELLED: "Pesanan rakitan PC Anda telah dibatalkan.",
+};
+
+/** Pesan WhatsApp status Rakit PC untuk pelanggan (tanpa rincian harga komponen). */
+export function buildPcBuildStatusText(args: {
+  storeName: string;
+  number: string;
+  name: string;
+  status: string;
+  statusLabel: string;
+  total: number;
+  paid: number;
+  /** Link Portal Member pelanggan terdaftar (opsional). */
+  portalUrl?: string | null;
+}): string {
+  const lines = [
+    `Halo, berikut update rakitan PC Anda di *${args.storeName}*:`,
+    BUILD_STATUS_INTRO[args.status] ?? "",
+    "",
+    `No. Rakitan: ${args.number}`,
+    `Rakitan: ${args.name}`,
+    `Status: *${args.statusLabel}*`,
+  ];
+  if (args.status !== "CANCELLED" && args.total > 0) {
+    const outstanding = args.total - args.paid;
+    lines.push(`Total: ${formatRupiah(args.total)}`);
+    if (args.paid > 0 && outstanding > 0) lines.push(`Sudah dibayar: ${formatRupiah(args.paid)}`);
+    lines.push(outstanding > 0 ? `*Sisa pembayaran: ${formatRupiah(outstanding)}*` : "Pembayaran: *Lunas* ✓");
+  }
+  const portal = portalLine(args.portalUrl);
+  if (portal) lines.push("", portal);
+  lines.push("", "Terima kasih 🙏");
+  return lines.filter((l, i, a) => !(l === "" && a[i - 1] === "")).join("\n").replace(/^\n+/, "");
+}
+
 /** Baris tautan lacak + (bila ada) ajakan melihat promo/galeri di halaman yang sama. */
 /** Baris ajakan buka Portal Pelanggan (link pribadi member). */
 export function portalLine(url?: string | null): string | null {

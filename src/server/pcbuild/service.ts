@@ -33,6 +33,13 @@ export function getBuild(tenantId: string, id: string) {
   });
 }
 
+/** No. HP pelanggan terdaftar rakitan (untuk pesan WhatsApp). Ter-scope tenant. */
+export async function getBuildCustomerPhone(tenantId: string, customerId: string | null) {
+  if (!customerId) return null;
+  const c = await db.customer.findFirst({ where: { id: customerId, tenantId }, select: { phone: true } });
+  return c?.phone ?? null;
+}
+
 /** Rakitan + no. HP pelanggan (untuk nota WhatsApp). Ter-scope tenant. */
 export async function getBuildForNota(tenantId: string, id: string) {
   const build = await db.pcBuild.findFirst({

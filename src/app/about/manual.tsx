@@ -314,6 +314,7 @@ const SECTIONS: Section[] = [
       "Rakitan Baru: beri nama & pelanggan, tambah komponen (memotong stok), tetapkan jasa rakit.",
       "Komponen juga bisa diambil dari Barang Bekas & Titip Jual (bagian \"Atau ambil dari Barang Bekas / Titip Jual\"). Unit langsung tercatat terjual & terpakai di rakitan ini (hilang dari kasir & galeri); hapus komponennya untuk mengembalikan. Laba: bekas = harga jual − harga beli, titipan = komisi toko (hak pemilik tercatat di menu Titip Jual). Titipan tidak menghasilkan poin member.",
       "Ubah status: Draft → Dirakit → Selesai → Diserahkan; beri diskon bila perlu; catat pembayaran.",
+      "Beri tahu pelanggan via WhatsApp (tombol di kartu Status): pesan berisi status (mis. \"selesai dirakit & siap diambil\"), total & sisa pembayaran, plus link Portal Member bila pelanggan terdaftar. Tanpa No. HP terdaftar, pilih kontaknya di WhatsApp.",
       "Cetak Nota: rincian komponen tanpa harga per item, hanya total rakitan — bagikan via WhatsApp (gambar/teks) atau cetak.",
     ],
   },

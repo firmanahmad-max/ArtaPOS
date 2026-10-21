@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Printer } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
-import { getBuild, listProductsForBuild } from "@/server/pcbuild/service";
+import { getBuild, getBuildCustomerPhone, listProductsForBuild } from "@/server/pcbuild/service";
+import { ensurePortalToken } from "@/server/portal/service";
 import { jobLoyaltyInfo } from "@/server/customers/service";
 import { listUnitsForBuild, unitRefsFor } from "@/server/pcbuild/units";
 import { unitKindOf } from "@/lib/build-units";
@@ -26,7 +27,12 @@ export default async function BuildDetailPage({ params }: { params: Promise<{ id
     listUnitsForBuild(user.tenantId),
   ]);
   if (!build) notFound();
-  const refs = await unitRefsFor(user.tenantId, build.items);
+  const [refs, customerPhone, portalToken] = await Promise.all([
+    unitRefsFor(user.tenantId, build.items),
+    getBuildCustomerPhone(user.tenantId, build.customerId),
+    // Link Portal Member dibuat MALAS untuk pelanggan terdaftar (ikut pesan WA).
+    build.customerId ? ensurePortalToken(user.tenantId, build.customerId).catch(() => null) : null,
+  ]);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -79,6 +85,14 @@ export default async function BuildDetailPage({ params }: { params: Promise<{ id
         }}
         products={products.map((p) => ({ id: p.id, name: p.name, sellPrice: p.sellPrice, stock: p.stock }))}
         units={units}
+        notify={{
+          storeName: user.tenant.name,
+          number: build.number,
+          name: build.name,
+          customerName: build.customerName,
+          phone: customerPhone,
+          portalToken,
+        }}
         points={await jobLoyaltyInfo(user.tenantId, build.customerId, { pcBuildId: build.id }, build)}
       />
     </div>
