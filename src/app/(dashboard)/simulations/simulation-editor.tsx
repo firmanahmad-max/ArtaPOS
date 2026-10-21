@@ -21,6 +21,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { UnitPicker } from "@/components/inventory/unit-picker";
+import { UNIT_KIND_LABEL, unitKindOf, type UnitOption } from "@/lib/build-units";
 
 interface Prod { id: string; name: string; sku: string; sellPrice: number; costPrice: number; stock: number }
 interface Cust { id: string; name: string; phone: string | null }
@@ -28,6 +30,11 @@ interface Cust { id: string; name: string; phone: string | null }
 interface Row {
   key: string;
   productId: string | null;
+  /** Barang bekas / titipan (unit tunggal, qty 1). */
+  usedItemId: string | null;
+  consignmentItemId: string | null;
+  /** No. BK/TJ untuk tampilan. */
+  unitRef: string | null;
   name: string;
   qty: number;
   costPrice: number;
@@ -47,7 +54,16 @@ export interface EditorInitial {
   note: string | null;
   createdAt: string; // ISO
   importedBuildId: string | null;
-  items: { productId: string | null; name: string; qty: number; costPrice: number; sellPrice: number }[];
+  items: {
+    productId: string | null;
+    usedItemId: string | null;
+    consignmentItemId: string | null;
+    unitRef: string | null;
+    name: string;
+    qty: number;
+    costPrice: number;
+    sellPrice: number;
+  }[];
 }
 
 const STATUS_META: Record<SimStatus, { label: string; variant: "default" | "secondary" | "warning" | "success" | "destructive" }> = {
@@ -63,11 +79,14 @@ const todayISODate = () => new Date().toISOString().slice(0, 10);
 export function SimulationEditor({
   products,
   customers,
+  units = [],
   storeName,
   initial,
 }: {
   products: Prod[];
   customers: Cust[];
+  /** Barang bekas & titipan yang tersedia saat ini. */
+  units?: UnitOption[];
   storeName: string;
   initial: EditorInitial | null;
 }) {
@@ -109,13 +128,35 @@ export function SimulationEditor({
   function addProduct(p: Prod) {
     setRows((rs) => [
       ...rs,
-      { key: newKey(), productId: p.id, name: p.name, qty: 1, costPrice: p.costPrice, sellPrice: p.sellPrice },
+      { key: newKey(), productId: p.id, usedItemId: null, consignmentItemId: null, unitRef: null, name: p.name, qty: 1, costPrice: p.costPrice, sellPrice: p.sellPrice },
     ]);
     setSearch("");
   }
   function addFree() {
-    setRows((rs) => [...rs, { key: newKey(), productId: null, name: "", qty: 1, costPrice: 0, sellPrice: 0 }]);
+    setRows((rs) => [...rs, { key: newKey(), productId: null, usedItemId: null, consignmentItemId: null, unitRef: null, name: "", qty: 1, costPrice: 0, sellPrice: 0 }]);
   }
+  function addUnit(u: UnitOption) {
+    setRows((rs) => [
+      ...rs,
+      {
+        key: newKey(),
+        productId: null,
+        usedItemId: u.kind === "used" ? u.id : null,
+        consignmentItemId: u.kind === "consignment" ? u.id : null,
+        unitRef: u.ref,
+        name: u.name,
+        qty: 1,
+        costPrice: u.costPrice,
+        sellPrice: u.sellPrice,
+      },
+    ]);
+  }
+  // Unit yang sudah ada di daftar tak ditawarkan lagi di picker.
+  const pickedUnits = useMemo(
+    () => new Set(rows.map((r) => r.usedItemId ?? r.consignmentItemId).filter((v): v is string => !!v)),
+    [rows],
+  );
+  const availableUnitIds = useMemo(() => new Set(units.map((u) => u.id)), [units]);
   function patch(key: string, p: Partial<Row>) {
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...p } : r)));
   }
@@ -140,6 +181,8 @@ export function SimulationEditor({
       createdAt: createdAt || null,
       items: rows.map((r) => ({
         productId: r.productId,
+        usedItemId: r.usedItemId,
+        consignmentItemId: r.consignmentItemId,
         name: r.name.trim(),
         qty: r.qty,
         costPrice: r.costPrice,
@@ -287,16 +330,31 @@ export function SimulationEditor({
                       const subtotal = r.sellPrice * r.qty;
                       const lineMargin = (r.sellPrice - r.costPrice) * r.qty;
                       const stock = stockOf(r.productId);
+                      const unitKind = unitKindOf(r);
+                      const unitAvailable = availableUnitIds.has(r.usedItemId ?? r.consignmentItemId ?? "");
                       return (
                         <tr key={r.key} className="border-b align-top last:border-0">
                           <td className="p-2">
                             <Input value={r.name} disabled={locked} onChange={(e) => patch(r.key, { name: e.target.value })} placeholder="Nama komponen" className="h-8" />
                             <p className="mt-0.5 text-xs text-muted-foreground">
-                              {r.productId ? `Inventory · stok ${stock ?? "?"}` : "Komponen bebas"}
+                              {unitKind ? (
+                                <>
+                                  {UNIT_KIND_LABEL[unitKind]}
+                                  {r.unitRef ? ` · ${r.unitRef}` : ""}
+                                  {!locked && !unitAvailable && (
+                                    <span className="text-destructive"> · sudah tidak tersedia (jadi baris non-stok saat impor)</span>
+                                  )}
+                                </>
+                              ) : r.productId ? (
+                                `Inventory · stok ${stock ?? "?"}`
+                              ) : (
+                                "Komponen bebas"
+                              )}
                             </p>
                           </td>
                           <td className="p-2">
-                            <Input type="number" min={1} value={r.qty} disabled={locked}
+                            <Input type="number" min={1} value={r.qty} disabled={locked || !!unitKind}
+                              title={unitKind ? "Barang bekas/titipan = 1 unit" : undefined}
                               onChange={(e) => patch(r.key, { qty: Math.max(1, Math.trunc(Number(e.target.value)) || 1) })}
                               className="h-8 w-16 text-center" />
                           </td>
@@ -343,6 +401,12 @@ export function SimulationEditor({
                   )}
                 </div>
                 <Button variant="outline" size="sm" onClick={addFree}><Plus /> Komponen bebas</Button>
+                <div className="space-y-1.5 border-t pt-3">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Dari Barang Bekas / Titip Jual — unit belum dikunci di simulasi; baru diklaim saat diimpor ke Rakit PC.
+                  </p>
+                  <UnitPicker units={units} exclude={pickedUnits} onPick={addUnit} />
+                </div>
               </div>
             )}
           </CardContent>
@@ -422,7 +486,7 @@ export function SimulationEditor({
                   <Download /> Impor ke Rakit PC
                 </Button>
                 <p className="text-xs text-muted-foreground">
-                  Komponen inventory yang stoknya cukup akan dialokasikan (stok dipotong). Komponen bebas / stok kurang jadi baris non-stok.
+                  Komponen inventory yang stoknya cukup akan dialokasikan (stok dipotong); barang bekas / titipan yang masih tersedia ditandai terpakai di rakitan. Komponen bebas / stok kurang / unit yang sudah laku jadi baris non-stok.
                 </p>
               </div>
             )}

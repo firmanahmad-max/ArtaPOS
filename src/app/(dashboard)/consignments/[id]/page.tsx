@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, FileText } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
-import { getConsignment, saleNumbersFor } from "@/server/consignment/service";
+import { buildNumbersFor, getConsignment, saleNumbersFor } from "@/server/consignment/service";
 import { summarizeConsignment, soldSplit } from "@/lib/consignment-calc";
 import { parseComponents } from "@/lib/consignment-set";
 import { formatRupiah } from "@/lib/utils";
@@ -24,7 +24,10 @@ export default async function ConsignmentDetailPage({ params }: { params: Promis
   const c = await getConsignment(user.tenantId, id);
   if (!c) notFound();
   const sum = summarizeConsignment(c.items);
-  const saleNumbers = await saleNumbersFor(user.tenantId, c.items.map((i) => i.saleId ?? ""));
+  const [saleNumbers, buildNumbers] = await Promise.all([
+    saleNumbersFor(user.tenantId, c.items.map((i) => i.saleId ?? "")),
+    buildNumbersFor(user.tenantId, c.items.map((i) => i.pcBuildId ?? "")),
+  ]);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -85,6 +88,7 @@ export default async function ConsignmentDetailPage({ params }: { params: Promis
             ownerShare: split?.ownerShare ?? null,
             saleId: i.saleId,
             saleNumber: i.saleId ? (saleNumbers.get(i.saleId) ?? null) : null,
+            build: i.pcBuildId ? { id: i.pcBuildId, number: buildNumbers.get(i.pcBuildId) ?? "" } : null,
             ownerPaidAtText: i.ownerPaidAt ? formatLocalDateTime(i.ownerPaidAt, { dateStyle: "medium" }) : null,
             gallery: i.galleryItem ? { active: i.galleryItem.isActive } : null,
           };

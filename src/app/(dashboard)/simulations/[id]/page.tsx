@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { getSimulation, listProductsForSim, listCustomersForSim } from "@/server/build-sim/service";
+import { listUnitsForBuild, unitRefsFor } from "@/server/pcbuild/units";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SimulationEditor } from "../simulation-editor";
@@ -17,12 +18,14 @@ export default async function SimulationDetailPage({ params }: { params: Promise
   if (!can(user.role, "pcbuild.manage")) {
     return <Card className="p-8 text-center text-sm text-muted-foreground">Tidak punya izin.</Card>;
   }
-  const [sim, products, customers] = await Promise.all([
+  const [sim, products, customers, units] = await Promise.all([
     getSimulation(user.tenantId, id),
     listProductsForSim(user.tenantId),
     listCustomersForSim(user.tenantId),
+    listUnitsForBuild(user.tenantId),
   ]);
   if (!sim) notFound();
+  const refs = await unitRefsFor(user.tenantId, sim.items);
 
   return (
     <div className="space-y-6">
@@ -39,6 +42,7 @@ export default async function SimulationDetailPage({ params }: { params: Promise
       <SimulationEditor
         products={products}
         customers={customers}
+        units={units}
         storeName={user.tenant.name}
         initial={{
           id: sim.id,
@@ -55,6 +59,9 @@ export default async function SimulationDetailPage({ params }: { params: Promise
           importedBuildId: sim.importedBuildId,
           items: sim.items.map((i) => ({
             productId: i.productId,
+            usedItemId: i.usedItemId,
+            consignmentItemId: i.consignmentItemId,
+            unitRef: refs.get(i.usedItemId ?? i.consignmentItemId ?? "") ?? null,
             name: i.name,
             qty: i.qty,
             costPrice: i.costPrice,

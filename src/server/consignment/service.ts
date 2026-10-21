@@ -74,6 +74,14 @@ export function listConsignmentItemsForSale(tenantId: string) {
   });
 }
 
+/** Nomor rakitan untuk barang titipan yang dipakai sebagai komponen Rakit PC (tampilan). */
+export async function buildNumbersFor(tenantId: string, buildIds: string[]) {
+  const ids = [...new Set(buildIds.filter(Boolean))];
+  if (!ids.length) return new Map<string, string>();
+  const rows = await db.pcBuild.findMany({ where: { id: { in: ids }, tenantId }, select: { id: true, number: true } });
+  return new Map(rows.map((r) => [r.id, r.number]));
+}
+
 /** Nomor invoice untuk penjualan kasir yang menjual barang titipan (tampilan). */
 export async function saleNumbersFor(tenantId: string, saleIds: string[]) {
   const ids = [...new Set(saleIds.filter(Boolean))];
@@ -131,6 +139,7 @@ async function ensureItem(tenantId: string, itemId: string) {
       condition: true,
       status: true,
       saleId: true,
+      pcBuildId: true,
       ownerPaidAt: true,
       commissionType: true,
       commissionValue: true,
@@ -142,6 +151,8 @@ async function ensureItem(tenantId: string, itemId: string) {
 
 const SOLD_VIA_POS =
   "Barang ini terjual lewat kasir. Untuk membatalkannya, lakukan void atau retur pada penjualannya.";
+const USED_IN_BUILD =
+  "Barang ini dipakai sebagai komponen Rakit PC. Untuk membatalkannya, hapus komponennya dari rakitan.";
 const OWNER_ALREADY_PAID = "Hak pemilik sudah dibayarkan. Batalkan pembayaran hak pemilik dulu.";
 
 /**
@@ -157,6 +168,7 @@ export async function setItemStatus(
 ) {
   const item = await ensureItem(tenantId, itemId);
   if (item.saleId) throw new Error(SOLD_VIA_POS);
+  if (item.pcBuildId) throw new Error(USED_IN_BUILD);
   if (item.ownerPaidAt) throw new Error(OWNER_ALREADY_PAID);
   if (soldPrice !== undefined && (!Number.isInteger(soldPrice) || soldPrice < 0)) {
     throw new Error("Harga terjual tidak valid.");
@@ -250,10 +262,15 @@ export async function payAllOwner(tenantId: string, consignmentId: string) {
 export async function deleteConsignment(tenantId: string, id: string) {
   const c = await db.consignment.findFirst({
     where: { id, tenantId },
-    select: { id: true, items: { where: { saleId: { not: null } }, select: { id: true }, take: 1 } },
+    select: {
+      id: true,
+      items: { where: { OR: [{ saleId: { not: null } }, { pcBuildId: { not: null } }] }, select: { id: true }, take: 1 },
+    },
   });
   if (!c) throw new Error("Titip jual tidak ditemukan.");
   // Jejak audit: barang yang laku lewat kasir terhubung ke penjualan & hak pemilik.
-  if (c.items.length > 0) throw new Error("Ada barang yang terjual lewat kasir — titipan ini tidak bisa dihapus.");
+  if (c.items.length > 0) {
+    throw new Error("Ada barang yang terjual lewat kasir / dipakai di Rakit PC — titipan ini tidak bisa dihapus.");
+  }
   await db.consignment.delete({ where: { id: c.id } });
 }

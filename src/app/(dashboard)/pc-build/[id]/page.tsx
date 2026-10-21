@@ -6,6 +6,8 @@ import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { getBuild, listProductsForBuild } from "@/server/pcbuild/service";
 import { jobLoyaltyInfo } from "@/server/customers/service";
+import { listUnitsForBuild, unitRefsFor } from "@/server/pcbuild/units";
+import { unitKindOf } from "@/lib/build-units";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { BuildDetail } from "../build-detail";
@@ -18,11 +20,13 @@ export default async function BuildDetailPage({ params }: { params: Promise<{ id
   if (!can(user.role, "pcbuild.manage")) {
     return <Card className="p-8 text-center text-sm text-muted-foreground">Tidak punya izin.</Card>;
   }
-  const [build, products] = await Promise.all([
+  const [build, products, units] = await Promise.all([
     getBuild(user.tenantId, id),
     listProductsForBuild(user.tenantId),
+    listUnitsForBuild(user.tenantId),
   ]);
   if (!build) notFound();
+  const refs = await unitRefsFor(user.tenantId, build.items);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -47,8 +51,8 @@ export default async function BuildDetailPage({ params }: { params: Promise<{ id
 
       <Card>
         <CardContent className="pt-6 text-sm text-muted-foreground">
-          Pilih komponen dari inventory (otomatis memotong stok), atur jasa rakit, lalu ubah status
-          seiring proses perakitan.
+          Pilih komponen dari inventory (otomatis memotong stok) atau dari Barang Bekas / Titip Jual,
+          atur jasa rakit, lalu ubah status seiring proses perakitan.
         </CardContent>
       </Card>
 
@@ -61,9 +65,20 @@ export default async function BuildDetailPage({ params }: { params: Promise<{ id
           discount: build.discount,
           total: build.total,
           paid: build.paid,
-          items: build.items.map((i) => ({ id: i.id, productName: i.productName, qty: i.qty, price: i.price, subtotal: i.subtotal })),
+          items: build.items.map((i) => {
+            const kind = unitKindOf(i);
+            return {
+              id: i.id,
+              productName: i.productName,
+              qty: i.qty,
+              price: i.price,
+              subtotal: i.subtotal,
+              unit: kind ? { kind, ref: refs.get(i.usedItemId ?? i.consignmentItemId ?? "") ?? null } : null,
+            };
+          }),
         }}
         products={products.map((p) => ({ id: p.id, name: p.name, sellPrice: p.sellPrice, stock: p.stock }))}
+        units={units}
         points={await jobLoyaltyInfo(user.tenantId, build.customerId, { pcBuildId: build.id }, build)}
       />
     </div>

@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { listProductsForSim, listCustomersForSim } from "@/server/build-sim/service";
+import { listUnitsForBuild } from "@/server/pcbuild/units";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SimulationEditor } from "../simulation-editor";
@@ -15,9 +16,10 @@ export default async function NewSimulationPage() {
   if (!can(user.role, "pcbuild.manage")) {
     return <Card className="p-8 text-center text-sm text-muted-foreground">Tidak punya izin.</Card>;
   }
-  const [products, customers] = await Promise.all([
+  const [products, customers, units] = await Promise.all([
     listProductsForSim(user.tenantId),
     listCustomersForSim(user.tenantId),
+    listUnitsForBuild(user.tenantId),
   ]);
 
   return (
@@ -28,7 +30,7 @@ export default async function NewSimulationPage() {
         </Link>
         <h1 className="text-2xl font-bold tracking-tight">Simulasi Baru</h1>
       </div>
-      <SimulationEditor products={products} customers={customers} storeName={user.tenant.name} initial={null} />
+      <SimulationEditor products={products} customers={customers} units={units} storeName={user.tenant.name} initial={null} />
     </div>
   );
 }

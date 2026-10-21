@@ -6,9 +6,10 @@ import { assertPositiveInt, assertNonNegativeInt } from "@/lib/utils";
 import type { Prisma } from "@/generated/prisma/client";
 import type { BuildStatus } from "@/generated/prisma/enums";
 import type { PcBuildInput } from "@/lib/validations/pcbuild";
-import { earnedPointsTarget } from "@/lib/loyalty";
+import { earnedPointsTarget, saleEligibleRupiah } from "@/lib/loyalty";
 import { awardPointsUpTo, loadLoyalty, redeemPointsOnJob, refundRedeemedOnJob } from "@/server/loyalty/service";
 import { matchOrCreateCustomer } from "@/server/customers/service";
+import { claimUnitForBuild, releaseUnitFromBuild, type UnitKind } from "@/server/pcbuild/units";
 
 /** Service Rakit PC — ter-scope tenantId, mutasi stok transaksional. */
 
@@ -162,11 +163,37 @@ export async function addComponent(
   });
 }
 
+/** Tambah komponen dari Barang Bekas / Titip Jual (unit tunggal, qty 1). */
+export async function addUnitComponent(tenantId: string, buildId: string, kind: UnitKind, unitId: string) {
+  await ensureBuild(tenantId, buildId);
+  return db.$transaction(async (tx) => {
+    const unit = await claimUnitForBuild(tx, tenantId, { kind, id: unitId, buildId, strict: true });
+    if (!unit) return;
+    await tx.pcBuildItem.create({
+      data: {
+        buildId,
+        productId: unit.productId,
+        productName: unit.productName,
+        qty: 1,
+        price: unit.price,
+        costPrice: unit.costPrice,
+        subtotal: unit.price,
+        stockApplied: false,
+        usedItemId: unit.usedItemId,
+        consignmentItemId: unit.consignmentItemId,
+      },
+    });
+    await recompute(tx, buildId);
+  });
+}
+
 export async function removeComponent(tenantId: string, userId: string, buildId: string, itemId: string) {
   await ensureBuild(tenantId, buildId);
   return db.$transaction(async (tx) => {
     const item = await tx.pcBuildItem.findFirst({ where: { id: itemId, buildId } });
     if (!item) throw new Error("Komponen tidak ditemukan.");
+    // Barang bekas / titipan → kembali tersedia (tak ada stok produk yang disentuh).
+    await releaseUnitFromBuild(tx, tenantId, item);
     // Hanya kembalikan stok bila komponen ini memang memotong stok (stockApplied).
     // Komponen bebas / hasil impor yang stoknya kurang tak pernah dipotong.
     const product =
@@ -229,7 +256,14 @@ export async function recordPayment(tenantId: string, buildId: string, amount: n
   return db.$transaction(async (tx) => {
     const b = await tx.pcBuild.findFirst({
       where: { id: buildId, tenantId },
-      select: { id: true, number: true, total: true, paid: true, customerId: true },
+      select: {
+        id: true,
+        number: true,
+        total: true,
+        paid: true,
+        customerId: true,
+        items: { where: { consignmentItemId: { not: null } }, select: { subtotal: true } },
+      },
     });
     if (!b) throw new Error("Rakitan tidak ditemukan.");
     const outstanding = b.total - b.paid;
@@ -237,14 +271,19 @@ export async function recordPayment(tenantId: string, buildId: string, amount: n
     if (amount > outstanding) throw new Error(`Maksimal ${outstanding}.`);
     const newPaid = b.paid + amount;
     await tx.pcBuild.update({ where: { id: b.id }, data: { paid: newPaid, paymentStatus: newPaid >= b.total ? "PAID" : "PARTIAL" } });
-    // Poin rakit PC per pembayaran: semua ×1 (komponen bermargin tipis).
+    // Poin rakit PC per pembayaran: semua ×1 (komponen bermargin tipis). Komponen
+    // TITIPAN tidak menghasilkan poin (milik pelanggan lain — sama dgn kasir).
     if (b.customerId) {
       const cfg = await loadLoyalty(tx, tenantId);
       if (cfg.started) {
         await awardPointsUpTo(tx, {
           tenantId,
           customerId: b.customerId,
-          target: earnedPointsTarget(b.total, b.total, newPaid),
+          target: earnedPointsTarget(
+            saleEligibleRupiah(b.total, b.items.reduce((s, i) => s + i.subtotal, 0)),
+            b.total,
+            newPaid,
+          ),
           ref: { pcBuildId: b.id },
           note: `Rakit PC ${b.number}`,
         });

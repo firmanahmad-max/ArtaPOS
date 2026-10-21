@@ -6,6 +6,7 @@ import { Trash2, Save, HandCoins } from "lucide-react";
 import type { BuildStatus } from "@/generated/prisma/enums";
 import {
   addComponentAction,
+  addUnitComponentAction,
   removeComponentAction,
   updateBuildFeeAction,
   updateBuildDiscountAction,
@@ -14,6 +15,8 @@ import {
 } from "@/server/pcbuild/actions";
 import { formatRupiah } from "@/lib/utils";
 import { PartPicker } from "@/components/inventory/part-picker";
+import { UnitPicker } from "@/components/inventory/unit-picker";
+import { UNIT_KIND_LABEL, type UnitKind, type UnitOption } from "@/lib/build-units";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +24,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BUILD_STATUS_META, BUILD_FLOW } from "./build-status";
 import { JobPointsPanel, type JobLoyaltyInfo } from "@/components/loyalty/job-points-panel";
 
-export interface BuildItem { id: string; productName: string; qty: number; price: number; subtotal: number }
+export interface BuildItem {
+  id: string;
+  productName: string;
+  qty: number;
+  price: number;
+  subtotal: number;
+  /** Barang bekas / titipan (unit tunggal); null = produk inventory / komponen bebas. */
+  unit: { kind: UnitKind; ref: string | null } | null;
+}
 export interface BuildData {
   id: string;
   status: BuildStatus;
@@ -37,10 +48,13 @@ export interface BuildProduct { id: string; name: string; sellPrice: number; sto
 export function BuildDetail({
   build,
   products,
+  units = [],
   points,
 }: {
   build: BuildData;
   products: BuildProduct[];
+  /** Barang bekas & titipan yang tersedia untuk dijadikan komponen. */
+  units?: UnitOption[];
   /** Poin member (pelanggan tertaut, tukar poin, poin didapat). */
   points?: JobLoyaltyInfo;
 }) {
@@ -81,7 +95,7 @@ export function BuildDetail({
           ))}
           {!isClosed && (
             <Button variant="destructive" size="sm" disabled={pending}
-              onClick={() => { if (confirm("Batalkan rakitan ini?")) run(() => updateBuildStatusAction(build.id, "CANCELLED")); }}>
+              onClick={() => { if (confirm("Batalkan rakitan ini? Komponen tidak otomatis dikembalikan — hapus komponennya dulu agar stok, barang bekas & titipan kembali tersedia.")) run(() => updateBuildStatusAction(build.id, "CANCELLED")); }}>
               Batalkan
             </Button>
           )}
@@ -105,7 +119,21 @@ export function BuildDetail({
               <tbody>
                 {build.items.map((it) => (
                   <tr key={it.id} className="border-b last:border-0">
-                    <td className="p-2">{it.productName}</td>
+                    <td className="p-2">
+                      {it.productName}
+                      {it.unit && (
+                        <span
+                          className={
+                            "ml-1.5 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[10px] font-semibold " +
+                            (it.unit.kind === "used"
+                              ? "bg-sky-500/20 text-sky-700 dark:text-sky-300"
+                              : "bg-amber-500/20 text-amber-700 dark:text-amber-300")
+                          }
+                        >
+                          {UNIT_KIND_LABEL[it.unit.kind]}{it.unit.ref ? ` · ${it.unit.ref}` : ""}
+                        </span>
+                      )}
+                    </td>
                     <td className="p-2 text-center">{it.qty}</td>
                     <td className="p-2 text-right">{formatRupiah(it.price)}</td>
                     <td className="p-2 text-right">{formatRupiah(it.subtotal)}</td>
@@ -129,6 +157,16 @@ export function BuildDetail({
             placeholder="Cari komponen dari inventory…"
             onAdd={(productId, qty) => run(() => addComponentAction(build.id, productId, qty))}
           />
+          <div className="space-y-1.5 border-t pt-3">
+            <p className="text-xs font-medium text-muted-foreground">
+              Atau ambil dari Barang Bekas / Titip Jual — unit langsung ditandai terpakai di rakitan ini & hilang dari kasir/galeri.
+            </p>
+            <UnitPicker
+              units={units}
+              disabled={pending}
+              onPick={(u) => run(() => addUnitComponentAction(build.id, u.kind, u.id))}
+            />
+          </div>
         </CardContent>
       </Card>
 

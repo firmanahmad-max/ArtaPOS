@@ -127,7 +127,8 @@ export async function updateUsedItem(tenantId: string, id: string, input: UsedIt
   ]);
 }
 
-const SOLD_VIA_POS = "Barang ini terjual lewat kasir. Untuk membatalkannya, lakukan void atau retur pada penjualannya.";
+const SOLD_VIA_POS =
+  "Barang ini sudah terjual (lewat kasir atau dipakai di Rakit PC). Untuk membatalkannya, lakukan void/retur penjualannya atau hapus komponennya dari rakitan.";
 
 /** Tarik dari penjualan ↔ jual lagi. Status "Terjual" hanya lewat kasir. */
 export async function setUsedItemAvailability(tenantId: string, id: string, available: boolean) {
@@ -141,10 +142,10 @@ export async function setUsedItemAvailability(tenantId: string, id: string, avai
 }
 
 export async function deleteUsedItem(tenantId: string, id: string) {
-  const cur = await db.usedItem.findFirst({ where: { id, tenantId }, select: { id: true, status: true, saleId: true } });
+  const cur = await db.usedItem.findFirst({ where: { id, tenantId }, select: { id: true, status: true, saleId: true, pcBuildId: true } });
   if (!cur) throw new Error("Barang bekas tidak ditemukan.");
   // Jejak audit: barang yang pernah laku lewat kasir terhubung ke penjualannya.
-  if (cur.saleId || cur.status === "SOLD") throw new Error("Barang yang sudah terjual tidak bisa dihapus.");
+  if (cur.saleId || cur.pcBuildId || cur.status === "SOLD") throw new Error("Barang yang sudah terjual tidak bisa dihapus.");
   await db.usedItem.delete({ where: { id: cur.id } });
 }
 

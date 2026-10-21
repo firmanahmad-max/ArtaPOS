@@ -4,7 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { BadgeCheck, Undo2, PackageX, Pencil, Check, X, Trash2, Wallet, Receipt, Images, ListChecks, Boxes } from "lucide-react";
+import { BadgeCheck, Undo2, PackageX, Pencil, Check, X, Trash2, Wallet, Receipt, Images, ListChecks, Boxes, Cpu } from "lucide-react";
 import { addConsignmentToGalleryAction } from "@/server/gallery/actions";
 import {
   setConsignmentItemStatusAction,
@@ -44,6 +44,8 @@ export interface DetailItem {
   ownerShare: number | null;
   saleId: string | null;
   saleNumber: string | null;
+  /** Dipakai sebagai komponen Rakit PC (null = bukan). */
+  build: { id: string; number: string } | null;
   ownerPaidAtText: string | null;
   /** Dipajang di Galeri Publik? (null = belum). */
   gallery: { active: boolean } | null;
@@ -179,7 +181,11 @@ export function ConsignmentDetail({
                       Terjual <span className="font-mono font-semibold">{formatRupiah(it.soldPrice ?? it.askingPrice)}</span>
                       {it.statusAtText && <span className="text-xs text-muted-foreground"> · {it.statusAtText}</span>}
                     </span>
-                    {it.saleId ? (
+                    {it.build ? (
+                      <Link href={`/pc-build/${it.build.id}`} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+                        <Cpu className="size-3.5" /> dipakai di rakitan {it.build.number}
+                      </Link>
+                    ) : it.saleId ? (
                       <Link href={`/sales/${it.saleId}`} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
                         <Receipt className="size-3.5" /> via kasir {it.saleNumber ?? ""}
                       </Link>
@@ -277,6 +283,11 @@ export function ConsignmentDetail({
                       )}
                     </>
                   )}
+                  {it.status === "SOLD" && it.build && (
+                    <p className="text-xs text-muted-foreground">
+                      Dipakai di Rakit PC — untuk membatalkan, hapus komponennya dari rakitan.
+                    </p>
+                  )}
                   {it.status === "SOLD" && it.saleId && (
                     <p className="text-xs text-muted-foreground">
                       Terjual lewat kasir — untuk membatalkan, lakukan void/retur pada penjualannya.
@@ -288,7 +299,7 @@ export function ConsignmentDetail({
                       Otomatis disembunyikan dari Galeri Publik.
                     </p>
                   )}
-                  {((it.status === "SOLD" && !it.saleId && !it.ownerPaidAtText) || it.status === "RETURNED") && (
+                  {((it.status === "SOLD" && !it.saleId && !it.build && !it.ownerPaidAtText) || it.status === "RETURNED") && (
                     <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => setConsignmentItemStatusAction(it.id, "AVAILABLE"), "Dikembalikan ke Dititipkan")}>
                       <Undo2 className="size-3.5" /> Batalkan ({meta.label.toLowerCase()})
                     </Button>

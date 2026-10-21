@@ -301,7 +301,8 @@ const SECTIONS: Section[] = [
       "Simulasi Baru: beri nama & pelanggan, tetapkan bujet (opsional), tambah komponen dari katalog (autofill harga) atau ketik bebas.",
       "Sisa bujet, total jual, modal, dan margin (Rp & %) dihitung otomatis saat Anda menambah/mengubah komponen.",
       "Kirim penawaran ke pelanggan via WhatsApp — hanya daftar komponen & TOTAL rakitan (harga per komponen disembunyikan).",
-      "Bila disetujui: 'Impor ke Rakit PC' — komponen berstok cukup langsung dialokasikan (potong stok), sisanya jadi baris non-stok.",
+      "Bisa juga memasukkan Barang Bekas & Titip Jual: pakai chip \"Bekas\"/\"Titipan\" atau cari nama, no. BK/TJ, no. seri. Unit = 1 buah; margin titipan = komisi toko. Simulasi belum mengunci unit (masih bisa laku di kasir).",
+      "Bila disetujui: 'Impor ke Rakit PC' — komponen berstok cukup langsung dialokasikan (potong stok), barang bekas/titipan yang masih tersedia ditandai terpakai, sisanya (termasuk unit yang keburu laku) jadi baris non-stok.",
     ],
     example: "Tawarkan 'PC Gaming 10jt': tambah CPU, GPU, RAM… sisa bujet turun tiap komponen; kirim WA berisi daftar + total Rp 9.800.000.",
   },
@@ -311,6 +312,7 @@ const SECTIONS: Section[] = [
     desc: "Buat rakitan dari komponen katalog + jasa rakit, dengan diskon & nota.",
     steps: [
       "Rakitan Baru: beri nama & pelanggan, tambah komponen (memotong stok), tetapkan jasa rakit.",
+      "Komponen juga bisa diambil dari Barang Bekas & Titip Jual (bagian \"Atau ambil dari Barang Bekas / Titip Jual\"). Unit langsung tercatat terjual & terpakai di rakitan ini (hilang dari kasir & galeri); hapus komponennya untuk mengembalikan. Laba: bekas = harga jual − harga beli, titipan = komisi toko (hak pemilik tercatat di menu Titip Jual). Titipan tidak menghasilkan poin member.",
       "Ubah status: Draft → Dirakit → Selesai → Diserahkan; beri diskon bila perlu; catat pembayaran.",
       "Cetak Nota: rincian komponen tanpa harga per item, hanya total rakitan — bagikan via WhatsApp (gambar/teks) atau cetak.",
     ],

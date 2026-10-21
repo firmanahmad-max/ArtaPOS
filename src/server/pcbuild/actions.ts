@@ -56,14 +56,37 @@ export async function addComponentAction(buildId: string, productId: string, qty
   }
 }
 
+/** Tambah komponen dari Barang Bekas / Titip Jual. */
+export async function addUnitComponentAction(buildId: string, kind: string, unitId: string): Promise<Result> {
+  const { user, allowed } = await ctx();
+  if (!allowed) return { ok: false, message: NO_PERM };
+  if (kind !== "used" && kind !== "consignment") return { ok: false, message: "Jenis barang tidak valid." };
+  try {
+    await svc.addUnitComponent(user.tenantId, buildId, kind, unitId);
+    refreshUnits(buildId);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Gagal." };
+  }
+}
+
+/** Barang bekas/titipan ikut berubah status saat dipakai/dilepas dari rakitan. */
+function refreshUnits(buildId: string) {
+  revalidatePath(`/pc-build/${buildId}`);
+  revalidatePath("/used-items", "layout");
+  revalidatePath("/consignments", "layout");
+  revalidatePath("/gallery");
+  revalidatePath("/pos");
+  revalidateReports();
+}
+
 export async function removeComponentAction(buildId: string, itemId: string): Promise<Result> {
   const { user, allowed } = await ctx();
   if (!allowed) return { ok: false, message: NO_PERM };
   try {
     await svc.removeComponent(user.tenantId, user.id, buildId, itemId);
-    revalidatePath(`/pc-build/${buildId}`);
     revalidatePath("/inventory");
-    revalidateReports();
+    refreshUnits(buildId);
     return { ok: true };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Gagal." };

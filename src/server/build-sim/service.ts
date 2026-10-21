@@ -4,6 +4,7 @@ import { moveStock } from "@/server/shared/stock";
 import { nextDocNumber } from "@/server/shared/numbering";
 import type { SimStatus } from "@/generated/prisma/enums";
 import type { BuildSimInput } from "@/lib/validations/build-sim";
+import { claimUnitForBuild } from "@/server/pcbuild/units";
 
 /**
  * Service Simulasi Rakitan — ter-scope tenantId.
@@ -51,17 +52,26 @@ export function getSimulation(tenantId: string, id: string) {
 // karega qty × harga bisa meledak (mis. 3jt × 999).
 const SAFE_MAX = 2_000_000_000;
 
-/** Petakan input item → data baris (subtotal dihitung server, jangan percaya klien). */
+/**
+ * Petakan input item → data baris (subtotal dihitung server, jangan percaya klien).
+ * Unit bekas/titipan: qty dipaksa 1 & tak boleh sekaligus produk. Kepemilikan
+ * unit (tenant) divalidasi ulang saat impor (claim ter-scope tenant).
+ */
 function itemsData(input: BuildSimInput) {
   return input.items.map((it, i) => {
-    const qty = it.qty;
+    const usedItemId = it.usedItemId ?? null;
+    const consignmentItemId = usedItemId ? null : (it.consignmentItemId ?? null);
+    const isUnit = !!(usedItemId || consignmentItemId);
+    const qty = isUnit ? 1 : it.qty;
     const sellPrice = it.sellPrice ?? 0;
     const costPrice = it.costPrice ?? 0;
     if (sellPrice * qty > SAFE_MAX || costPrice * qty > SAFE_MAX) {
       throw new Error(`Nilai komponen "${it.name || `#${i + 1}`}" terlalu besar.`);
     }
     return {
-      productId: it.productId ?? null,
+      productId: isUnit ? null : (it.productId ?? null),
+      usedItemId,
+      consignmentItemId,
       name: it.name,
       qty,
       costPrice,
@@ -74,7 +84,7 @@ function itemsData(input: BuildSimInput) {
 
 /** Cegah total (jasa + komponen) melebihi kapasitas kolom Int. */
 function assertTotalFits(input: BuildSimInput) {
-  const components = input.items.reduce((s, it) => s + (it.sellPrice ?? 0) * it.qty, 0);
+  const components = itemsData(input).reduce((s, it) => s + it.subtotal, 0);
   if (input.buildFee + components > SAFE_MAX) {
     throw new Error("Total penawaran terlalu besar.");
   }
@@ -188,14 +198,16 @@ export async function setSimStatus(tenantId: string, id: string, status: SimStat
 export interface ImportResult {
   buildId: string;
   number: string;
-  allocated: number; // komponen inventory yang stoknya dipotong
-  pending: number; // komponen bebas / stok kurang (baris non-stok)
+  allocated: number; // komponen inventory yang stoknya dipotong + unit bekas/titipan yang diklaim
+  pending: number; // komponen bebas / stok kurang / unit sudah tak tersedia (baris non-stok)
 }
 
 /**
  * Impor simulasi disetujui → PcBuild siap dikerjakan.
  * - Komponen inventory dgn stok cukup → stok dipotong (BUILD_OUT), stockApplied=true.
  * - Komponen bebas / stok kurang → baris non-stok (stockApplied=false), tak potong.
+ * - Barang bekas / titipan yang masih tersedia → diklaim (status terjual, tertaut
+ *   rakitan); yang sudah laku/dipakai → baris non-stok.
  * Harga jual mengikuti yang ditawarkan (sellPrice simulasi). Modal komponen
  * inventory di-snapshot dari produk saat ini; komponen bebas pakai modal simulasi.
  * Idempoten ringan: bila sudah pernah diimpor, kembalikan build yang sama.
@@ -247,6 +259,44 @@ export async function importToBuild(
     let allocated = 0;
     let pending = 0;
     for (const it of sim.items) {
+      // Unit bekas/titipan: klaim bila masih tersedia (harga = harga penawaran);
+      // bila sudah laku/dipakai → baris non-stok agar penawaran tetap utuh.
+      if (it.usedItemId || it.consignmentItemId) {
+        const unit = await claimUnitForBuild(tx, tenantId, {
+          kind: it.usedItemId ? "used" : "consignment",
+          id: (it.usedItemId ?? it.consignmentItemId)!,
+          buildId: build.id,
+          price: it.sellPrice,
+        });
+        await tx.pcBuildItem.create({
+          data: unit
+            ? {
+                buildId: build.id,
+                productId: unit.productId,
+                productName: unit.productName,
+                qty: 1,
+                price: unit.price,
+                costPrice: unit.costPrice,
+                subtotal: unit.price,
+                stockApplied: false,
+                usedItemId: unit.usedItemId,
+                consignmentItemId: unit.consignmentItemId,
+              }
+            : {
+                buildId: build.id,
+                productId: null,
+                productName: it.name,
+                qty: 1,
+                price: it.sellPrice,
+                costPrice: it.costPrice,
+                subtotal: it.sellPrice,
+                stockApplied: false,
+              },
+        });
+        if (unit) allocated++;
+        else pending++;
+        continue;
+      }
       const prod = it.productId ? pmap.get(it.productId) : undefined;
       const canAllocate = !!prod && prod.stock >= it.qty;
       if (prod && canAllocate) {

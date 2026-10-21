@@ -3,6 +3,9 @@ import { z } from "zod";
 /** Satu komponen simulasi — boleh dari inventory (productId) atau bebas (ketik). */
 export const simItemSchema = z.object({
   productId: z.string().min(1).optional().nullable(),
+  /** Komponen dari Barang Bekas / Titip Jual (unit tunggal; qty dipaksa 1). */
+  usedItemId: z.string().min(1).optional().nullable(),
+  consignmentItemId: z.string().min(1).optional().nullable(),
   name: z.string().min(1, "Nama komponen wajib").max(160).trim(),
   qty: z.coerce.number().int("Qty bulat").min(1, "Qty minimal 1").max(999),
   costPrice: z.coerce.number().int().min(0).max(2_000_000_000).default(0),

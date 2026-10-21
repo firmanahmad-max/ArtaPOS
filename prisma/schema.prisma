@@ -896,6 +896,7 @@ model ConsignmentItem {
   ownerShare      Int?
   saleId          String? // penjualan kasir yang menjual barang ini (null = ditandai manual)
   ownerPaidAt     DateTime? // kapan hak pemilik dibayarkan (null = belum)
+  pcBuildId       String? // rakitan (Rakit PC) yang memakai barang ini sebagai komponen (null = bukan)
 
   consignment Consignment  @relation(fields: [consignmentId], references: [id], onDelete: Cascade)
   galleryItem GalleryItem? // dipajang di Galeri Publik (opsional)
@@ -952,6 +953,7 @@ model UsedItem {
   status       UsedItemStatus @default(AVAILABLE)
   soldPrice    Int? // harga bersih terjual (setelah diskon baris)
   saleId       String? // penjualan kasir yang menjualnya
+  pcBuildId    String? // rakitan (Rakit PC) yang memakai barang ini sebagai komponen
   statusAt     DateTime? // kapan terjual/ditarik
   createdById  String?
   createdAt    DateTime       @default(now())
@@ -1095,6 +1097,11 @@ model PcBuildItem {
   /// false = komponen bebas / stok belum dipotong (mis. hasil impor simulasi
   /// yang stoknya kurang). removeComponent hanya me-restock bila true.
   stockApplied Boolean @default(true)
+  /// Komponen = barang BEKAS / TITIPAN (unit tunggal). productId diisi id unit itu
+  /// (pola kasir: HPP ikut terhitung, lookup produk tak ketemu → stok tak disentuh)
+  /// dan stockApplied=false. costPrice = harga beli (bekas) / hak pemilik (titipan).
+  usedItemId        String?
+  consignmentItemId String?
 
   build PcBuild @relation(fields: [buildId], references: [id], onDelete: Cascade)
 
@@ -1143,6 +1150,10 @@ model BuildSimulationItem {
   sellPrice    Int     @default(0) // harga jual per unit
   subtotal     Int     @default(0) // sellPrice * qty
   sortOrder    Int     @default(0)
+  /// Komponen dari Barang Bekas / Titip Jual (unit tunggal, qty 1). Simulasi tak
+  /// mengunci unit; unit baru diklaim saat diimpor ke Rakit PC (bila masih tersedia).
+  usedItemId        String?
+  consignmentItemId String?
 
   simulation BuildSimulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
 

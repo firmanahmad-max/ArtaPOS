@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Pencil, Barcode, Receipt } from "lucide-react";
+import { ArrowLeft, Pencil, Barcode, Receipt, Cpu } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { getUsedItem, saleNumberFor } from "@/server/used-items/service";
+import { buildNumberFor } from "@/server/pcbuild/units";
 import { daysInStock, gradeText, sourceLabel, usedMargin, warrantyText } from "@/lib/used-item";
 import { formatRupiah } from "@/lib/utils";
 import { formatLocalDate, formatLocalDateTime } from "@/lib/timezone";
@@ -24,7 +25,10 @@ export default async function UsedItemDetailPage({ params }: { params: Promise<{
   }
   const it = await getUsedItem(user.tenantId, id);
   if (!it) notFound();
-  const sale = await saleNumberFor(user.tenantId, it.saleId);
+  const [sale, build] = await Promise.all([
+    saleNumberFor(user.tenantId, it.saleId),
+    buildNumberFor(user.tenantId, it.pcBuildId),
+  ]);
   const st = USED_STATUS_META[it.status];
   const soldPrice = it.soldPrice ?? it.sellPrice;
   const m = usedMargin(it.costPrice, it.status === "SOLD" ? soldPrice : it.sellPrice);
@@ -114,7 +118,18 @@ export default async function UsedItemDetailPage({ params }: { params: Promise<{
                 </Link>
               </>
             )}
-            . Untuk membatalkan, lakukan void/retur pada penjualannya.
+            {build && (
+              <>
+                {" "}
+                sebagai komponen rakitan{" "}
+                <Link href={`/pc-build/${build.id}`} className="inline-flex items-center gap-1 font-medium text-primary hover:underline">
+                  <Cpu className="size-3.5" /> {build.number}
+                </Link>
+              </>
+            )}
+            {build
+              ? ". Untuk membatalkan, hapus komponennya dari rakitan."
+              : ". Untuk membatalkan, lakukan void/retur pada penjualannya."}
           </CardContent>
         )}
       </Card>
