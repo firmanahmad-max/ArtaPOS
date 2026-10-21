@@ -170,8 +170,8 @@ export function buildConsignmentText(n: {
     components?: { name: string; serialNumber?: string | null; note?: string | null }[];
     askingPrice: number;
     statusLabel?: string;
-    /** Diisi bila terjual: harga laku & hak pemilik (komisi toko tak ditampilkan). */
-    sold?: { price: number; ownerShare: number; paid: boolean } | null;
+    /** Diisi bila terjual: hak pemilik saja (komisi toko & harga laku tak ditampilkan). */
+    sold?: { ownerShare: number; paid: boolean } | null;
   }[];
   askingTotal: number;
   note?: string | null;
@@ -204,7 +204,6 @@ export function buildConsignmentText(n: {
       `   ${parts.length ? "Harga paket" : "Harga jual"}: ${formatRupiah(it.askingPrice)}${it.statusLabel ? ` · ${it.statusLabel}` : ""}`,
     );
     if (it.sold) {
-      rows.push(`   Laku: ${formatRupiah(it.sold.price)}`);
       rows.push(`   Hak Anda: *${formatRupiah(it.sold.ownerShare)}* (${it.sold.paid ? "sudah dibayar" : "belum dibayar"})`);
     }
   });

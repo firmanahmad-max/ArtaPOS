@@ -192,7 +192,7 @@ const SECTIONS: Section[] = [
       "Jual dari Kasir: buka tab \"Titipan\" di POS (atau scan no. seri), tambahkan ke keranjang seperti produk biasa, lalu bayar. Hanya bisa saat online. Paket tampil dengan label \"Paket\"; scan no. seri komponen mana pun menemukan paketnya, dan struk mencetak satu baris berisi daftar isinya.",
       "Pemilik mengambil sebagian isi paket (mis. monitornya saja)? Di detail titipan tekan \"Ubah isi paket\", hapus komponennya, lalu sesuaikan harga lewat \"Ubah harga & komisi\". Deskripsi di Galeri ikut diperbarui.",
       "Setelah laku: komisi otomatis jadi laba toko di laporan Keuangan, sisanya tercatat sebagai Hak Pemilik (belum dibayar). Bayar ke pemilik lalu tekan \"Bayar hak pemilik\" di detail titipan.",
-      "Kirim ulang tanda titip ke pemilik sebagai laporan: berisi harga laku, hak pemilik, dan status pembayarannya. Komisi toko tidak dicantumkan di tanda titip (hanya terlihat di aplikasi).",
+      "Kirim ulang tanda titip ke pemilik sebagai laporan: berisi status barang, hak pemilik, dan status pembayarannya. Harga laku & komisi toko tidak dicantumkan di tanda titip (hanya terlihat di aplikasi).",
       "Pajang di Galeri Publik: tekan \"Tampilkan di Galeri\" pada barang yang masih dititipkan (atau pilih barang titipan di form Galeri untuk menambahkan foto). Harga mengikuti Titip Jual, dan barang otomatis hilang dari galeri saat laku atau diambil kembali.",
       "Void/retur penjualan mengembalikan barang ke \"Dititipkan\". Bila hak pemilik sudah dibayar, batalkan pembayarannya dulu.",
     ],

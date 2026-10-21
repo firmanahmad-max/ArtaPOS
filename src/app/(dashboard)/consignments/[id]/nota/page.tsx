@@ -58,7 +58,6 @@ export default async function ConsignmentNotaPage({ params }: { params: Promise<
               statusLabel: i.status === "AVAILABLE" ? undefined : CONSIGNMENT_STATUS_META[i.status].label,
               sold: split
                 ? {
-                    price: i.soldPrice ?? i.askingPrice,
                     ownerShare: split.ownerShare,
                     paid: !!i.ownerPaidAt,
                   }
