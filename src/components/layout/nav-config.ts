@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Megaphone,
+  Star,
   LayoutDashboard,
   ShoppingCart,
   Images,
@@ -58,6 +59,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/shift", label: "Shift Kasir", icon: Clock, permission: "pos.use", enabled: true },
       { href: "/receivables", label: "Piutang", icon: Coins, permission: "reports.view", enabled: true },
       { href: "/customers", label: "Pelanggan", icon: UserRound, permission: "pos.use", enabled: true },
+      { href: "/reviews", label: "Ulasan Pelanggan", icon: Star, permission: "reports.view", enabled: true },
       { href: "/daily-content", label: "Konten Harian", icon: Megaphone, permission: "settings.manage", enabled: true },
     ],
   },

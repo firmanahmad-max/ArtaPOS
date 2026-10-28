@@ -6,6 +6,7 @@ import { cn, formatRupiah } from "@/lib/utils";
 import { formatLocalDateTime } from "@/lib/timezone";
 import { pctChange, rupiahShort } from "@/lib/dashboard-calc";
 import { listDueReports, getReportSettings } from "@/server/scheduled-reports/service";
+import { countOpenFollowUps } from "@/server/reviews/service";
 import { getArtaInsights } from "@/server/insights/service";
 import {
   getActionCounts,
@@ -165,10 +166,11 @@ export async function ActionSection({ tenantId, role, now }: Ctx) {
     inventory: can(role, "inventory.manage"),
     finance: can(role, "finance.view"),
   };
-  const [counts, reports, reportSettings] = await Promise.all([
+  const [counts, reports, reportSettings, lowReviews] = await Promise.all([
     getActionCounts(tenantId, now, perms).catch(() => null),
     perms.finance ? listDueReports(tenantId, now) : Promise.resolve([]),
     perms.finance ? getReportSettings(tenantId).catch(() => null) : Promise.resolve(null),
+    perms.reports ? countOpenFollowUps(tenantId) : Promise.resolve(0),
   ]);
   if (!counts) return <SectionError what="Daftar tindakan" />;
   const rp = (n: number) => formatRupiah(n);
@@ -191,6 +193,16 @@ export async function ActionSection({ tenantId, role, now }: Ctx) {
       cta: "Kabari pelanggan",
       href: "/service?filter=ready",
       tone: "ok",
+    });
+  if (lowReviews > 0)
+    items.push({
+      id: "reviews",
+      count: lowReviews,
+      title: "Ulasan kurang puas",
+      detail: "Hubungi & perbaiki segera",
+      cta: "Tindak lanjuti",
+      href: "/reviews?filter=tindak",
+      tone: "bad",
     });
   if (counts.dueReminders > 0)
     items.push({

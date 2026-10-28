@@ -10,6 +10,7 @@ import { listPayables } from "@/server/purchasing/service";
 import { getFinanceComparison } from "@/server/finance/service";
 import { topGalleryItems } from "@/server/gallery/service";
 import { countDueReminders } from "@/server/service-reminders/service";
+import { countOpenFollowUps } from "@/server/reviews/service";
 
 /**
  * "Tanya Arta" — mesin insight otomatis (deterministik, tanpa API eksternal).
@@ -111,6 +112,8 @@ export async function getArtaInsights(tenantId: string, role: UserRole): Promise
   const finance = canFin ? await getFinanceComparison(tenantId, "month") : null;
   // Pengingat servis berkala yang jatuh tempo (dihitung terpisah, berurutan → hemat koneksi).
   const dueReminders = can(role, "service.manage") ? await countDueReminders(tenantId) : 0;
+  // Ulasan pelanggan 1–3 bintang yang belum ditindaklanjuti (0 bila tabel belum ada).
+  const lowReviews = canReports ? await countOpenFollowUps(tenantId) : 0;
 
   // ── Penjualan ──────────────────────────────────────────────────────────
   if (canReports) {
@@ -198,6 +201,17 @@ export async function getArtaInsights(tenantId: string, role: UserRole): Promise
         detail: "Ada tiket berstatus Selesai yang belum diserahkan. Hubungi pelanggan agar segera diambil.",
         href: "/service",
         actionLabel: "Lihat tiket",
+      });
+    }
+    if (lowReviews > 0) {
+      insights.push({
+        id: "reviews-followup",
+        domain: "penjualan",
+        tone: "critical",
+        title: `${lowReviews} ulasan pelanggan kurang puas belum ditindaklanjuti`,
+        detail: "Hubungi pelanggan secepatnya & perbaiki — keluhan yang ditangani dengan baik sering berubah jadi pelanggan setia.",
+        href: "/reviews?filter=tindak",
+        actionLabel: "Tindak lanjuti",
       });
     }
     if (dueReminders > 0) {

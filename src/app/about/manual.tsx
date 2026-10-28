@@ -23,6 +23,7 @@ import {
   Printer,
   Search,
   Images,
+  Star,
   Handshake,
   Recycle,
   BellRing,
@@ -162,6 +163,19 @@ const SECTIONS: Section[] = [
       "Scan: pakai kamera perangkat atau USB scanner (keyboard-wedge) di kasir/pencarian.",
       "Cetak label: buka produk → Label barcode (Code128) untuk ditempel pada barang.",
     ],
+  },
+  {
+    icon: Star,
+    title: "Ulasan & Testimoni Pelanggan",
+    desc: "Minta ulasan via WhatsApp setelah servis, rakitan atau belanja — dorong rating Google, tangani keluhan lebih cepat, dan pajang testimoni.",
+    steps: [
+      "Isi Link Ulasan Google di menu Penjualan → Ulasan Pelanggan (dari Google Business Profile → \"Minta ulasan\"). Opsional, tapi sangat disarankan.",
+      "Setelah servis/rakitan Selesai atau Diserahkan, tekan \"Minta ulasan via WhatsApp\" di halaman detailnya. Atau buka tab \"Siap diminta\" di menu Ulasan untuk mengirim ke banyak pelanggan sekaligus (termasuk belanja member 30 hari terakhir).",
+      "Pelanggan membuka link pribadi (tanpa login), memilih 1–5 bintang & menulis komentar. Mereka bisa mengizinkan ulasannya tampil sebagai testimoni (nama disingkat, mis. \"Budi S.\").",
+      "4–5 bintang: pelanggan diajak menulis ulasan yang sama di Google (komentarnya otomatis tersalin). 1–3 bintang: masuk tab \"Perlu tindak lanjut\", muncul di Dashboard & Tanya Arta — hubungi via WA, catat penyelesaiannya, lalu tandai selesai. Tautan Google tetap tersedia untuk semua pelanggan sesuai kebijakan Google.",
+      "Tab Testimoni: tekan \"Tampilkan di Galeri\" agar muncul di bagian \"Kata Pelanggan\" Galeri Publik, atau \"Bagikan sebagai gambar\" (1080×1350) untuk Feed IG / Status WA. Rata-rata bintang tampil di Galeri setelah minimal 3 ulasan.",
+    ],
+    example: "Servis laptop Dewi selesai → kirim permintaan ulasan → Dewi memberi 5 bintang & mengizinkan testimoni → diarahkan ke Google → testimoninya dipajang di Galeri & dibagikan sebagai gambar di Story.",
   },
   {
     icon: Images,

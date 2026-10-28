@@ -60,6 +60,26 @@ export function buildServiceStatusText(args: {
   return lines.join("\n");
 }
 
+/** Permintaan ulasan via WhatsApp (link pribadi /ulasan/<token>). */
+export function buildReviewRequestText(args: {
+  storeName: string;
+  customerName?: string | null;
+  /** "servis" / "rakitan PC" / "belanja". */
+  what: string;
+  docNumber: string;
+  url: string;
+}): string {
+  const hi = args.customerName ? `Halo Kak ${args.customerName.split(/\s+/)[0]},` : "Halo Kak,";
+  return [
+    `${hi} terima kasih sudah mempercayakan ${args.what} Anda (${args.docNumber}) di *${args.storeName}* 🙏`,
+    "",
+    "Boleh minta waktu 30 detik untuk menilai pengalaman Anda? Cukup pilih bintang ⭐ di link berikut:",
+    args.url,
+    "",
+    "Masukan Anda sangat berarti agar kami terus memberi layanan terbaik.",
+  ].join("\n");
+}
+
 /** Kalimat pembuka per status rakitan (pesan "Beri tahu via WhatsApp" Rakit PC). */
 const BUILD_STATUS_INTRO: Record<string, string> = {
   DRAFT: "Pesanan rakitan PC Anda sudah kami catat dan segera kami siapkan.",

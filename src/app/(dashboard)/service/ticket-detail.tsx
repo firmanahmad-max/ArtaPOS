@@ -18,6 +18,7 @@ import {
 import { clampQty, formatRupiah } from "@/lib/utils";
 import { formatLocalDateTime } from "@/lib/timezone";
 import { buildServiceStatusText, waLink } from "@/lib/whatsapp";
+import { RequestReviewButton } from "@/components/reviews/request-review-button";
 import { buildTrackUrl, type TrackExtras } from "@/lib/track-link";
 import { JobPointsPanel, type JobLoyaltyInfo } from "@/components/loyalty/job-points-panel";
 import { intervalText } from "@/lib/service-reminder";
@@ -76,6 +77,7 @@ export function TicketDetail({
   track,
   points,
   catalog = [],
+  review,
 }: {
   ticket: TicketData;
   products: ServiceProduct[];
@@ -89,6 +91,8 @@ export function TicketDetail({
   points?: JobLoyaltyInfo;
   /** Katalog jasa aktif (harga standar + interval perawatan). */
   catalog?: { id: string; name: string; price: number; intervalMonths: number }[];
+  /** Status ulasan pelanggan untuk tiket ini (null = belum pernah diminta). */
+  review?: { rating: number | null; requested: boolean } | null;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -192,6 +196,9 @@ export function TicketDetail({
             >
               <MessageCircle /> Beri tahu via WhatsApp
             </Button>
+          )}
+          {(ticket.status === "DONE" || ticket.status === "DELIVERED") && (
+            <RequestReviewButton source="SERVICE" id={ticket.id} storeName={storeName} status={review} />
           )}
 
           {/* Keterangan status bebas — lebih rinci dari fase, terlihat pelanggan */}

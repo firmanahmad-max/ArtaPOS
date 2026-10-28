@@ -11,6 +11,7 @@ import { listCatalog } from "@/server/service-catalog/service";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TicketDetail } from "../ticket-detail";
+import { getReviewForDoc } from "@/server/reviews/service";
 import { ServicePhotos } from "../photos";
 import { formatLocalDateTime } from "@/lib/timezone";
 
@@ -26,10 +27,11 @@ export default async function TicketDetailPage({
   if (!can(user.role, "service.manage")) {
     return <Card className="p-8 text-center text-sm text-muted-foreground">Tidak punya izin.</Card>;
   }
-  const [ticket, products, track] = await Promise.all([
+  const [ticket, products, track, review] = await Promise.all([
     getTicket(user.tenantId, id),
     listProductsForService(user.tenantId),
     getTrackExtras(user.tenantId),
+    getReviewForDoc(user.tenantId, { source: "SERVICE", id }),
   ]);
   if (!ticket) notFound();
 
@@ -88,6 +90,7 @@ export default async function TicketDetailPage({
         customerPhone={ticket.customerPhone}
         storeName={user.tenant.name}
         track={track}
+        review={review ? { rating: review.rating, requested: !!review.requestedAt } : null}
         points={await jobLoyaltyInfo(user.tenantId, ticket.customerId, { serviceTicketId: ticket.id }, ticket)}
         catalog={(await listCatalog(user.tenantId, true).catch(() => [])).map((c) => ({
           id: c.id,

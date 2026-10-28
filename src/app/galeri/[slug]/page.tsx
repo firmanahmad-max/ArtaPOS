@@ -4,6 +4,9 @@ import { Store } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { formatRupiah } from "@/lib/utils";
 import { parseGalleryQuery } from "@/lib/gallery-filter";
+import { formatRating, REVIEW_SOURCE_LABEL } from "@/lib/review";
+import { formatLocalDate } from "@/lib/timezone";
+import { getPublicReviews } from "@/server/reviews/service";
 import { APP_NAME } from "@/lib/brand";
 import { getGalleryStoreBySlug, listGalleryPublic } from "@/server/gallery/service";
 import { galleryRefKind } from "@/lib/track-link";
@@ -69,7 +72,12 @@ export default async function GaleriPage({
   const store = await getGalleryStoreBySlug(slug).catch(() => null);
   if (!store || !store.isActive) notFound();
 
-  const items = await listGalleryPublic(store.id).catch(() => []);
+  const [items, reviews] = await Promise.all([
+    listGalleryPublic(store.id).catch(() => []),
+    getPublicReviews(store.id),
+  ]);
+  // Rata-rata bintang ditampilkan bila sudah cukup ulasan (agar tak menyesatkan).
+  const showRating = reviews.average != null && reviews.count >= 3;
   const wid = waId(store.phone);
 
   return (
@@ -86,7 +94,14 @@ export default async function GaleriPage({
           )}
           <div className="leading-tight">
             <p className="font-semibold">{store.name}</p>
-            <p className="text-xs text-muted-foreground">Galeri Produk &amp; Promo</p>
+            <p className="text-xs text-muted-foreground">
+              Galeri Produk &amp; Promo
+              {showRating && (
+                <a href="#testimoni" className="ml-1.5 font-semibold text-amber-600 hover:underline dark:text-amber-400">
+                  ★ {formatRating(reviews.average!)} · {reviews.count} ulasan
+                </a>
+              )}
+            </p>
           </div>
         </div>
         <ThemeToggle />
@@ -122,6 +137,38 @@ export default async function GaleriPage({
               }))}
             />
           </>
+        )}
+
+        {reviews.testimonials.length > 0 && (
+          <section id="testimoni" className="mt-12 scroll-mt-6">
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <h2 className="text-xl font-bold tracking-tight">Kata Pelanggan</h2>
+                <p className="text-sm text-muted-foreground">Ulasan asli dari pelanggan {store.name}.</p>
+              </div>
+              {showRating && (
+                <p className="text-sm">
+                  <span className="text-lg font-bold text-amber-500">★ {formatRating(reviews.average!)}</span>
+                  <span className="text-muted-foreground"> / 5 dari {reviews.count} ulasan</span>
+                </p>
+              )}
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {reviews.testimonials.map((t) => (
+                <figure key={t.id} className="flex flex-col gap-3 rounded-2xl border bg-card p-5 elevate">
+                  <div className="text-lg tracking-wider text-amber-500" aria-label={`${t.rating} dari 5 bintang`}>
+                    {"★".repeat(t.rating)}
+                    <span className="text-muted-foreground/30">{"★".repeat(5 - t.rating)}</span>
+                  </div>
+                  <blockquote className="flex-1 whitespace-pre-line text-sm leading-relaxed">&ldquo;{t.comment}&rdquo;</blockquote>
+                  <figcaption className="text-xs text-muted-foreground">
+                    <span className="font-semibold text-foreground">{t.name}</span> · {REVIEW_SOURCE_LABEL[t.source]} ·{" "}
+                    {formatLocalDate(new Date(t.at), { month: "short", year: "numeric" })}
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          </section>
         )}
 
         <footer className="mt-10 border-t pt-5 text-center text-xs text-muted-foreground">

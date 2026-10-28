@@ -15,6 +15,7 @@ import {
 } from "@/server/pcbuild/actions";
 import { formatRupiah } from "@/lib/utils";
 import { buildPcBuildStatusText, waLink } from "@/lib/whatsapp";
+import { RequestReviewButton } from "@/components/reviews/request-review-button";
 import { buildPortalUrl } from "@/lib/portal";
 import { PartPicker } from "@/components/inventory/part-picker";
 import { UnitPicker } from "@/components/inventory/unit-picker";
@@ -52,6 +53,7 @@ export function BuildDetail({
   products,
   units = [],
   notify,
+  review,
   points,
 }: {
   build: BuildData;
@@ -67,6 +69,8 @@ export function BuildDetail({
     phone: string | null;
     portalToken: string | null;
   };
+  /** Status ulasan pelanggan untuk rakitan ini (null = belum pernah diminta). */
+  review?: { rating: number | null; requested: boolean } | null;
   /** Poin member (pelanggan tertaut, tukar poin, poin didapat). */
   points?: JobLoyaltyInfo;
 }) {
@@ -131,6 +135,9 @@ export function BuildDetail({
               <Button variant="whatsapp" size="sm" onClick={notifyWhatsApp}>
                 <MessageCircle /> Beri tahu via WhatsApp
               </Button>
+              {(build.status === "DONE" || build.status === "DELIVERED") && (
+                <RequestReviewButton source="BUILD" id={build.id} storeName={notify.storeName} status={review} />
+              )}
               <span className="text-xs text-muted-foreground">
                 {notify.phone
                   ? `ke ${notify.customerName ?? "pelanggan"} (${notify.phone}) · status, total & sisa pembayaran`

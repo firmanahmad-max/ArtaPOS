@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, BellRing, CalendarClock, CheckCircle2, Clock, Wallet, Wrench } from "lucide-react";
+import { AlertTriangle, BellRing, CalendarClock, CheckCircle2, Clock, MessageSquareWarning, Wallet, Wrench } from "lucide-react";
 import { ScheduledReportsCard, type DueReportView } from "@/components/finance/scheduled-reports-card";
 import { cn } from "@/lib/utils";
 
-export type ActionIcon = "reports" | "ready" | "reminder" | "overdue" | "stock" | "consign";
+export type ActionIcon = "reports" | "ready" | "reviews" | "reminder" | "overdue" | "stock" | "consign";
 export interface ActionItem {
   id: ActionIcon;
   count: number;
@@ -20,6 +20,7 @@ export interface ActionItem {
 const ICONS = {
   reports: CalendarClock,
   ready: Wrench,
+  reviews: MessageSquareWarning,
   reminder: BellRing,
   overdue: Clock,
   stock: AlertTriangle,
