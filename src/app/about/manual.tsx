@@ -172,6 +172,7 @@ const SECTIONS: Section[] = [
       "Bisa juga memajang barang Titip Jual: pilih di \"tautkan barang titipan\". Harganya mengikuti Titip Jual dan otomatis disembunyikan saat barang laku/diambil pemilik.",
       "Lengkapi foto (otomatis dikompres), spesifikasi singkat, dan label opsional (Promo/Baru/Unggulan/Diskon/Terlaris).",
       "Simpan — item aktif langsung tampil di galeri publik toko Anda. Sembunyikan/Ubah/Hapus kapan pun.",
+      "Pelanggan bisa mencari & menyaring galeri berdasarkan Kategori, Brand, Kondisi (baru/bekas) & rentang Harga, serta mengurutkan (terpopuler/termurah/termahal). Kategori & brand terisi otomatis (dari kategori produk/titipan/bekas atau ditebak dari judul) — ubah di kolom Kategori/Brand pada form pajangan bila perlu. Hasil saringan bisa dibagikan, mis. /galeri/<toko>?k=Laptop.",
       "Bagikan tautan galeri (/galeri/<toko>) ke WhatsApp/sosmed; tombolnya juga muncul di halaman Lacak. Pastikan No. HP toko terisi di Pengaturan agar tombol 'Chat WA' aktif.",
       "Pelanggan menekan 'Saya Berminat (Chat WA)' → langsung chat WhatsApp berisi nama produk; atau 'Bagikan' untuk meneruskan ke orang lain.",
       "Selama ada pajangan aktif, struk penjualan & Tanda Titip Jual yang dikirim via WhatsApp otomatis menyertakan tautan galeri.",

@@ -13,6 +13,7 @@ import { Select } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatRupiah } from "@/lib/utils";
+import { resolveFacets } from "@/lib/gallery-filter";
 import {
   saveGalleryItemAction,
   deleteGalleryItemAction,
@@ -27,6 +28,11 @@ export interface GalleryRow {
   price: number;
   photo: string | null;
   label: string | null;
+  /** Isian toko untuk filter publik (null = otomatis). */
+  category: string | null;
+  brand: string | null;
+  /** Kategori dari sumber tertaut (produk/titipan/bekas) — dasar nilai otomatis. */
+  sourceCategory: string | null;
   isActive: boolean;
   views: number;
   clicks: number;
@@ -42,6 +48,7 @@ interface ProductOpt {
   id: string;
   name: string;
   sellPrice: number;
+  category: string | null;
 }
 interface ConsignmentOpt {
   id: string;
@@ -50,6 +57,7 @@ interface ConsignmentOpt {
   number: string;
   askingPrice: number;
   condition: string | null;
+  category: string;
   inGallery: boolean;
 }
 interface UsedOpt {
@@ -57,6 +65,7 @@ interface UsedOpt {
   label: string;
   number: string;
   sellPrice: number;
+  category: string;
   spec: string;
   inGallery: boolean;
 }
@@ -70,10 +79,12 @@ type Form = {
   price: number;
   photo: string | null;
   label: string;
+  category: string;
+  brand: string;
   isActive: boolean;
 };
 
-const BLANK: Form = { productId: "", consignmentItemId: "", usedItemId: "", title: "", spec: "", price: 0, photo: null, label: "", isActive: true };
+const BLANK: Form = { productId: "", consignmentItemId: "", usedItemId: "", title: "", spec: "", price: 0, photo: null, label: "", category: "", brand: "", isActive: true };
 const LABELS = ["Promo", "Baru", "Unggulan", "Diskon", "Terlaris"];
 
 function compressImage(file: File, maxDim = 1000, quality = 0.72): Promise<string> {
@@ -141,6 +152,8 @@ export function GalleryManager({
       price: it.price,
       photo: it.photo,
       label: it.label ?? "",
+      category: it.category ?? "",
+      brand: it.brand ?? "",
       isActive: it.isActive,
     });
   }
@@ -194,6 +207,29 @@ export function GalleryManager({
   const linkedButGone =
     !!form?.consignmentItemId && !consignmentChoices.some((c) => c.id === form.consignmentItemId);
 
+  // Nilai otomatis (bila kolom dikosongkan) — sama dengan yang dipakai halaman publik.
+  const formSourceCategory = form
+    ? (products.find((p) => p.id === form.productId)?.category ??
+      consignments.find((c) => c.id === form.consignmentItemId)?.category ??
+      usedItems.find((u) => u.id === form.usedItemId)?.category ??
+      (editingRow &&
+      editingRow.productId === (form.productId || null) &&
+      editingRow.consignmentItemId === (form.consignmentItemId || null) &&
+      editingRow.usedItemId === (form.usedItemId || null)
+        ? editingRow.sourceCategory
+        : null))
+    : null;
+  const auto = form ? resolveFacets({ title: form.title, sourceCategory: formSourceCategory }) : null;
+  // Saran isian: nilai yang sudah dipakai di galeri + kategori umum.
+  const facetSuggestions = (key: "category" | "brand") =>
+    [
+      ...new Set(
+        items
+          .map((i) => resolveFacets({ title: i.title, category: i.category, brand: i.brand, sourceCategory: i.sourceCategory })[key])
+          .filter((v): v is string => !!v),
+      ),
+    ].sort((a, b) => a.localeCompare(b, "id"));
+
   async function onPhoto(file?: File) {
     if (!file) return;
     try {
@@ -221,6 +257,8 @@ export function GalleryManager({
       price: form.price,
       photo: form.photo, // dataUrl / null
       label: form.label || null,
+      category: form.category.trim() || null,
+      brand: form.brand.trim() || null,
       isActive: form.isActive,
     });
     setSaving(false);
@@ -407,6 +445,40 @@ export function GalleryManager({
                   </div>
                 </div>
               </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <datalist id="g-cat-list">
+                  {facetSuggestions("category").map((v) => <option key={v} value={v} />)}
+                </datalist>
+                <datalist id="g-brand-list">
+                  {facetSuggestions("brand").map((v) => <option key={v} value={v} />)}
+                </datalist>
+                <div className="space-y-1.5">
+                  <Label htmlFor="g-cat">Kategori <span className="font-normal text-muted-foreground">(filter galeri)</span></Label>
+                  <Input
+                    id="g-cat"
+                    list="g-cat-list"
+                    value={form.category}
+                    onChange={(e) => patch({ category: e.target.value })}
+                    placeholder={auto?.category ? `Otomatis: ${auto.category}` : "mis. VGA, Laptop, Monitor"}
+                    maxLength={40}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="g-brand">Brand <span className="font-normal text-muted-foreground">(filter galeri)</span></Label>
+                  <Input
+                    id="g-brand"
+                    list="g-brand-list"
+                    value={form.brand}
+                    onChange={(e) => patch({ brand: e.target.value })}
+                    placeholder={auto?.brand ? `Otomatis: ${auto.brand}` : "mis. ASUS, MSI, Logitech"}
+                    maxLength={40}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground sm:col-span-2">
+                  Kosongkan untuk otomatis (dari kategori produk/titipan/barang bekas atau ditebak dari judul). Pelanggan
+                  bisa menyaring galeri berdasarkan kategori, brand, kondisi & harga.
+                </p>
+              </div>
               <div className="space-y-1.5">
                 <Label htmlFor="g-spec">Spesifikasi / deskripsi</Label>
                 <Textarea
@@ -488,6 +560,11 @@ export function GalleryManager({
                 )}
               </div>
               <div className="flex flex-1 flex-col gap-1 p-3">
+                {(() => {
+                  const fx = resolveFacets({ title: it.title, category: it.category, brand: it.brand, sourceCategory: it.sourceCategory });
+                  const meta = [fx.category, fx.brand].filter(Boolean).join(" · ");
+                  return meta ? <p className="text-[10.5px] font-semibold uppercase tracking-wide text-primary">{meta}</p> : null;
+                })()}
                 <p className="line-clamp-1 font-semibold">{it.title}</p>
                 {it.consignmentItemId && it.consignmentId && (
                   <Link

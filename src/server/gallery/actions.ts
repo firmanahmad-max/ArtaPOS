@@ -23,6 +23,8 @@ const schema = z.object({
   price: z.number().int().min(0).max(2_000_000_000).optional().default(0),
   photo: z.string().optional().nullable(),
   label: z.string().max(24).optional().nullable(),
+  category: z.string().max(40).optional().nullable(),
+  brand: z.string().max(40).optional().nullable(),
   isActive: z.boolean().optional().default(true),
 });
 
@@ -43,6 +45,8 @@ export async function saveGalleryItemAction(
       price: data.price,
       photo: data.photo === undefined ? undefined : data.photo,
       label: data.label ?? null,
+      category: data.category ?? null,
+      brand: data.brand ?? null,
       isActive: data.isActive,
     };
     if (data.id) await updateGalleryItem(ctx.tenantId, data.id, input);

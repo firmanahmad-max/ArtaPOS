@@ -784,6 +784,10 @@ model GalleryItem {
   price       Int      @default(0) // harga tampil (rupiah; 0 = "Hubungi")
   photo       String? // data URL JPEG (di-resize di browser)
   label       String? // badge: "Promo" / "Baru" / "Unggulan" / dll
+  /// Filter Galeri Publik. Kosong = otomatis (kategori produk/titipan/bekas tertaut,
+  /// atau tebakan dari judul) — lihat resolveFacets di src/lib/gallery-filter.ts.
+  category    String?
+  brand       String?
   isActive    Boolean  @default(true)
   sortOrder   Int      @default(0)
   views       Int      @default(0) // impresi unik (per sesi browser) di galeri publik

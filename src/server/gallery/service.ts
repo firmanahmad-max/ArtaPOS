@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { gradeText, warrantyText } from "@/lib/used-item";
 import { parseComponents, setGallerySpec } from "@/lib/consignment-set";
+import { cleanFacet, resolveFacets, type GalleryCard, type GalleryCondition } from "@/lib/gallery-filter";
 
 /** Service Galeri Publik — etalase produk/promo. Ter-scope tenantId. */
 
@@ -17,6 +18,9 @@ export interface GalleryInput {
   /** data URL JPEG (sudah di-resize di browser), null = hapus, undefined = biarkan. */
   photo?: string | null;
   label?: string | null;
+  /** Filter publik — kosong = otomatis (lihat resolveFacets). */
+  category?: string | null;
+  brand?: string | null;
   isActive?: boolean;
 }
 
@@ -52,21 +56,71 @@ export function listGalleryAdmin(tenantId: string) {
     where: { tenantId },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
     include: {
-      consignmentItem: { select: { status: true, consignment: { select: { id: true, number: true } } } },
-      usedItem: { select: { id: true, number: true, status: true } },
+      consignmentItem: {
+        select: { status: true, category: true, consignment: { select: { id: true, number: true } } },
+      },
+      usedItem: { select: { id: true, number: true, status: true, category: true } },
+      product: { select: { category: { select: { name: true } } } },
     },
   });
 }
 
-/** Item aktif untuk halaman publik (tanpa field berat yang tak perlu). */
-export function listGalleryPublic(tenantId: string) {
-  return db.galleryItem.findMany({
+/** Kategori bawaan dari sumber yang ditautkan (produk / titipan / bekas). */
+export function sourceCategoryOf(it: {
+  product?: { category: { name: string } | null } | null;
+  consignmentItem?: { category: string } | null;
+  usedItem?: { category: string } | null;
+}): string | null {
+  return it.product?.category?.name ?? it.consignmentItem?.category ?? it.usedItem?.category ?? null;
+}
+
+/** Kondisi untuk filter publik: barang bekas & titipan (milik pelanggan) = bekas. */
+function conditionOf(it: { usedItemId: string | null; consignmentItemId: string | null; label: string | null }): GalleryCondition {
+  if (it.usedItemId || it.consignmentItemId) return "bekas";
+  return /\b(bekas|second|seken)\b/i.test(it.label ?? "") ? "bekas" : "baru";
+}
+
+/**
+ * Item aktif untuk halaman publik + kategori/brand/kondisi efektif (untuk filter).
+ * Tanpa field berat/sensitif yang tak perlu (modal, tautan internal).
+ */
+export async function listGalleryPublic(tenantId: string): Promise<GalleryCard[]> {
+  const rows = await db.galleryItem.findMany({
     where: publicGalleryWhere(tenantId),
     orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
-    select: { id: true, title: true, spec: true, price: true, photo: true, label: true },
+    select: {
+      id: true,
+      title: true,
+      spec: true,
+      price: true,
+      photo: true,
+      label: true,
+      category: true,
+      brand: true,
+      views: true,
+      clicks: true,
+      usedItemId: true,
+      consignmentItemId: true,
+      product: { select: { category: { select: { name: true } } } },
+      consignmentItem: { select: { category: true } },
+      usedItem: { select: { category: true } },
+    },
     // Batasi agar halaman publik (foto data URL) tak membengkak tak terbatas.
     take: 200,
   });
+  return rows.map((r, i) => ({
+    id: r.id,
+    title: r.title,
+    spec: r.spec,
+    price: r.price,
+    photo: r.photo,
+    label: r.label,
+    ...resolveFacets({ title: r.title, category: r.category, brand: r.brand, sourceCategory: sourceCategoryOf(r) }),
+    condition: conditionOf(r),
+    order: i,
+    clicks: r.clicks,
+    views: r.views,
+  }));
 }
 
 /**
@@ -164,6 +218,8 @@ export async function createGalleryItem(tenantId: string, userId: string, input:
         price,
         photo,
         label: input.label?.trim() || null,
+        category: cleanFacet(input.category),
+        brand: cleanFacet(input.brand),
         isActive: input.isActive ?? true,
         createdById: userId,
       },
@@ -194,6 +250,8 @@ export async function updateGalleryItem(tenantId: string, id: string, input: Gal
         // photo: undefined = biarkan, null/string = ganti.
         photo: input.photo === undefined ? undefined : cleanPhoto(input.photo),
         label: input.label?.trim() || null,
+        category: cleanFacet(input.category),
+        brand: cleanFacet(input.brand),
         isActive: input.isActive ?? true,
       },
     })

@@ -4,7 +4,7 @@ import { ExternalLink, HandCoins, Images, Receipt, Wrench } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { db } from "@/lib/db";
-import { listGalleryAdmin } from "@/server/gallery/service";
+import { listGalleryAdmin, sourceCategoryOf } from "@/server/gallery/service";
 import { listConsignmentItemsForSale } from "@/server/consignment/service";
 import { listUsedItemsForSale } from "@/server/used-items/service";
 import { gradeText, warrantyText } from "@/lib/used-item";
@@ -82,7 +82,7 @@ export default async function GalleryPage() {
     listGalleryAdmin(user.tenantId),
     db.product.findMany({
       where: { tenantId: user.tenantId, isActive: true },
-      select: { id: true, name: true, sellPrice: true },
+      select: { id: true, name: true, sellPrice: true, category: { select: { name: true } } },
       orderBy: { name: "asc" },
       take: 500,
     }),
@@ -101,6 +101,9 @@ export default async function GalleryPage() {
     price: i.price,
     photo: i.photo,
     label: i.label,
+    category: i.category,
+    brand: i.brand,
+    sourceCategory: sourceCategoryOf(i),
     isActive: i.isActive,
     views: i.views,
     clicks: i.clicks,
@@ -138,7 +141,7 @@ export default async function GalleryPage() {
 
       <GalleryManager
         items={rows}
-        products={products}
+        products={products.map((p) => ({ id: p.id, name: p.name, sellPrice: p.sellPrice, category: p.category?.name ?? null }))}
         consignments={consignmentItems.map((ci) => ({
           id: ci.id,
           label: `${ci.category} ${ci.name}`,
@@ -146,6 +149,7 @@ export default async function GalleryPage() {
           number: ci.consignment.number,
           askingPrice: ci.askingPrice,
           condition: ci.condition,
+          category: ci.category,
           inGallery: !!ci.galleryItem,
         }))}
         usedItems={usedItems.map((u) => ({
@@ -153,6 +157,7 @@ export default async function GalleryPage() {
           label: `${u.category} ${u.name}`,
           number: u.number,
           sellPrice: u.sellPrice,
+          category: u.category,
           spec: `Bekas — ${gradeText(u.grade)}\n${warrantyText(u.warrantyDays)}`,
           inGallery: !!u.galleryItem,
         }))}

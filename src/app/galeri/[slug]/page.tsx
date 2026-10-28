@@ -3,14 +3,15 @@ import { notFound } from "next/navigation";
 import { Store } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { formatRupiah } from "@/lib/utils";
+import { parseGalleryQuery } from "@/lib/gallery-filter";
 import { APP_NAME } from "@/lib/brand";
 import { getGalleryStoreBySlug, listGalleryPublic } from "@/server/gallery/service";
-import { ShareButton } from "./share-button";
 import { galleryRefKind } from "@/lib/track-link";
 import { waLink } from "@/lib/whatsapp";
 import { storeOgImageUrl } from "@/server/public/track-info";
 import { VisitBeacon } from "@/components/public/visit-beacon";
-import { ViewBeacon, ChatWaButton } from "./gallery-tracker";
+import { ViewBeacon } from "./gallery-tracker";
+import { GalleryBrowser } from "./gallery-browser";
 
 export async function generateMetadata({
   params,
@@ -58,11 +59,13 @@ export default async function GaleriPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ ref?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { slug } = await params;
+  const sp = await searchParams;
+  const ref = typeof sp.ref === "string" ? sp.ref : undefined;
   // `?ref=` = asal tautan (lacak/struk/titip) → dicatat sebagai metrik kunjungan.
-  const refKind = galleryRefKind((await searchParams).ref);
+  const refKind = galleryRefKind(ref);
   const store = await getGalleryStoreBySlug(slug).catch(() => null);
   if (!store || !store.isActive) notFound();
 
@@ -100,44 +103,24 @@ export default async function GaleriPage({
           <>
             <h1 className="mb-1 text-xl font-bold tracking-tight">Produk Pilihan</h1>
             <p className="mb-6 text-sm text-muted-foreground">
+              {items.length >= 4 ? "Cari & saring berdasarkan kategori, brand, kondisi atau harga. " : ""}
               Tertarik dengan salah satu produk? Hubungi kami langsung via WhatsApp.
             </p>
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {items.map((it) => {
-                const msg = `Halo ${store.name}, saya tertarik dengan *${it.title}*${
-                  it.price > 0 ? ` (${formatRupiah(it.price)})` : ""
-                }. Apakah masih tersedia?`;
-                const waHref = wid ? waLink(msg, wid) : null;
-                return (
-                  <div key={it.id} className="flex flex-col overflow-hidden rounded-2xl border bg-card elevate">
-                    <div className="relative aspect-[4/3] bg-muted/40">
-                      {it.photo ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={it.photo} alt={it.title} className="size-full object-cover" />
-                      ) : (
-                        <div className="flex size-full items-center justify-center text-sm text-muted-foreground">Tanpa foto</div>
-                      )}
-                      {it.label && (
-                        <span className="absolute left-3 top-3 rounded-full gradient-brand px-3 py-1 text-xs font-semibold text-primary-foreground shadow-brand">
-                          {it.label}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex flex-1 flex-col gap-2 p-4">
-                      <h2 className="font-semibold leading-snug">{it.title}</h2>
-                      {it.spec && <p className="whitespace-pre-line text-sm text-muted-foreground">{it.spec}</p>}
-                      <p className="mt-auto pt-1 font-mono text-lg font-bold tabular-nums text-primary">
-                        {it.price > 0 ? formatRupiah(it.price) : "Hubungi untuk harga"}
-                      </p>
-                      <div className="mt-1 flex flex-col gap-2">
-                        {waHref && <ChatWaButton itemId={it.id} href={waHref} />}
-                        <ShareButton title={it.title} price={it.price} spec={it.spec} />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <GalleryBrowser
+              keepRef={refKind ? (ref ?? null) : null}
+              initial={parseGalleryQuery(sp)}
+              items={items.map((it) => ({
+                ...it,
+                waHref: wid
+                  ? waLink(
+                      `Halo ${store.name}, saya tertarik dengan *${it.title}*${
+                        it.price > 0 ? ` (${formatRupiah(it.price)})` : ""
+                      }. Apakah masih tersedia?`,
+                      wid,
+                    )
+                  : null,
+              }))}
+            />
           </>
         )}
 
