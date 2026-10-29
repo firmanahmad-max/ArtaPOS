@@ -27,7 +27,7 @@ const DAY = 86_400_000;
 
 export async function getReferralConfig(
   tenantId: string,
-): Promise<ReferralConfig & { loyaltyStarted: boolean; slug: string | null }> {
+): Promise<ReferralConfig & { loyaltyStarted: boolean; loyaltyStartsAt: string | null; slug: string | null }> {
   const t = await db.tenant
     .findUnique({
       where: { id: tenantId },
@@ -42,7 +42,7 @@ export async function getReferralConfig(
       },
     })
     .catch(() => null); // kolom belum dimigrasi
-  if (!t) return { ...DEFAULT_REFERRAL, loyaltyStarted: false, slug: null };
+  if (!t) return { ...DEFAULT_REFERRAL, loyaltyStarted: false, loyaltyStartsAt: null, slug: null };
   return {
     enabled: t.referralEnabled,
     referrerPoints: t.referralReferrerPoints,
@@ -50,6 +50,7 @@ export async function getReferralConfig(
     minPurchase: t.referralMinPurchase,
     validDays: t.referralValidDays,
     loyaltyStarted: programStarted(t.pointsStartAt, Date.now()),
+    loyaltyStartsAt: t.pointsStartAt?.toISOString() ?? null,
     slug: t.slug,
   };
 }
@@ -126,6 +127,7 @@ export async function getReferralLanding(slug: string, rawCode: string) {
         referralFriendPoints: true,
         referralMinPurchase: true,
         referralValidDays: true,
+        pointsStartAt: true,
       },
     })
     .catch(() => null);

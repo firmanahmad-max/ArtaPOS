@@ -20,6 +20,7 @@ export function CustomerReferralCard({
   storeName,
   config,
   info,
+  notice,
 }: {
   customerId: string;
   slug: string;
@@ -30,6 +31,7 @@ export function CustomerReferralCard({
     referredBy: { name: string | null; status: "PENDING" | "REWARDED" | "CANCELLED" } | null;
     friends: { rewarded: number; pending: number; points: number };
   };
+  notice?: string | null;
 }) {
   const router = useRouter();
   const [code, setCode] = useState("");
@@ -59,6 +61,7 @@ export function CustomerReferralCard({
             code={info.code}
             storeName={storeName}
             stats={info.friends}
+            notice={notice}
             {...config}
           />
         )}

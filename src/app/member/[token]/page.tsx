@@ -191,12 +191,17 @@ export default async function MemberPortalPage({
   const activeBuilds = data.builds.filter((b) => b.status !== "DELIVERED" && b.status !== "CANCELLED");
   const consignItems = data.consignments.flatMap((c) => c.items.map((i) => ({ ...i, number: c.number, at: c.createdAt })));
   const activeWarranties = data.warranties.filter((w) => w.status === "ACTIVE").length;
-  // Program Ajak Teman (hanya bila aktif & program poin sudah berjalan).
+  // Program Ajak Teman: tampil begitu program aktif. Bila program poin belum mulai,
+  // link tetap bisa dibagikan & teman bisa daftar — bonus menyusul setelah poin berjalan.
   const refCfg = await getReferralConfig(customer.tenantId);
-  const referral =
-    refCfg.enabled && refCfg.loyaltyStarted ? await getCustomerReferral(customer.tenantId, customer.id).catch(() => null) : null;
+  const referral = refCfg.enabled ? await getCustomerReferral(customer.tenantId, customer.id).catch(() => null) : null;
+  const refNotice =
+    !refCfg.loyaltyStarted && refCfg.loyaltyStartsAt
+      ? `Bonus mulai berlaku ${formatStartDate(refCfg.loyaltyStartsAt)}, bersamaan dengan Program Poin Member. Link sudah bisa dibagikan sekarang.`
+      : null;
 
   const nav = [
+    { id: "ajak", label: "🎁 Ajak Teman", show: !!referral?.code },
     { id: "servis", label: "Servis", show: data.tickets.length > 0 },
     { id: "garansi", label: "Garansi", show: data.warranties.length + data.rmaClaims.length > 0 },
     { id: "belanja", label: "Belanja", show: data.sales.length > 0 },
@@ -275,6 +280,7 @@ export default async function MemberPortalPage({
         )}
 
         {referral?.code && (
+          <div id="ajak" className="scroll-mt-4">
           <ReferralShareCard
             slug={store.slug}
             code={referral.code}
@@ -284,7 +290,9 @@ export default async function MemberPortalPage({
             minPurchase={refCfg.minPurchase}
             validDays={refCfg.validDays}
             stats={referral.friends}
+            notice={refNotice}
           />
+          </div>
         )}
 
         {/* Sedang berjalan */}

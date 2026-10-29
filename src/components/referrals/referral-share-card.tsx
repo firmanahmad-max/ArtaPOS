@@ -19,6 +19,7 @@ export function ReferralShareCard({
   minPurchase,
   validDays,
   stats,
+  notice,
   compact = false,
 }: {
   slug: string;
@@ -29,6 +30,8 @@ export function ReferralShareCard({
   minPurchase: number;
   validDays: number;
   stats?: { rewarded: number; pending: number; points: number };
+  /** Catatan tambahan (mis. bonus mulai berlaku saat program poin dimulai). */
+  notice?: string | null;
   compact?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
@@ -81,6 +84,7 @@ export function ReferralShareCard({
           {copied ? <Check className="size-4 text-success" /> : <Copy className="size-4" />} {copied ? "Tersalin" : "Salin link"}
         </button>
       </div>
+      {notice && <p className="mt-3 rounded-lg bg-background/70 px-3 py-2 text-xs text-muted-foreground">ℹ️ {notice}</p>}
       {stats && (stats.rewarded > 0 || stats.pending > 0) && (
         <p className="mt-3 text-xs text-muted-foreground">
           <b className="text-foreground">{stats.rewarded}</b> teman berhasil · <b className="text-foreground">{stats.pending}</b> menunggu

@@ -11,6 +11,7 @@ import { PointsManager } from "../../points-manager";
 import { PortalCard } from "../../portal-card";
 import { CustomerReferralCard } from "../../referral-card";
 import { getCustomerReferral, getReferralConfig } from "@/server/referrals/service";
+import { formatStartDate } from "@/lib/loyalty";
 
 export const metadata: Metadata = { title: "Edit Pelanggan" };
 
@@ -76,6 +77,11 @@ export default async function EditCustomerPage({
             validDays: refCfg.validDays,
           }}
           info={referral}
+          notice={
+            !refCfg.loyaltyStarted && refCfg.loyaltyStartsAt
+              ? `Bonus mulai berlaku ${formatStartDate(refCfg.loyaltyStartsAt)} (saat Program Poin Member dimulai).`
+              : null
+          }
         />
       )}
       <PointsManager

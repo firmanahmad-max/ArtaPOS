@@ -5,6 +5,8 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { getReferralLanding } from "@/server/referrals/service";
 import { storeOgImageUrl } from "@/server/public/track-info";
 import { referrerDisplayName } from "@/lib/referral";
+import { formatStartDate } from "@/lib/loyalty";
+import { daysFromNow } from "@/lib/timezone";
 import { formatRupiah } from "@/lib/utils";
 import { APP_NAME } from "@/lib/brand";
 import { FriendSignupForm } from "./signup-form";
@@ -77,6 +79,11 @@ export default async function ReferralLandingPage({ params }: { params: Params }
               {tenant.referralMinPurchase > 0 ? ` minimal ${formatRupiah(tenant.referralMinPurchase)}` : ""} dalam{" "}
               {tenant.referralValidDays} hari setelah daftar.
             </p>
+            {tenant.pointsStartAt && tenant.pointsStartAt.getTime() > daysFromNow(0) && (
+              <p className="mt-2 rounded-lg bg-white/10 px-3 py-2 text-xs">
+                Bonus mulai berlaku {formatStartDate(tenant.pointsStartAt)} — daftar sekarang agar tidak terlewat.
+              </p>
+            )}
           </div>
         </div>
 
