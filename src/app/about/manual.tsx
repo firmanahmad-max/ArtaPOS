@@ -24,6 +24,7 @@ import {
   Search,
   Images,
   Star,
+  Gift,
   Handshake,
   Recycle,
   BellRing,
@@ -176,6 +177,20 @@ const SECTIONS: Section[] = [
       "Tab Testimoni: tekan \"Tampilkan di Galeri\" agar muncul di bagian \"Kata Pelanggan\" Galeri Publik, atau \"Bagikan sebagai gambar\" (1080×1350) untuk Feed IG / Status WA. Rata-rata bintang tampil di Galeri setelah minimal 3 ulasan.",
     ],
     example: "Servis laptop Dewi selesai → kirim permintaan ulasan → Dewi memberi 5 bintang & mengizinkan testimoni → diarahkan ke Google → testimoninya dipajang di Galeri & dibagikan sebagai gambar di Story.",
+  },
+  {
+    icon: Gift,
+    title: "Program Ajak Teman (Referral Member)",
+    desc: "Member mengajak teman lewat link pribadi — saat teman bertransaksi pertama kali, keduanya mendapat bonus poin otomatis.",
+    steps: [
+      "Buka Penjualan → Ajak Teman → Pengaturan Program: aktifkan, atur bonus pengajak & teman baru (poin), minimal transaksi pertama, dan masa berlaku. Program Poin Member harus sudah berjalan.",
+      "Setiap member otomatis punya kode ajak (mis. DEWIL4KQ) & link pribadi. Link muncul di Portal Member (tombol \"Bagikan via WhatsApp\" / \"Salin link\") dan di halaman edit pelanggan — bisa juga Anda kirimkan untuk member.",
+      "Teman membuka link, mendaftar dengan nama & No. WA. No. WA yang sudah pernah jadi pelanggan ditolak (khusus pelanggan baru).",
+      "Teman datang langsung ke toko & menyebut kode? Buat/buka data pelanggannya, lalu isi \"Kode ajak\" di kartu Program Ajak Teman pada halaman edit pelanggan.",
+      "Saat transaksi pertama teman (belanja, servis, atau rakit PC) LUNAS & memenuhi minimal, bonus poin otomatis masuk ke keduanya. Pengajak maksimal 10 bonus per 30 hari.",
+      "Pantau di menu Ajak Teman: teman bergabung, berhasil, omzet transaksi pertama, pengajak teratas — dan tekan \"Kabari pengajak\" untuk berterima kasih via WhatsApp.",
+    ],
+    example: "Dewi membagikan linknya → Rina daftar → Rina beli mouse Rp 249.000 → Rina +100 poin bonus (selain poin belanja), Dewi +200 poin → toko mengabari Dewi via WA.",
   },
   {
     icon: Images,

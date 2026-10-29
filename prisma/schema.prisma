@@ -77,6 +77,13 @@ model Tenant {
   reportPhone     String? // No. WA penerima laporan (kosong = pilih kontak saat kirim)
   // Ulasan & Testimoni: link halaman ulasan Google Maps toko (penilai 4–5 bintang diarahkan ke sini).
   googleReviewUrl String?
+  // Program Ajak Teman (referral): bonus poin untuk pengajak & teman baru saat teman
+  // menyelesaikan transaksi LUNAS pertama ≥ referralMinPurchase dalam referralValidDays.
+  referralEnabled        Boolean @default(false)
+  referralReferrerPoints Int     @default(200)
+  referralFriendPoints   Int     @default(100)
+  referralMinPurchase    Int     @default(100000)
+  referralValidDays      Int     @default(60)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -109,6 +116,7 @@ model Tenant {
   serviceReminders ServiceReminder[]
   reportDispatches ReportDispatch[]
   reviews          Review[]
+  referrals        Referral[]
   dailyContents  DailyContentItem[]
   dailyContentStats DailyContentStat[]
 
@@ -287,6 +295,8 @@ model Customer {
   // Statistik Portal: jumlah kunjungan (sekali per sesi browser, via beacon JS) & terakhir dibuka.
   portalViews      Int       @default(0)
   portalLastSeenAt DateTime?
+  // Program Ajak Teman: kode pendek unik per toko (mis. DEWI7K2), dibuat malas.
+  referralCode     String?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -294,6 +304,7 @@ model Customer {
   tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   pointEntries PointEntry[]
 
+  @@unique([tenantId, referralCode])
   @@index([tenantId])
   @@index([tenantId, phoneKey])
   @@map("customers")
@@ -1306,6 +1317,37 @@ enum ReportDispatchStatus {
 
 /// Catatan tindakan atas laporan WhatsApp terjadwal per periode (dikirim / dilewati),
 /// agar laporan periode yang sama tak muncul lagi di Dashboard.
+/// Status ajakan teman (referral).
+enum ReferralStatus {
+  PENDING // teman sudah daftar, menunggu transaksi lunas pertama
+  REWARDED // bonus sudah diberikan ke kedua pihak
+  CANCELLED // dibatalkan toko
+}
+
+/// Satu teman hanya bisa diajak SEKALI (friendId unik). Bonus diberikan otomatis saat
+/// transaksi lunas pertama teman memenuhi syarat (lihat src/server/referrals/service.ts).
+model Referral {
+  id             String         @id @default(cuid())
+  tenantId       String
+  referrerId     String // pelanggan pengajak
+  friendId       String         @unique // pelanggan baru yang diajak
+  status         ReferralStatus @default(PENDING)
+  expiresAt      DateTime // batas transaksi pertama (createdAt + referralValidDays)
+  rewardedAt     DateTime?
+  referrerPoints Int            @default(0) // bonus yang diberikan (snapshot)
+  friendPoints   Int            @default(0)
+  qualifyingDoc  String? // no. dokumen transaksi pertama (INV-/SV-/RKT-)
+  qualifyingTotal Int?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([referrerId])
+  @@map("referrals")
+}
+
 /// Asal ulasan pelanggan (dokumen yang dinilai).
 enum ReviewSource {
   SERVICE // tiket servis

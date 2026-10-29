@@ -10,6 +10,7 @@ import { earnedPointsTarget, saleEligibleRupiah } from "@/lib/loyalty";
 import { awardPointsUpTo, loadLoyalty, redeemPointsOnJob, refundRedeemedOnJob } from "@/server/loyalty/service";
 import { matchOrCreateCustomer } from "@/server/customers/service";
 import { claimUnitForBuild, releaseUnitFromBuild, type UnitKind } from "@/server/pcbuild/units";
+import { rewardReferralForDoc } from "@/server/referrals/service";
 
 /** Service Rakit PC — ter-scope tenantId, mutasi stok transaksional. */
 
@@ -297,6 +298,9 @@ export async function recordPayment(tenantId: string, buildId: string, amount: n
       }
     }
     return { paid: newPaid, outstanding: b.total - newPaid };
+  }).then(async (r) => {
+    if (r.outstanding <= 0) await rewardReferralForDoc(tenantId, { pcBuildId: buildId });
+    return r;
   });
 }
 

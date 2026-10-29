@@ -8,6 +8,7 @@ import type { ServiceStatus, PaymentMethod } from "@/generated/prisma/enums";
 import type { ServiceTicketInput } from "@/lib/validations/service";
 import { earnedPointsTarget, jobEligibleRupiah } from "@/lib/loyalty";
 import { awardPointsUpTo, loadLoyalty, redeemPointsOnJob, refundRedeemedOnJob } from "@/server/loyalty/service";
+import { rewardReferralForDoc } from "@/server/referrals/service";
 import { matchOrCreateCustomer } from "@/server/customers/service";
 
 /** Service Jasa Servis — ter-scope tenantId, mutasi stok transaksional. */
@@ -457,5 +458,8 @@ export async function recordPayment(
       }
     }
     return { paid: newPaid, outstanding: t.total - newPaid };
+  }).then(async (r) => {
+    if (r.outstanding <= 0) await rewardReferralForDoc(tenantId, { serviceTicketId: ticketId });
+    return r;
   });
 }

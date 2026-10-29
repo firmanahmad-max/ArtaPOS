@@ -60,6 +60,39 @@ export function buildServiceStatusText(args: {
   return lines.join("\n");
 }
 
+/** Pesan ajakan yang dibagikan member ke temannya (Program Ajak Teman). */
+export function buildReferralShareText(args: {
+  storeName: string;
+  friendPoints: number;
+  minPurchase: number;
+  url: string;
+}): string {
+  return [
+    `Halo! Aku langganan servis & belanja komputer di *${args.storeName}* — pelayanannya oke 👍`,
+    "",
+    `Daftar lewat link ini, kamu dapat bonus *${args.friendPoints.toLocaleString("id-ID")} poin member* untuk transaksi pertama${
+      args.minPurchase > 0 ? ` (min. ${formatRupiah(args.minPurchase)})` : ""
+    } 🎁`,
+    args.url,
+  ].join("\n");
+}
+
+/** Pesan ke pengajak saat bonusnya masuk (dikirim toko). */
+export function buildReferralRewardText(args: {
+  storeName: string;
+  referrerName: string | null;
+  friendName: string | null;
+  points: number;
+}): string {
+  const hi = args.referrerName ? `Halo Kak ${args.referrerName.split(/\s+/)[0]},` : "Halo Kak,";
+  return [
+    `${hi} terima kasih sudah mengajak ${args.friendName ? `*${args.friendName}*` : "teman Anda"} ke *${args.storeName}* 🙏`,
+    `Bonus *${args.points.toLocaleString("id-ID")} poin* sudah masuk ke akun member Anda dan bisa dipakai sebagai potongan belanja berikutnya.`,
+    "",
+    "Ajak teman lainnya untuk bonus berikutnya ya! 🎁",
+  ].join("\n");
+}
+
 /** Permintaan ulasan via WhatsApp (link pribadi /ulasan/<token>). */
 export function buildReviewRequestText(args: {
   storeName: string;

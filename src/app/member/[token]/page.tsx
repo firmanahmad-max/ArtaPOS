@@ -28,6 +28,8 @@ import { waLink } from "@/lib/whatsapp";
 import { formatRupiah, cn } from "@/lib/utils";
 import { daysFromNow, formatLocalDate } from "@/lib/timezone";
 import { PortalBeacon } from "./portal-beacon";
+import { getCustomerReferral, getReferralConfig } from "@/server/referrals/service";
+import { ReferralShareCard } from "@/components/referrals/referral-share-card";
 import { SERVICE_STATUS_META } from "@/app/(dashboard)/service/status-config";
 import { BUILD_STATUS_META } from "@/app/(dashboard)/pc-build/build-status";
 import { CONSIGNMENT_STATUS_META } from "@/app/(dashboard)/consignments/status-config";
@@ -189,6 +191,10 @@ export default async function MemberPortalPage({
   const activeBuilds = data.builds.filter((b) => b.status !== "DELIVERED" && b.status !== "CANCELLED");
   const consignItems = data.consignments.flatMap((c) => c.items.map((i) => ({ ...i, number: c.number, at: c.createdAt })));
   const activeWarranties = data.warranties.filter((w) => w.status === "ACTIVE").length;
+  // Program Ajak Teman (hanya bila aktif & program poin sudah berjalan).
+  const refCfg = await getReferralConfig(customer.tenantId);
+  const referral =
+    refCfg.enabled && refCfg.loyaltyStarted ? await getCustomerReferral(customer.tenantId, customer.id).catch(() => null) : null;
 
   const nav = [
     { id: "servis", label: "Servis", show: data.tickets.length > 0 },
@@ -266,6 +272,19 @@ export default async function MemberPortalPage({
               </a>
             ))}
           </nav>
+        )}
+
+        {referral?.code && (
+          <ReferralShareCard
+            slug={store.slug}
+            code={referral.code}
+            storeName={store.name}
+            referrerPoints={refCfg.referrerPoints}
+            friendPoints={refCfg.friendPoints}
+            minPurchase={refCfg.minPurchase}
+            validDays={refCfg.validDays}
+            stats={referral.friends}
+          />
         )}
 
         {/* Sedang berjalan */}

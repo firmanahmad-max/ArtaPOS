@@ -229,7 +229,7 @@ export const getPortalData = cache(async function getPortalData(token: string) {
 
   const myKey = phoneKey(customer.phone);
   return {
-    customer: { name: customer.name, points: customer.points },
+    customer: { id: customerId, tenantId, name: customer.name, points: customer.points },
     store: customer.tenant,
     hasGallery: extras.hasGallery,
     loyalty,

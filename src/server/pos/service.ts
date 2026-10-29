@@ -9,6 +9,7 @@ import { consignmentSaleName, parseComponents } from "@/lib/consignment-set";
 import { usedSaleName } from "@/lib/used-item";
 import { earnedPointsTarget, programStarted, resolveRedemption, saleEligibleRupiah } from "@/lib/loyalty";
 import { awardPointsUpTo, loadLoyalty } from "@/server/loyalty/service";
+import { rewardReferralForDoc } from "@/server/referrals/service";
 
 /** Service POS — checkout transaksional, ter-scope tenantId. */
 
@@ -291,7 +292,11 @@ export async function recordSalePayment(
         if (added > 0) await tx.sale.update({ where: { id: sale.id }, data: { pointsEarned: { increment: added } } });
       }
     }
-    return { paid: newPaid, outstanding: sale.total - newPaid };
+    return { paid: newPaid, outstanding: sale.total - newPaid, saleId: sale.id };
+  }).then(async (r) => {
+    // Kredit LUNAS → mungkin transaksi pertama teman yang diajak (bonus ajak teman).
+    if (r.outstanding <= 0) await rewardReferralForDoc(tenantId, { saleId: r.saleId });
+    return { paid: r.paid, outstanding: r.outstanding };
   });
 }
 
@@ -417,7 +422,7 @@ export async function createSale(
     if (existing) return { ...existing, duplicate: true };
   }
   try {
-    return await db.$transaction(async (tx) => {
+    const created = await db.$transaction(async (tx) => {
     // Ambil produk terkait (scoped tenant).
     const ids = input.items.map((i) => i.productId);
     const products = await tx.product.findMany({
@@ -740,6 +745,9 @@ export async function createSale(
 
       return { id: sale.id, number: sale.number, total, change, duplicate: false };
     });
+    // Di LUAR transaksi kasir: bonus ajak teman bila ini transaksi lunas pertama teman.
+    if (input.customerId) await rewardReferralForDoc(tenantId, { saleId: created.id });
+    return created;
   } catch (e) {
     // Balapan: dua sinkron paralel dengan clientOpId sama → salah satu kena
     // unique constraint. Ambil penjualan yang sudah tersimpan, jangan gagal.

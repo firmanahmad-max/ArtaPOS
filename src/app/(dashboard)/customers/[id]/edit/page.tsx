@@ -9,6 +9,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { ContactForm } from "@/components/contacts/contact-form";
 import { PointsManager } from "../../points-manager";
 import { PortalCard } from "../../portal-card";
+import { CustomerReferralCard } from "../../referral-card";
+import { getCustomerReferral, getReferralConfig } from "@/server/referrals/service";
 
 export const metadata: Metadata = { title: "Edit Pelanggan" };
 
@@ -22,7 +24,14 @@ export default async function EditCustomerPage({
   const { tenantId } = user;
   const customer = await getCustomer(tenantId, id);
   if (!customer) notFound();
-  const [entries, loyalty] = await Promise.all([listPointEntries(tenantId, id), getLoyaltyConfig(tenantId)]);
+  const [entries, loyalty, refCfg] = await Promise.all([
+    listPointEntries(tenantId, id),
+    getLoyaltyConfig(tenantId),
+    getReferralConfig(tenantId),
+  ]);
+  const referral =
+    refCfg.enabled && customer.isActive ? await getCustomerReferral(tenantId, customer.id).catch(() => null) : null;
+  const slug = refCfg.slug;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -53,6 +62,20 @@ export default async function EditCustomerPage({
           tokenAt={customer.portalTokenAt?.toISOString() ?? null}
           views={customer.portalViews}
           lastSeenAt={customer.portalLastSeenAt?.toISOString() ?? null}
+        />
+      )}
+      {referral && slug && (
+        <CustomerReferralCard
+          customerId={customer.id}
+          slug={slug}
+          storeName={user.tenant.name}
+          config={{
+            referrerPoints: refCfg.referrerPoints,
+            friendPoints: refCfg.friendPoints,
+            minPurchase: refCfg.minPurchase,
+            validDays: refCfg.validDays,
+          }}
+          info={referral}
         />
       )}
       <PointsManager
