@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Users, Star, Phone, Settings2 } from "lucide-react";
 import { getAuthContext } from "@/lib/auth/guard";
 import { can } from "@/lib/rbac";
-import { getLoyaltyConfig, listCustomers } from "@/server/customers/service";
+import { countCustomers, customerStats, getLoyaltyConfig, listCustomers } from "@/server/customers/service";
 import { createCustomerAction, deactivateCustomerAction } from "@/server/customers/actions";
 import { cashbackPercent, formatStartDate, isProgramStarted, pointsWorth, RUPIAH_PER_POINT } from "@/lib/loyalty";
 import { formatRupiah } from "@/lib/utils";
@@ -17,19 +17,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 export const metadata: Metadata = { title: "Pelanggan" };
 
-export default async function CustomersPage() {
+export default async function CustomersPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { tenantId, role } = await getAuthContext();
-  const [customers, loyalty, portalStats] = await Promise.all([
-    listCustomers(tenantId),
-    getLoyaltyConfig(tenantId),
+  const q = ((await searchParams).q ?? "").trim().slice(0, 80);
+  const loyalty = await getLoyaltyConfig(tenantId);
+  const [customers, matched, stats, portalStats] = await Promise.all([
+    listCustomers(tenantId, q),
+    countCustomers(tenantId, q),
+    customerStats(tenantId, loyalty.minRedeem),
     getPortalStats(tenantId, 30, daysFromNow(0)),
   ]);
-  const totalPoints = customers.reduce((s, c) => s + (c.points ?? 0), 0);
-  const withPhone = customers.filter((c) => c.phone).length;
+  const { totalPoints, withPhone, top } = stats;
   const scheduled = !isProgramStarted(loyalty) && !!loyalty.startsAt;
   const active = loyalty.pointValue > 0 && !scheduled;
-  const ready = customers.filter((c) => active && c.points >= loyalty.minRedeem && c.points > 0);
-  const top = [...customers].filter((c) => c.points > 0).sort((a, b) => b.points - a.points).slice(0, 5);
+  const readyCount = active ? stats.ready : 0;
 
   return (
     <div className="space-y-6">
@@ -43,7 +44,7 @@ export default async function CustomersPage() {
 
       {/* Ringkasan KPI */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard icon={Users} label="Total Pelanggan" value={String(customers.length)} hint="Terdaftar & aktif" tone="blue" />
+        <StatCard icon={Users} label="Total Pelanggan" value={stats.total.toLocaleString("id-ID")} hint="Terdaftar & aktif" tone="blue" />
         <StatCard
           icon={Star}
           label="Total Poin Loyalitas"
@@ -57,8 +58,18 @@ export default async function CustomersPage() {
           }
           tone="violet"
         />
-        <StatCard icon={Phone} label="Dengan No. HP" value={String(withPhone)} hint="Bisa dihubungi/WhatsApp" tone="emerald" />
+        <StatCard icon={Phone} label="Dengan No. HP" value={withPhone.toLocaleString("id-ID")} hint="Bisa dihubungi/WhatsApp" tone="emerald" />
       </div>
+
+      <ContactManager
+        items={customers}
+        createAction={createCustomerAction}
+        deleteAction={deactivateCustomerAction}
+        editBase="/customers"
+        noun="Pelanggan"
+        query={q}
+        total={matched}
+      />
 
       {/* Penjelasan program poin + pemegang poin terbanyak */}
       <Card>
@@ -105,7 +116,7 @@ export default async function CustomersPage() {
             </li>
             {active && (
               <li>
-                <span className="font-semibold">{ready.length} pelanggan</span> sudah bisa menukar poin sekarang.
+                <span className="font-semibold">{readyCount.toLocaleString("id-ID")} pelanggan</span> sudah bisa menukar poin sekarang.
               </li>
             )}
           </ul>
@@ -132,13 +143,6 @@ export default async function CustomersPage() {
 
       {portalStats && <PortalStatsCard stats={portalStats} />}
 
-      <ContactManager
-        items={customers}
-        createAction={createCustomerAction}
-        deleteAction={deactivateCustomerAction}
-        editBase="/customers"
-        noun="Pelanggan"
-      />
     </div>
   );
 }

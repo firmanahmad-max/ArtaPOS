@@ -3,29 +3,64 @@ import { db } from "@/lib/db";
 import type { ContactInput } from "@/lib/validations/contacts";
 import type { Prisma } from "@/generated/prisma/client";
 import { disambiguatedName, phoneKey } from "@/lib/phone";
+import { phoneCore } from "@/lib/contact-search";
 import { loyaltyNoteLines, programStarted, type LoyaltyConfig } from "@/lib/loyalty";
 
 /** Service Customer — semua query ter-scope tenantId. */
 
+/**
+ * Filter pencarian kontak: kueri angka (≥3 digit) → No. HP (0… ≡ 62…, lewat phoneKey);
+ * selain itu SETIAP kata harus cocok di nama/No. HP/email/alamat.
+ */
+function customerSearchWhere(search?: string): Prisma.CustomerWhereInput {
+  const q = search?.trim();
+  if (!q) return {};
+  const digits = q.replace(/\D/g, "");
+  if (digits.length >= 3 && !/[a-z]/i.test(q)) {
+    const core = phoneCore(digits);
+    return { OR: [{ phoneKey: { contains: core } }, { phone: { contains: digits } }] };
+  }
+  return {
+    AND: q.split(/\s+/).map((w) => ({
+      OR: [
+        { name: { contains: w, mode: "insensitive" as const } },
+        { phone: { contains: w, mode: "insensitive" as const } },
+        { email: { contains: w, mode: "insensitive" as const } },
+        { address: { contains: w, mode: "insensitive" as const } },
+      ],
+    })),
+  };
+}
+
 export function listCustomers(tenantId: string, search?: string) {
-  const s = search?.trim();
   return db.customer.findMany({
-    where: {
-      tenantId,
-      isActive: true,
-      ...(s
-        ? {
-            OR: [
-              { name: { contains: s, mode: "insensitive" } },
-              { phone: { contains: s, mode: "insensitive" } },
-              { email: { contains: s, mode: "insensitive" } },
-            ],
-          }
-        : {}),
-    },
+    where: { tenantId, isActive: true, ...customerSearchWhere(search) },
     orderBy: { name: "asc" },
     take: 200,
   });
+}
+
+/** Ringkasan seluruh pelanggan aktif (KPI halaman Pelanggan) — tak terbatas 200 baris daftar. */
+export async function customerStats(tenantId: string, minRedeem: number) {
+  const base = { tenantId, isActive: true };
+  const [total, withPhone, agg, ready, top] = await Promise.all([
+    db.customer.count({ where: base }),
+    db.customer.count({ where: { ...base, phone: { not: null } } }),
+    db.customer.aggregate({ where: base, _sum: { points: true } }),
+    db.customer.count({ where: { ...base, points: { gte: Math.max(1, minRedeem) } } }),
+    db.customer.findMany({
+      where: { ...base, points: { gt: 0 } },
+      orderBy: { points: "desc" },
+      take: 5,
+      select: { id: true, name: true, points: true },
+    }),
+  ]);
+  return { total, withPhone, totalPoints: agg._sum.points ?? 0, ready, top };
+}
+
+/** Jumlah pelanggan aktif (opsional sesuai pencarian) — daftar dibatasi 200 baris. */
+export function countCustomers(tenantId: string, search?: string) {
+  return db.customer.count({ where: { tenantId, isActive: true, ...customerSearchWhere(search) } });
 }
 
 export function getCustomer(tenantId: string, id: string) {

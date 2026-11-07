@@ -4,25 +4,35 @@ import type { ContactInput } from "@/lib/validations/contacts";
 
 /** Service Supplier — semua query ter-scope tenantId. */
 
+function supplierSearchWhere(search?: string) {
+  const q = search?.trim();
+  if (!q) return {};
+  return {
+    AND: q.split(/\s+/).map((w) => ({
+      OR: [
+        { name: { contains: w, mode: "insensitive" as const } },
+        { phone: { contains: w, mode: "insensitive" as const } },
+        { email: { contains: w, mode: "insensitive" as const } },
+        { address: { contains: w, mode: "insensitive" as const } },
+      ],
+    })),
+  };
+}
+
 export function listSuppliers(tenantId: string, search?: string) {
-  const s = search?.trim();
   return db.supplier.findMany({
-    where: {
-      tenantId,
-      isActive: true,
-      ...(s
-        ? {
-            OR: [
-              { name: { contains: s, mode: "insensitive" } },
-              { phone: { contains: s, mode: "insensitive" } },
-              { email: { contains: s, mode: "insensitive" } },
-            ],
-          }
-        : {}),
-    },
+    where: { tenantId, isActive: true, ...supplierSearchWhere(search) },
     orderBy: { name: "asc" },
     take: 200,
   });
+}
+
+export function countSuppliersWithPhone(tenantId: string) {
+  return db.supplier.count({ where: { tenantId, isActive: true, phone: { not: null } } });
+}
+
+export function countSuppliers(tenantId: string, search?: string) {
+  return db.supplier.count({ where: { tenantId, isActive: true, ...supplierSearchWhere(search) } });
 }
 
 export function getSupplier(tenantId: string, id: string) {

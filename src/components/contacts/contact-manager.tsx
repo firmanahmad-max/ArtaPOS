@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useTransition } from "react";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Plus, Pencil, Trash2 } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Search, X } from "lucide-react";
+import { matchContact } from "@/lib/contact-search";
 import type { FormState } from "@/lib/form";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ConfirmButton } from "@/components/ui/confirm-dialog";
@@ -25,8 +26,14 @@ export function ContactManager({
   deleteAction,
   editBase,
   noun,
+  query = "",
+  total,
 }: {
   items: Contact[];
+  /** Kata kunci awal dari URL (?q=) — server sudah menyaring `items` dengan ini. */
+  query?: string;
+  /** Jumlah seluruh kontak yang cocok (daftar dibatasi 200 baris). */
+  total?: number;
   createAction: (prev: FormState, fd: FormData) => Promise<FormState>;
   deleteAction: (id: string) => Promise<void>;
   editBase: string; // mis. "/suppliers"
@@ -36,6 +43,22 @@ export function ContactManager({
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [deleting, startDelete] = useTransition();
+  const pathname = usePathname();
+  const [q, setQ] = useState(query);
+  const [searching, startSearch] = useTransition();
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Saring instan di klien; setelah jeda mengetik, cari juga ke server (?q=) agar
+  // kontak di luar 200 baris yang dimuat tetap ketemu.
+  const shown = items.filter((c) => matchContact(c, q));
+
+  function onSearch(v: string) {
+    setQ(v);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      const t = v.trim();
+      startSearch(() => router.replace(t ? `${pathname}?q=${encodeURIComponent(t)}` : pathname, { scroll: false }));
+    }, 350);
+  }
 
   useEffect(() => {
     if (state?.ok) {
@@ -53,37 +76,42 @@ export function ContactManager({
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Tambah {noun}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form ref={formRef} action={action} className="grid gap-3 sm:grid-cols-2">
-            <Input name="name" placeholder={`Nama ${noun.toLowerCase()} *`} required />
-            <Input name="phone" placeholder="No. telepon" />
-            <Input name="email" type="email" placeholder="Email" />
-            <Input name="address" placeholder="Alamat" />
-            <div className="sm:col-span-2 flex items-center gap-3">
-              <Button type="submit" disabled={pending}>
-                {pending ? <Loader2 className="animate-spin" /> : <Plus />} Tambah
-              </Button>
-              {state?.message && (
-                <span className={state.ok ? "text-sm text-success" : "text-sm text-destructive"}>
-                  {state.message}
-                </span>
-              )}
-              {state?.errors?.email && (
-                <span className="text-sm text-destructive">{state.errors.email[0]}</span>
-              )}
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
       <Card className="overflow-x-auto">
-        {items.length === 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b p-3">
+          <div className="relative min-w-0 flex-[1_1_260px]">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="search"
+              value={q}
+              onChange={(e) => onSearch(e.target.value)}
+              placeholder={`Cari ${noun.toLowerCase()}: nama, No. HP, email, alamat…`}
+              aria-label={`Cari ${noun.toLowerCase()}`}
+              className="pl-9 pr-9"
+            />
+            {searching ? (
+              <Loader2 className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+            ) : q ? (
+              <button
+                type="button"
+                onClick={() => onSearch("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:bg-accent"
+                aria-label="Hapus pencarian"
+              >
+                <X className="size-4" />
+              </button>
+            ) : null}
+          </div>
+          <span className="text-xs text-muted-foreground">
+            {q.trim()
+              ? `${shown.length.toLocaleString("id-ID")} cocok${total != null && total > items.length ? ` (dari ${total.toLocaleString("id-ID")})` : ""}`
+              : total != null && total > items.length
+                ? `Menampilkan ${items.length} dari ${total.toLocaleString("id-ID")} — ketik untuk mencari`
+                : `${items.length.toLocaleString("id-ID")} ${noun.toLowerCase()}`}
+          </span>
+        </div>
+        {shown.length === 0 ? (
           <p className="p-8 text-center text-sm text-muted-foreground">
-            Belum ada {noun.toLowerCase()}.
+            {q.trim() ? (searching ? "Mencari…" : `Tidak ada ${noun.toLowerCase()} yang cocok dengan "${q.trim()}".`) : `Belum ada ${noun.toLowerCase()}.`}
           </p>
         ) : (
           <table className="w-full text-sm">
@@ -96,9 +124,13 @@ export function ContactManager({
               </tr>
             </thead>
             <tbody>
-              {items.map((c) => (
+              {shown.map((c) => (
                 <tr key={c.id} className="border-b last:border-0 hover:bg-muted/40">
-                  <td className="p-3 font-medium">{c.name}</td>
+                  <td className="p-3 font-medium">
+                    <Link href={`${editBase}/${c.id}/edit`} className="hover:text-primary hover:underline">
+                      {c.name}
+                    </Link>
+                  </td>
                   <td className="p-3 text-muted-foreground">
                     {c.phone || "—"}
                     {c.email ? <div className="text-xs">{c.email}</div> : null}
@@ -133,6 +165,33 @@ export function ContactManager({
           </table>
         )}
       </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Tambah {noun}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form ref={formRef} action={action} className="grid gap-3 sm:grid-cols-2">
+            <Input name="name" placeholder={`Nama ${noun.toLowerCase()} *`} required />
+            <Input name="phone" placeholder="No. telepon" />
+            <Input name="email" type="email" placeholder="Email" />
+            <Input name="address" placeholder="Alamat" />
+            <div className="sm:col-span-2 flex items-center gap-3">
+              <Button type="submit" disabled={pending}>
+                {pending ? <Loader2 className="animate-spin" /> : <Plus />} Tambah
+              </Button>
+              {state?.message && (
+                <span className={state.ok ? "text-sm text-success" : "text-sm text-destructive"}>
+                  {state.message}
+                </span>
+              )}
+              {state?.errors?.email && (
+                <span className="text-sm text-destructive">{state.errors.email[0]}</span>
+              )}
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
     </div>
   );
 }
