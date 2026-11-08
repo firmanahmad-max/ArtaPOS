@@ -354,6 +354,11 @@ export default async function MemberPortalPage({
                         {w.status === "ACTIVE" && w.daysLeft !== null ? ` · ${w.daysLeft} hari lagi` : ""}
                       </p>
                     )}
+                    {w.publicToken && (
+                      <Link href={`/garansi/${w.publicToken}`} className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+                        <ShieldCheck className="size-3.5" /> Kartu garansi digital
+                      </Link>
+                    )}
                   </div>
                   <Badge variant={meta.variant}>{meta.label}</Badge>
                 </div>

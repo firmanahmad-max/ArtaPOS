@@ -1,9 +1,14 @@
 import "server-only";
+import { cache } from "react";
+import { randomBytes } from "node:crypto";
 import { db } from "@/lib/db";
+import { isWarrantyToken } from "@/lib/warranty-card";
 import { formatLocalDate } from "@/lib/timezone";
 import type { WarrantyRegisterInput } from "@/lib/validations/warranty";
 
-/** Service Garansi & Nomor Seri — ter-scope tenantId. */
+/** Service Garansi & Nomor Seri — ter-scope tenantId (admin) atau token (kartu publik). */
+
+const newToken = () => randomBytes(18).toString("base64url"); // 144-bit, ringkas utk QR
 
 export function listProductsForWarranty(tenantId: string) {
   return db.product.findMany({
@@ -48,12 +53,14 @@ export async function registerWarranty(
       warrantyUntil,
       note: input.note || null,
       createdById: userId,
+      publicToken: newToken(), // kartu garansi digital langsung siap
     },
   });
 }
 
 export interface WarrantyRow {
   id: string;
+  cardViews: number;
   productName: string;
   serialNumber: string;
   customerName: string | null;
@@ -100,6 +107,7 @@ export async function listWarranties(tenantId: string, search?: string): Promise
     const d = warrantyDisplayStatus(r.status, r.warrantyUntil, now);
     return {
       id: r.id,
+      cardViews: r.cardViews,
       productName: r.productName,
       serialNumber: r.serialNumber,
       customerName: r.customerName,
@@ -127,4 +135,125 @@ export async function claimWarranty(tenantId: string, id: string, note?: string)
   const stamp = formatLocalDate(new Date());
   const merged = [w.note, note ? `[Klaim ${stamp}] ${note}` : `[Klaim ${stamp}]`].filter(Boolean).join(" • ");
   return db.warrantyUnit.update({ where: { id }, data: { status: "CLAIMED", note: merged } });
+}
+
+// ── Garansi Digital + QR ────────────────────────────────────────────────────
+
+/** Pastikan unit-unit punya token kartu publik (dibuat malas; aman balapan). */
+export async function ensureWarrantyTokens(tenantId: string, ids: string[]): Promise<Map<string, string>> {
+  const rows = await db.warrantyUnit.findMany({
+    where: { tenantId, id: { in: [...new Set(ids)] } },
+    select: { id: true, publicToken: true },
+  });
+  const out = new Map<string, string>();
+  for (const r of rows) {
+    if (r.publicToken) {
+      out.set(r.id, r.publicToken);
+      continue;
+    }
+    const token = newToken();
+    const u = await db.warrantyUnit.updateMany({ where: { id: r.id, publicToken: null }, data: { publicToken: token } });
+    if (u.count) out.set(r.id, token);
+    else {
+      const again = await db.warrantyUnit.findUnique({ where: { id: r.id }, select: { publicToken: true } });
+      if (again?.publicToken) out.set(r.id, again.publicToken);
+    }
+  }
+  return out;
+}
+
+export interface WarrantyCardUnit {
+  id: string;
+  token: string;
+  productName: string;
+  serialNumber: string;
+  customerName: string | null;
+  customerPhone: string | null;
+  saleNumber: string | null;
+  soldAt: Date;
+  warrantyMonths: number;
+  warrantyUntil: Date | null;
+  status: WarrantyRow["status"];
+  cardViews: number;
+}
+
+/**
+ * Unit untuk kartu/stiker cetak: berdasar daftar id ATAU no. invoice (semua unit
+ * satu penjualan). Maks 60 unit. Token dibuat bila belum ada.
+ */
+export async function listWarrantyCards(
+  tenantId: string,
+  by: { ids?: string[]; saleNumber?: string },
+): Promise<WarrantyCardUnit[]> {
+  const where =
+    by.saleNumber
+      ? { tenantId, saleNumber: by.saleNumber }
+      : { tenantId, id: { in: (by.ids ?? []).slice(0, 60) } };
+  const rows = await db.warrantyUnit.findMany({ where, orderBy: { createdAt: "asc" }, take: 60 });
+  if (!rows.length) return [];
+  const tokens = await ensureWarrantyTokens(tenantId, rows.map((r) => r.id));
+  const custIds = [...new Set(rows.map((r) => r.customerId).filter((v): v is string => !!v))];
+  const phones = custIds.length
+    ? new Map(
+        (await db.customer.findMany({ where: { tenantId, id: { in: custIds } }, select: { id: true, phone: true } })).map(
+          (c) => [c.id, c.phone],
+        ),
+      )
+    : new Map<string, string | null>();
+  const now = Date.now();
+  return rows
+    .filter((r) => tokens.has(r.id))
+    .map((r) => ({
+      id: r.id,
+      token: tokens.get(r.id)!,
+      productName: r.productName,
+      serialNumber: r.serialNumber,
+      customerName: r.customerName,
+      customerPhone: r.customerId ? (phones.get(r.customerId) ?? null) : null,
+      saleNumber: r.saleNumber,
+      soldAt: r.soldAt,
+      warrantyMonths: r.warrantyMonths,
+      warrantyUntil: r.warrantyUntil,
+      status: warrantyDisplayStatus(r.status, r.warrantyUntil, now).status,
+      cardViews: r.cardViews,
+    }));
+}
+
+/** Data kartu garansi PUBLIK (/garansi/<token>) — tanpa No. HP / data internal. */
+export const getPublicWarranty = cache(async (token: string) => {
+  if (!isWarrantyToken(token)) return null;
+  const w = await db.warrantyUnit
+    .findUnique({
+      where: { publicToken: token },
+      select: {
+        id: true,
+        tenantId: true,
+        productName: true,
+        serialNumber: true,
+        customerName: true,
+        saleNumber: true,
+        soldAt: true,
+        warrantyMonths: true,
+        warrantyUntil: true,
+        status: true,
+        tenant: { select: { name: true, slug: true, logo: true, phone: true, address: true, isActive: true, updatedAt: true } },
+        rmaClaims: {
+          orderBy: { sentAt: "desc" },
+          take: 5,
+          select: { number: true, status: true, resolution: true, sentAt: true, receivedAt: true, replacementSn: true },
+        },
+      },
+    })
+    .catch(() => null);
+  if (!w || !w.tenant.isActive) return null;
+  return { ...w, display: warrantyDisplayStatus(w.status, w.warrantyUntil, Date.now()) };
+});
+
+/** +1 kunjungan kartu (beacon; sekali per sesi browser). */
+export async function recordWarrantyCardView(token: string) {
+  if (!isWarrantyToken(token)) return;
+  await db.warrantyUnit.updateMany({
+    where: { publicToken: token },
+    data: { cardViews: { increment: 1 }, cardLastViewedAt: new Date() },
+  });
 }

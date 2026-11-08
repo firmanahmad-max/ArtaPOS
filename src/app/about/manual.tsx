@@ -350,13 +350,18 @@ const SECTIONS: Section[] = [
   },
   {
     icon: ShieldCheck,
-    title: "Garansi & Nomor Seri",
-    desc: "Daftarkan unit ber-nomor seri dan lacak masa garansinya.",
+    title: "Garansi & Nomor Seri + Kartu Garansi Digital (QR)",
+    desc: "Daftarkan unit ber-nomor seri, lacak masa garansinya, dan beri pelanggan kartu garansi digital ber-QR pengganti nota.",
     steps: [
       "Daftarkan Garansi: pilih produk, isi nomor seri, pelanggan, dan masa garansi.",
       "Daftar unit menampilkan status Aktif/Kedaluwarsa/Diklaim; cari via nomor seri/produk/pelanggan.",
+      "Tombol \"Kartu & QR\": cetak kartu garansi ukuran kartu ATM (85×54 mm) atau stiker QR 50×30 mm untuk ditempel di unit/dus — atur jumlah salinan lalu Cetak.",
+      "Kirim kartu digital ke pelanggan via WhatsApp (tombol WA). Bila satu invoice berisi beberapa unit, klik \"<no. invoice> · semua kartu\" untuk mencetak/mengirim semuanya sekaligus.",
+      "Pelanggan cukup scan QR: tampil status garansi, sisa masa garansi, tanggal beli, riwayat klaim ke distributor, dan tombol \"Ajukan klaim via WhatsApp\" yang sudah berisi produk & SN. QR palsu/salah otomatis menampilkan \"tidak terdaftar\".",
+      "Kolom No. Seri menampilkan \"kartu dibuka N×\" — tanda pelanggan memakai kartunya. Kartu juga tertaut dari Portal Member.",
       "Tombol Klaim untuk menandai unit diklaim; tombol RMA untuk mengirim unit ke distributor.",
     ],
+    example: "Jual SSD ber-SN → daftarkan garansi 3 tahun → cetak stiker QR & tempel di dus, kirim kartu digital via WA → 1 tahun kemudian pelanggan scan QR, melihat sisa garansi 2 tahun, lalu tekan \"Ajukan klaim\".",
   },
   {
     icon: PackageOpen,

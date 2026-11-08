@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ShieldCheck, Shield, ShieldX, Award, PackageOpen } from "lucide-react";
+import { ShieldCheck, Shield, ShieldX, Award, PackageOpen, QrCode } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { listWarranties, listProductsForWarranty } from "@/server/warranty/service";
@@ -45,7 +45,10 @@ export default async function WarrantyPage({
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Garansi & Nomor Seri</h1>
-        <p className="text-muted-foreground">Daftarkan unit ber-nomor seri & lacak masa garansi.</p>
+        <p className="text-muted-foreground">
+          Daftarkan unit ber-nomor seri & lacak masa garansi. Tiap unit punya <b>kartu garansi digital</b> — cetak kartu/stiker QR
+          atau kirim via WhatsApp agar pelanggan tak perlu menyimpan nota.
+        </p>
       </div>
 
       {/* Ringkasan KPI */}
@@ -94,9 +97,27 @@ export default async function WarrantyPage({
                 const s = STATUS[u.status] ?? STATUS.ACTIVE;
                 return (
                   <tr key={u.id} className="border-b last:border-0 hover:bg-muted/40">
-                    <td className="p-3 font-mono text-xs">{u.serialNumber}</td>
+                    <td className="p-3 font-mono text-xs">
+                      {u.serialNumber}
+                      {u.cardViews > 0 && (
+                        <span className="mt-0.5 block font-sans text-[10.5px] text-muted-foreground" title="Kartu garansi digital dibuka pelanggan">
+                          kartu dibuka {u.cardViews}×
+                        </span>
+                      )}
+                    </td>
                     <td className="p-3">{u.productName}</td>
-                    <td className="p-3 text-muted-foreground">{u.customerName || "Umum"}</td>
+                    <td className="p-3 text-muted-foreground">
+                      {u.customerName || "Umum"}
+                      {u.saleNumber && (
+                        <Link
+                          href={`/warranty/kartu?sale=${encodeURIComponent(u.saleNumber)}`}
+                          className="block text-[11px] text-primary hover:underline"
+                          title="Cetak/kirim kartu garansi semua unit di invoice ini"
+                        >
+                          {u.saleNumber} · semua kartu
+                        </Link>
+                      )}
+                    </td>
                     <td className="p-3 text-muted-foreground">
                       {u.warrantyUntil
                         ? formatLocalDate(u.warrantyUntil, { dateStyle: "medium" })
@@ -108,6 +129,13 @@ export default async function WarrantyPage({
                     <td className="p-3 text-center"><Badge variant={s.variant}>{s.label}</Badge></td>
                     <td className="p-3 text-right">
                       <span className="inline-flex items-center gap-1">
+                        <Link
+                          href={`/warranty/kartu?ids=${u.id}`}
+                          className={buttonVariants({ variant: "outline", size: "sm" })}
+                          title="Kartu garansi digital: cetak kartu/stiker QR atau kirim via WhatsApp"
+                        >
+                          <QrCode /> Kartu &amp; QR
+                        </Link>
                         <Link
                           href={`/rma/new?wu=${u.id}`}
                           className={buttonVariants({ variant: "outline", size: "sm" })}

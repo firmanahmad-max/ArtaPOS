@@ -194,7 +194,7 @@ export const getPortalData = cache(async function getPortalData(token: string) {
       where: { tenantId, customerId },
       orderBy: { createdAt: "desc" },
       take: 50,
-      select: { id: true, productName: true, serialNumber: true, warrantyUntil: true, status: true, createdAt: true },
+      select: { id: true, productName: true, serialNumber: true, warrantyUntil: true, status: true, createdAt: true, publicToken: true },
     }),
     db.consignment.findMany({
       where: { tenantId, customerId },

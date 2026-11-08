@@ -60,6 +60,30 @@ export function buildServiceStatusText(args: {
   return lines.join("\n");
 }
 
+/** Kirim kartu garansi digital ke pelanggan (link /garansi/<token>). */
+export function buildWarrantyCardText(args: {
+  storeName: string;
+  customerName?: string | null;
+  units: { productName: string; serialNumber: string; untilText: string | null; url: string }[];
+}): string {
+  const hi = args.customerName ? `Halo Kak ${args.customerName.split(/\s+/)[0]},` : "Halo Kak,";
+  const lines = [
+    `${hi} berikut *kartu garansi digital* pembelian Anda di *${args.storeName}* 🛡️`,
+    "",
+  ];
+  for (const u of args.units) {
+    lines.push(`• *${u.productName}*`);
+    lines.push(`  SN: ${u.serialNumber}${u.untilText ? ` · garansi s/d ${u.untilText}` : ""}`);
+    lines.push(`  ${u.url}`);
+  }
+  lines.push(
+    "",
+    "Simpan pesan ini — tak perlu khawatir nota hilang. Cek status garansi & ajukan klaim langsung dari link di atas.",
+    "Terima kasih 🙏",
+  );
+  return lines.join("\n");
+}
+
 /** Pesan ajakan yang dibagikan member ke temannya (Program Ajak Teman). */
 export function buildReferralShareText(args: {
   storeName: string;

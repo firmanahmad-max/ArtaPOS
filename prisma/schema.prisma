@@ -1228,6 +1228,10 @@ model WarrantyUnit {
   note           String?
   createdById    String?
   createdAt      DateTime       @default(now())
+  /// Garansi Digital: token link publik /garansi/<token> (QR di kartu/stiker), dibuat malas.
+  publicToken      String?   @unique
+  cardViews        Int       @default(0) // berapa kali kartu digital dibuka (sekali per sesi)
+  cardLastViewedAt DateTime?
 
   tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   rmaClaims RmaClaim[]
