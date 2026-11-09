@@ -5,7 +5,8 @@ import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { toFieldErrors, type FormState } from "@/lib/form";
 import { warrantyRegisterSchema } from "@/lib/validations/warranty";
-import { registerWarranty, claimWarranty } from "@/server/warranty/service";
+import { redirect } from "next/navigation";
+import { registerWarranty, claimWarranty, updateWarranty, deleteWarranty } from "@/server/warranty/service";
 
 const NO_PERM = "Anda tidak punya izin mengelola garansi.";
 
@@ -17,11 +18,8 @@ function friendly(e: unknown): string {
   return msg || "Terjadi kesalahan.";
 }
 
-export async function registerWarrantyAction(_prev: FormState, formData: FormData): Promise<FormState> {
-  const user = await getCurrentUser();
-  if (!can(user.role, "inventory.manage")) return { message: NO_PERM };
-
-  const parsed = warrantyRegisterSchema.safeParse({
+function parseForm(formData: FormData) {
+  return warrantyRegisterSchema.safeParse({
     productId: formData.get("productId") || undefined,
     productName: formData.get("productName"),
     serialNumber: formData.get("serialNumber"),
@@ -32,6 +30,12 @@ export async function registerWarrantyAction(_prev: FormState, formData: FormDat
     warrantyMonths: formData.get("warrantyMonths") ?? 0,
     note: formData.get("note") || undefined,
   });
+}
+
+export async function registerWarrantyAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await getCurrentUser();
+  if (!can(user.role, "inventory.manage")) return { message: NO_PERM };
+  const parsed = parseForm(formData);
   if (!parsed.success) return { errors: toFieldErrors(parsed.error) };
 
   try {
@@ -50,6 +54,32 @@ export async function claimWarrantyAction(id: string, note: string): Promise<{ o
     await claimWarranty(user.tenantId, id, note || undefined);
     revalidatePath("/warranty");
     return { ok: true };
+  } catch (e) {
+    return { ok: false, message: friendly(e) };
+  }
+}
+
+export async function updateWarrantyAction(id: string, _prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await getCurrentUser();
+  if (!can(user.role, "inventory.manage")) return { message: NO_PERM };
+  const parsed = parseForm(formData);
+  if (!parsed.success) return { errors: toFieldErrors(parsed.error) };
+  try {
+    await updateWarranty(user.tenantId, id, parsed.data);
+  } catch (e) {
+    return { message: friendly(e) };
+  }
+  revalidatePath("/warranty");
+  redirect("/warranty");
+}
+
+export async function deleteWarrantyAction(id: string): Promise<{ ok: boolean; message?: string }> {
+  const user = await getCurrentUser();
+  if (!can(user.role, "inventory.manage")) return { ok: false, message: NO_PERM };
+  try {
+    await deleteWarranty(user.tenantId, id);
+    revalidatePath("/warranty");
+    return { ok: true, message: "Unit garansi dihapus." };
   } catch (e) {
     return { ok: false, message: friendly(e) };
   }

@@ -14,6 +14,13 @@ interface ConfirmDialogProps {
   confirmText?: string;
   cancelText?: string;
   destructive?: boolean;
+  /** Isi tambahan (mis. ringkasan data yang akan disimpan). */
+  children?: React.ReactNode;
+  /**
+   * Fokus otomatis ke tombol konfirmasi (default true). Set false bila Enter dari
+   * scanner barcode bisa tak sengaja mengonfirmasi.
+   */
+  autoFocusConfirm?: boolean;
 }
 
 /** Dialog konfirmasi sederhana (tanpa Radix) — overlay + kartu terpusat. */
@@ -26,6 +33,8 @@ export function ConfirmDialog({
   confirmText = "Lanjutkan",
   cancelText = "Batal",
   destructive,
+  children,
+  autoFocusConfirm = true,
 }: ConfirmDialogProps) {
   useEffect(() => {
     if (!open) return;
@@ -65,6 +74,7 @@ export function ConfirmDialog({
             )}
           </div>
         </div>
+        {children && <div className="mt-4">{children}</div>}
         <div className="mt-5 flex justify-end gap-2">
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
             {cancelText}
@@ -72,7 +82,7 @@ export function ConfirmDialog({
           <Button
             variant={destructive ? "destructive" : "default"}
             size="sm"
-            autoFocus
+            autoFocus={autoFocusConfirm}
             onClick={() => {
               onOpenChange(false);
               onConfirm();

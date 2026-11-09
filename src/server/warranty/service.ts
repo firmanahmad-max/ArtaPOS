@@ -58,6 +58,60 @@ export async function registerWarranty(
   });
 }
 
+/** Data satu unit untuk form ubah (ter-scope tenant). */
+export function getWarranty(tenantId: string, id: string) {
+  return db.warrantyUnit.findFirst({
+    where: { id, tenantId },
+    include: { rmaClaims: { select: { number: true }, take: 5 } },
+  });
+}
+
+/**
+ * Ubah data unit (salah ketik SN/produk/masa garansi, dll.). Tanggal berakhir
+ * dihitung ulang dari tanggal jual + masa garansi. Status (Diklaim/Batal) tetap.
+ */
+export async function updateWarranty(tenantId: string, id: string, input: WarrantyRegisterInput) {
+  const cur = await db.warrantyUnit.findFirst({ where: { id, tenantId }, select: { id: true, soldAt: true } });
+  if (!cur) throw new Error("Data garansi tidak ditemukan.");
+  const soldAt = input.soldAt ? new Date(input.soldAt) : cur.soldAt;
+  let customerName = input.customerName || null;
+  if (input.customerId) {
+    const c = await db.customer.findFirst({ where: { id: input.customerId, tenantId }, select: { name: true } });
+    if (c) customerName = c.name;
+  }
+  return db.warrantyUnit.update({
+    where: { id: cur.id },
+    data: {
+      productId: input.productId ?? null,
+      productName: input.productName,
+      serialNumber: input.serialNumber,
+      saleNumber: input.saleNumber || null,
+      customerId: input.customerId ?? null,
+      customerName,
+      soldAt,
+      warrantyMonths: input.warrantyMonths,
+      warrantyUntil: input.warrantyMonths > 0 ? addMonths(soldAt, input.warrantyMonths) : null,
+      note: input.note || null,
+    },
+  });
+}
+
+/**
+ * Hapus unit (mis. salah scan). Ditolak bila sudah punya klaim RMA (jejak audit
+ * ke distributor) — tandai Klaim/biarkan saja. Kartu digital/QR-nya ikut tak berlaku.
+ */
+export async function deleteWarranty(tenantId: string, id: string) {
+  const w = await db.warrantyUnit.findFirst({
+    where: { id, tenantId },
+    select: { id: true, _count: { select: { rmaClaims: true } } },
+  });
+  if (!w) throw new Error("Data garansi tidak ditemukan.");
+  if (w._count.rmaClaims > 0) {
+    throw new Error("Unit ini sudah punya klaim RMA ke distributor, jadi tidak bisa dihapus (riwayat klaim harus tetap ada).");
+  }
+  await db.warrantyUnit.delete({ where: { id: w.id } });
+}
+
 export interface WarrantyRow {
   id: string;
   cardViews: number;

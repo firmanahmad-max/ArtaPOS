@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ShieldCheck, Shield, ShieldX, Award, PackageOpen, QrCode } from "lucide-react";
+import { ShieldCheck, Shield, ShieldX, Award, PackageOpen, QrCode, Pencil } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { can } from "@/lib/rbac";
 import { listWarranties, listProductsForWarranty } from "@/server/warranty/service";
@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
-import { RegisterWarrantyForm, WarrantySearch, ClaimButton } from "./warranty-client";
+import { RegisterWarrantyForm, WarrantySearch, ClaimButton, DeleteWarrantyButton } from "./warranty-client";
 import { formatLocalDate } from "@/lib/timezone";
 
 export const metadata: Metadata = { title: "Garansi" };
@@ -144,6 +144,15 @@ export default async function WarrantyPage({
                           <PackageOpen /> RMA
                         </Link>
                         {u.status !== "CLAIMED" && u.status !== "VOID" && <ClaimButton id={u.id} />}
+                        <Link
+                          href={`/warranty/${u.id}/edit`}
+                          className={buttonVariants({ variant: "ghost", size: "sm" })}
+                          title="Ubah data garansi"
+                          aria-label="Ubah"
+                        >
+                          <Pencil />
+                        </Link>
+                        <DeleteWarrantyButton id={u.id} label={`${u.productName} · ${u.serialNumber}`} />
                       </span>
                     </td>
                   </tr>

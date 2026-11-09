@@ -353,7 +353,8 @@ const SECTIONS: Section[] = [
     title: "Garansi & Nomor Seri + Kartu Garansi Digital (QR)",
     desc: "Daftarkan unit ber-nomor seri, lacak masa garansinya, dan beri pelanggan kartu garansi digital ber-QR pengganti nota.",
     steps: [
-      "Daftarkan Garansi: pilih produk, isi nomor seri, pelanggan, dan masa garansi.",
+      "Daftarkan Garansi: pilih produk, isi/scan nomor seri, pelanggan, dan masa garansi, lalu tekan Daftarkan Garansi dan periksa ringkasan di dialog konfirmasi. Scanner barcode TIDAK langsung menyimpan (Enter hanya pindah ke kolom berikutnya).",
+      "Salah daftar? Ikon pensil untuk mengubah (tanggal berakhir dihitung ulang, QR tetap sama) dan ikon tempat sampah untuk menghapus. Unit yang sudah punya klaim RMA tidak bisa dihapus.",
       "Daftar unit menampilkan status Aktif/Kedaluwarsa/Diklaim; cari via nomor seri/produk/pelanggan.",
       "Tombol \"Kartu & QR\": cetak kartu garansi ukuran kartu ATM (85×54 mm) atau stiker QR 50×30 mm untuk ditempel di unit/dus — atur jumlah salinan lalu Cetak.",
       "Kirim kartu digital ke pelanggan via WhatsApp (tombol WA). Bila satu invoice berisi beberapa unit, klik \"<no. invoice> · semua kartu\" untuk mencetak/mengirim semuanya sekaligus.",
